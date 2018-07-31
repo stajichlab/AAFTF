@@ -5,7 +5,7 @@ import re
 from subprocess import CalledProcessError, check_output
 
 
-PREFIX = ''
+PREFIX = 'v'
 
 tag_re = re.compile(r'\btag: %s([0-9][^,]*)\b' % PREFIX)
 version_re = re.compile('^Version: (.+)$', re.M)
