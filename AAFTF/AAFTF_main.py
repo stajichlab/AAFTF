@@ -17,6 +17,20 @@ myversion = __version__
 def run_subtool(parser, args):
     if args.command == 'trim':
         import trim as submodule
+    elif args.command == 'purge':
+        import purge as submodule
+    elif args.command == 'assemble':
+        import assemble as submodule
+    elif args.command == 'vecscreen':
+        import vecscreen as submodule
+    elif args.command == 'blobpurge':
+        import blobpurge as submodule
+    elif args.command == 'busco':
+        import busco as submodule
+    elif args.command == 'rmdup':
+        import rmdup as submodule
+    elif args.command == 'pilon':
+        import pilon as submodule
 
 
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
@@ -45,7 +59,7 @@ def main():
     #########################################
 
     ##########
-    # combine
+    # trim
     ##########
     parser_trim = subparsers.add_parser('trim',
                                         help='Trim FASTQ input reads and Filter against known or defined contaminant library')
@@ -61,6 +75,20 @@ def main():
                             metavar='reverse-reads',
                             required=True,
                             help='The name of the reverse reads of paired-end FASTQ formatted reads.')
+
+    parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                            help="Number of CPUs/threads to use.")elp="Temporary directory to store datafiles and processes in")
+    ##########
+    # purge
+    ##########
+    parser_trim.add_argument('-a','--screen_accession',type=str,nargs="+",
+                            metavar='screening_accession',
+                            required=False,
+                            help="Genbank accession number(s) to screen out from initial reads.")
+    parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                            help="Number of CPUs/threads to use.")
+    parser_trim.add_argument('--tmpdir',type=str,metavar='tmpdir',required=False,
+                            help="Temporary directory to store datafiles and processes in")
 
 
     ### process args now ### 
