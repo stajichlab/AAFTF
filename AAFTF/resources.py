@@ -8,4 +8,7 @@ DB_Links = {'UniVec': 'ftp://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec',
         'Mito': 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/mito.nt.gz',
         }
 
+Applications = {'megablast': 'blastn',
+                'trimmomatic': 'java -jar %s',
+                }
 

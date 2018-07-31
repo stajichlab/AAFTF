@@ -9,29 +9,31 @@ import argparse
 import logging
 logger = logging.getLogger('AAFTF')
 
+
 # AAFTF imports
-from AAFTF import version
 from AAFTF.version import __version__
 myversion = __version__
 
 def run_subtool(parser, args):
     if args.command == 'trim':
-        import trim as submodule
+        import AAFTF.trim as submodule
     elif args.command == 'purge':
-        import purge as submodule
+        import AAFTF.purge as submodule
     elif args.command == 'assemble':
-        import assemble as submodule
+        import AAFTF.assemble as submodule
     elif args.command == 'vecscreen':
-        import vecscreen as submodule
+        import AAFTF.vecscreen as submodule
     elif args.command == 'blobpurge':
-        import blobpurge as submodule
+        import AAFTF.blobpurge as submodule
     elif args.command == 'busco':
-        import busco as submodule
+        import AAFTF.busco as submodule
     elif args.command == 'rmdup':
-        import rmdup as submodule
+        import AAFTF.rmdup as submodule
     elif args.command == 'pilon':
-        import pilon as submodule
+        import AAFTF.pilon as submodule
 
+    # run the chosen submodule.
+    submodule.run(parser, args)
 
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -61,34 +63,106 @@ def main():
     ##########
     # trim
     ##########
+    # arguments
+    # --trimmomatic or --sickle: arguments are path to JAR or application respectively
+    # assume java is PATH already for trimmomatic
+    # -c / --cpus: CPUs [default=1]
+    # -o / --outdir: write outdir
+    # -p / --prefix: outfile prefix
+    # -ml / --minlength: min read length
+    
+    # --tmpdir: temporary directory to write tmp files [optional]
+    # read info, either paired data are required or singleton
+    # --left: left or forward reads
+    # --right: right or reverse reads
+    # currently singleton / unpaired reads not supported?
+    
     parser_trim = subparsers.add_parser('trim',
-                                        help='Trim FASTQ input reads and Filter against known or defined contaminant library')
-    # perhaps write this separately for singleton/unpaired read sets
-    parser_trim.add_argument('--forward',type=str,nargs="+",
-                              #aliases=['fwd','1'],
-                              metavar='forward-reads',
-                              required=True,
-                              help='The name of the forward reads of paired-end FASTQ formatted reads.')
-
-    parser_trim.add_argument('--reverse',type=str,nargs="+",
-                            #aliases=['rev','2'],
-                            metavar='reverse-reads',
-                            required=True,
-                            help='The name of the reverse reads of paired-end FASTQ formatted reads.')
-
+       description="Trim FASTQ reads",
+       help='Trim FASTQ input reads')
+ 
     parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
-                            help="Number of CPUs/threads to use.")elp="Temporary directory to store datafiles and processes in")
+                              help="Number of CPUs/threads to use.")
+    
+    parser_trim.add_argument('--tmpdir',type=str,
+                             required=False,
+    help="Temporary directory to store datafiles and processes in")
+
+    parser_trim.add_argument('-o','--outdir',type=str,
+                             required=False,
+    help="Output directory for trimmed reads")
+
+    parser_trim.add_argument('-p','--prefix',type=str,
+                             required=False,
+                             help="Output Prefix")
+
+    parser_trim.add_argument('-ml','--minlength',type=int,
+                             default=75,
+                             required=False,
+                             help="Minimum read length after trimming, default: 75")
+
+    tool_group = parser_trim.add_mutually_exclusive_group(required=True)
+
+    tool_group.add_argument('--trimmomatic','--jar', metavar='trimmomatic_jar',
+                            type=str,required=False,
+                            help='Trimmomatic JAR path')
+    
+    tool_group.add_argument('--sickle',type=str,
+                            required=False,
+                            nargs="?",
+                            const='1',
+                            default='0',
+        help="Use sickle program for read processing (specify path to prog if not in PATH already)")
+    
+    trimmomatic_group = parser_trim.add_argument_group(title='Trimmomatic options',
+                                              description="Trimmomatic trimming options")
+
+    trimmomatic_group.add_argument('--trimmomatic_adaptors',
+                                   default="TruSeq3-PE.fa",
+                                   help="Trimmomatic adaptor file, default: TruSeq3-PE.fa")
+
+    trimmomatic_group.add_argument('--trimmomatic_clip',
+                                   default="ILLUMINACLIP:TruSeq3-PE.fa:2:30:10",
+                                   help="Trimmomatic clipping, default: ILLUMINACLIP:TruSeq3-PE.fa:2:30:10")
+
+    trimmomatic_group.add_argument('--trimmomatic_window',
+                                   default="LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15",
+                                   help="Trimmomatic window processing arguments, default: LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15")
+    
+    
+    paired_reads = parser_trim.add_argument_group(title='Paired Reads',
+                                                  description="Paired Read FASTQ files")
+    
+    paired_reads.add_argument('--left',type=str,nargs="+",
+                              required=False,
+            help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
+
+    paired_reads.add_argument('--right',type=str,nargs="+",
+                              required=False,
+            help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
+
+    # perhaps write this separately for singleton/unpaired read sets
+    parser_trim.add_argument('--single',type=str,nargs="+",
+                             required=False,
+    help='The name of the reverse reads of paired-end FASTQ formatted reads.')
+
     ##########
     # purge
     ##########
-    parser_trim.add_argument('-a','--screen_accession',type=str,nargs="+",
-                            metavar='screening_accession',
+    # arguments
+    # 
+    parser_purge = subparsers.add_parser('purge',
+       description="Purge reads which match contaminant databases such as phiX",
+       help='Purge contaminanting reads')
+
+    parser_purge.add_argument('-a','--screen_accessions',type=str,nargs="+",
+                            metavar='accessions',
                             required=False,
                             help="Genbank accession number(s) to screen out from initial reads.")
-    parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
-                            help="Number of CPUs/threads to use.")
-    parser_trim.add_argument('--tmpdir',type=str,metavar='tmpdir',required=False,
-                            help="Temporary directory to store datafiles and processes in")
+    parser_purge.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                              help="Number of CPUs/threads to use.")
+    parser_purge.add_argument('--tmpdir',type=str,metavar='tmpdir',required=False,
+                              help="Temporary directory to store datafiles and processes in")
 
 
     ### process args now ### 
