@@ -9,8 +9,29 @@ Requirements
 - Pilon - https://github.com/broadinstitute/pilon/wiki
 - BlobTools - https://blobtools.readme.io/ or https://github.com/DRL/blobtools
 - NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/
+- bwa - https://github.com/lh3/bwa
+- BUSCO - https://busco.ezlab.org/
+- funannotate - https://github.com/nextgenusfs/funannotate 
+- minimap2 - https://github.com/lh3/minimap2
 
 Contributors
 ============
 @hyphaltip
 @nextgenusfs
+
+Notes
+===========
+This is partially a python re-write of JAAWS - https://github.com/nextgenusfs/jaaws which was a unix shell 
+
+
+Steps / Procedures
+==================
+1. trim - Read Trimmimg (Trimmomatic)
+2. purge - Contaminant read purging - Bowtie2 matches to common contaminant (or user defined) datasets
+3. assemble - Assembly (SPAdes)
+4. vecscreen - Vector cleaning (BLAST vectorscreening against UniVec database)
+5. blobpurge - BlobTools removal of contaminanted contigs/scaffolds
+6. busco - BUSCO runs for summary statistics of gene content
+7. rmdup - Funannotate clean for duplicated contig removal
+8. pilon - Pilon for read-based assembly polishing
+
