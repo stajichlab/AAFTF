@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger('AAFTF')
 
 # AAFTF imports
-import AAFTF.version
+from AAFTF import version
 
 def run_subtool(parser, args):
     if args.command == 'trim':
