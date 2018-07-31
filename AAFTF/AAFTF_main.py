@@ -62,14 +62,11 @@ def main():
                             required=True,
                             help='The name of the reverse reads of paired-end FASTQ formatted reads.')
 
-    parser_trim.set_defaults(command=run_subtool)
 
+    ### process args now ### 
+    parser.set_defaults(func=run_subtool)
     args = parser.parse_args()
     
-    # this needs to go to the sub-prog args?
-
-    print(args)
-
     if args.quiet:
         logger.setLevel(logging.ERROR)
     try:
