@@ -1,0 +1,4 @@
+#!/usr/bin/env python3 -E
+import AAFTF.scripts
+import AAFTF.AAFTF_main
+main()
