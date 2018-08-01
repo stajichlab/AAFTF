@@ -7,23 +7,16 @@ logger = logging.getLogger('AAFTF')
 
 def run(parser,args):
     
-
+    prefix  = args.prefix
+    if not args.outdir:
+        args.outdir = dirname(args.left)
+        
     if args.trimmomatic:
-        jarfile = args.trimmomatic
-        path_to_adaptors=args.trimmomatic_adaptors
-        clip    = args.trimmomatic_clip
-        leadingwindow   = "LEADING:%d"%(args.trimmomatic_leadingwindow)
-        trailingwindow  = "TRAILING:%d"%(args.trimmomatic_trailingwindow)
-        slidingwindow   = "SLIDINGWINDOW:%s"%(args.trimmomatic_slidingwindow)
-        minlen  = "MINLEN:%d" %(args.minlength)
-        cpus    = args.cpus
-
-        left    = args.left
-        right   = args.right
-        single  = args.single
-
-        prefix  = args.prefix
-        outdir  = args.outdir
+        jarfile          = args.trimmomatic
+        path_to_adaptors = args.trimmomatic_adaptors
+        leadingwindow    = "LEADING:%d"%(args.trimmomatic_leadingwindow)
+        trailingwindow   = "TRAILING:%d"%(args.trimmomatic_trailingwindow)
+        slidingwindow    = "SLIDINGWINDOW:%s"%(args.trimmomatic_slidingwindow)
 
         quality = args.trimmomatic_quality
         quality = "-%s" % (quality) # add leading dash
@@ -39,28 +32,55 @@ def run(parser,args):
             logger.info("Cannot find adaptors file, please specify manually")
             return
         
-        clipstr = clip % (path_to_adaptors)
+        clipstr = args.trimmomatic_clip % (path_to_adaptors)
 
         
         cmd = []
         
-        if left and right:
+        if args.left and args.right:
             cmd = ['java', '-jar', jarfile, 'PE',
-                   '-threads',str(cpus),quality,
-                   left,right,'-baseout', os.path.join(outdir,prefix),
-                   clipstr, leadingwindow, trailingwindow,slidingwindow,minlen ]
-        elif single:
+                   '-threads',str(args.cpus),quality,
+                   args.left,args.right,'-baseout',
+                   os.path.join(args.outdir,prefix),
+                   clipstr, leadingwindow, trailingwindow,slidingwindow,
+                   "MINLEN:%d" %(args.minlength) ]
+        elif args.single:
             cmd = ['java', '-jar', jarfile, 'SE',
-                   '-threads',str(cpus),
-                   quality,  single,
-                   '-baseout', os.path.join(outdir,prefix),
-                   clipstr, leadingwindow, trailingwindow,slidingwindow,minlen ]
-            
+                   '-threads',str(args.cpus),
+                   quality,  args.single,
+                   '-baseout', os.path.join(args.outdir,prefix),
+                   clipstr, leadingwindow, trailingwindow,slidingwindow,
+                   "MINLEN:%d" %(args.minlength) ]
+        else:
+            logger.error("Must provide left and right pairs or single read set")
+            return
 
         logger.info("running cmd: %s" %(" ".join(cmd)))
         subprocess.call(cmd)
 
         # could change this up and support sickle or other processors
+    elif args.sickle:
+        cmd = []
+
+        if args.left and args.right:
+            cmd = ['sickle', 'pe', '-t', 'sanger',
+                   '-f',args.left,'-r',args.right,'-l',str(args.minlength),
+                   '-o',os.path.join(args.outdir,prefix)+"_1P",
+                   '-p',os.path.join(args.outdir,prefix)+"_2P",
+                   '-s',os.path.join(args.outdir,prefix)+"_1U"
+            ]
+        elif args.single:
+            cmd = ['sickle', 'se', '-t', 'sanger',
+                   '-f',single, '-l',args.minlength,
+                   '-o',os.path.join(args.outdir,prefix)+"_1U" ]
+        else:
+            logger.error("Must provide left and right pairs or single read set")
+            return
+        print(cmd)
+        logger.info("running cmd: %s" %(" ".join(cmd)))
+        subprocess.call(cmd)
+
+
     else:
         print("Only trimmomatic supported as trim tool at the moment")
         logger.info("Only trimmomatic supported as trim tool at the moment")

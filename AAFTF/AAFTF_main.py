@@ -116,8 +116,7 @@ def main():
                             required=False,
                             nargs="?",
                             const='1',
-                            default='0',
-        help="Use sickle program for read processing (specify path to prog if not in PATH already)")
+                            default='0',        help="Use sickle program for read processing (specify path to prog if not in PATH already)")
     
     trimmomatic_group = parser_trim.add_argument_group(title='Trimmomatic options',
                                               description="Trimmomatic trimming options")
