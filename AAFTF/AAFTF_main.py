@@ -16,14 +16,14 @@ myversion = __version__
 def run_subtool(parser, args):
     if args.command == 'trim':
         import AAFTF.trim as submodule
-    elif args.command == 'purge':
-        import AAFTF.purge as submodule
+    elif args.command == 'filter':
+        import AAFTF.filter as submodule
     elif args.command == 'assemble':
         import AAFTF.assemble as submodule
     elif args.command == 'vecscreen':
         import AAFTF.vecscreen as submodule
-    elif args.command == 'blobpurge':
-        import AAFTF.blobpurge as submodule
+    elif args.command == 'blobfilter':
+        import AAFTF.blobfilter as submodule
     elif args.command == 'busco':
         import AAFTF.busco as submodule
     elif args.command == 'rmdup':
@@ -116,7 +116,8 @@ def main():
                             required=False,
                             nargs="?",
                             const='1',
-                            default='0',        help="Use sickle program for read processing (specify path to prog if not in PATH already)")
+                            default='0',
+            help="Use sickle program for read processing (specify path to prog if not in PATH already)")
     
     trimmomatic_group = parser_trim.add_argument_group(title='Trimmomatic options',
                                               description="Trimmomatic trimming options")
@@ -163,24 +164,55 @@ def main():
     help='The name of the reverse reads of paired-end FASTQ formatted reads.')
 
     ##########
-    # purge
+    # filter
     ##########
     # arguments
-    # 
-    parser_purge = subparsers.add_parser('purge',
-       description="Purge reads which match contaminant databases such as phiX",
-       help='Purge contaminanting reads')
+    # -i / --indir:  input dir
+    # -o / --outdir: write outdir
+    # -p / --prefix: outfile prefix
 
-    parser_purge.add_argument('-a','--screen_accessions',type=str,nargs="+",
-                            metavar='accessions',
-                            required=False,
+    parser_filter = subparsers.add_parser('filter',
+       description="Filter reads which match contaminant databases such as phiX",
+       help='Filter contaminanting reads')
+
+    parser_filter.add_argument('-a','--screen_accessions',type=str,
+                               metavar='accessions',nargs="*",
                             help="Genbank accession number(s) to screen out from initial reads.")
-    parser_purge.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+    parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                               help="Number of CPUs/threads to use.")
-    parser_purge.add_argument('--tmpdir',type=str,metavar='tmpdir',required=False,
+    parser_filter.add_argument('--tmpdir',type=str,metavar='tmpdir',
                               help="Temporary directory to store datafiles and processes in")
 
+    parser_trim.add_argument('-i','--indir',type=str,
+                             required=True,
+    help="Directory for input of trimmed reads")
 
+    parser_trim.add_argument('-o','--outdir',type=str,
+                             required=False,
+                             help="Directory for filtered reads (defaults to indir)")
+
+    tool_group = parser_filter.add_mutually_exclusive_group(required=True)
+
+    tool_group.add_argument('--bowtie2',
+                            type=str,required=False,default='1',const='1',nargs='?',
+                            help='Bowtie2 executable path (specify path to bowtie2 if not in PATH already)')
+    
+    tool_group.add_argument('--bwa',type=str,
+                            required=False,
+                            nargs="?",
+                            const='1',
+                            default='0',
+            help="Use bwa for read filtering (specify path to bwa prog if not in PATH already)")
+
+    tool_group.add_argument('--bbmap',type=str,
+                            required=False,
+                            nargs="?",
+                            const='1',
+                            default='0',
+            help="Use bbmap for read filtering (specify path to bbmap prog if not in PATH already)")
+
+
+    
     parser.set_defaults(func=run_subtool)
 
     ### process args now ###
