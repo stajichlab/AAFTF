@@ -82,5 +82,5 @@ def run(parser,args):
 
 
     else:
-        print("Only trimmomatic supported as trim tool at the moment")
-        logger.info("Only trimmomatic supported as trim tool at the moment")
+        print("Only trimmomatic or sickle supported as trim tool at the moment")
+        logger.info("Only trimmomatic or sickle supported as trim tool at the moment")

@@ -183,11 +183,11 @@ def main():
     parser_filter.add_argument('--tmpdir',type=str,metavar='tmpdir',
                               help="Temporary directory to store datafiles and processes in")
 
-    parser_trim.add_argument('-i','--indir',type=str,
+    parser_filter.add_argument('-i','--indir',type=str,
                              required=True,
     help="Directory for input of trimmed reads")
 
-    parser_trim.add_argument('-o','--outdir',type=str,
+    parser_filter.add_argument('-o','--outdir',type=str,
                              required=False,
                              help="Directory for filtered reads (defaults to indir)")
 
