@@ -9,7 +9,6 @@ import argparse
 import logging
 logger = logging.getLogger('AAFTF')
 
-
 # AAFTF imports
 from AAFTF.version import __version__
 myversion = __version__
@@ -31,7 +30,9 @@ def run_subtool(parser, args):
         import AAFTF.rmdup as submodule
     elif args.command == 'pilon':
         import AAFTF.pilon as submodule
-
+    else:
+        parser.parse_args('')
+        return
     # run the chosen submodule.
     submodule.run(parser, args)
 
@@ -41,6 +42,10 @@ class ArgumentParserWithDefaults(argparse.ArgumentParser):
         self.add_argument("-q", "--quiet", help="Do not output warnings to stderr",
                             action="store_true",
                             dest="quiet")
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        self.print_help()
+        sys.exit(2)
 
 def main():
     logging.basicConfig()
@@ -78,9 +83,13 @@ def main():
     # currently singleton / unpaired reads not supported?
     
     parser_trim = subparsers.add_parser('trim',
-       description="Trim FASTQ reads",
+       description="This comamnd trims reads in FASTQ format to remove low quality reads and trim adaptor sequences",
        help='Trim FASTQ input reads')
- 
+    
+    parser_trim.add_argument('-p','--prefix',type=str,
+                             required=True,
+                             help="Output Prefix")
+
     parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                               help="Number of CPUs/threads to use.")
     
@@ -91,10 +100,6 @@ def main():
     parser_trim.add_argument('-o','--outdir',type=str,
                              required=False,
     help="Output directory for trimmed reads")
-
-    parser_trim.add_argument('-p','--prefix',type=str,
-                             required=False,
-                             help="Output Prefix")
 
     parser_trim.add_argument('-ml','--minlength',type=int,
                              default=75,
@@ -122,27 +127,39 @@ def main():
                                    help="Trimmomatic adaptor file, default: TruSeq3-PE.fa")
 
     trimmomatic_group.add_argument('--trimmomatic_clip',
-                                   default="ILLUMINACLIP:TruSeq3-PE.fa:2:30:10",
+                                   default="ILLUMINACLIP:%s:2:30:10",
                                    help="Trimmomatic clipping, default: ILLUMINACLIP:TruSeq3-PE.fa:2:30:10")
 
-    trimmomatic_group.add_argument('--trimmomatic_window',
-                                   default="LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15",
-                                   help="Trimmomatic window processing arguments, default: LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15")
-    
+    trimmomatic_group.add_argument('--trimmomatic_leadingwindow',
+                                   default="3",type=int,
+                                   help="Trimmomatic window processing arguments, default: LEADING:3")
+
+    trimmomatic_group.add_argument('--trimmomatic_trailingwindow',
+                                   default="3",type=int,
+                                   help="Trimmomatic window processing arguments, default: TRAILING:3")
+
+    trimmomatic_group.add_argument('--trimmomatic_slidingwindow',
+                                   default="4:15",type=str,
+                                   help="Trimmomatic window processing arguments, default: SLIDINGWINDOW:4:15")
+
     
     paired_reads = parser_trim.add_argument_group(title='Paired Reads',
                                                   description="Paired Read FASTQ files")
     
-    paired_reads.add_argument('--left',type=str,nargs="+",
+    trimmomatic_group.add_argument('--trimmomatic_quality',
+                                   default="phred33",
+                                   help="Trimmomatic quality encoding -phred33 or phred64")
+
+    paired_reads.add_argument('--left',type=str,
                               required=False,
             help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
 
-    paired_reads.add_argument('--right',type=str,nargs="+",
+    paired_reads.add_argument('--right',type=str,
                               required=False,
             help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
 
     # perhaps write this separately for singleton/unpaired read sets
-    parser_trim.add_argument('--single',type=str,nargs="+",
+    parser_trim.add_argument('--single',type=str,
                              required=False,
     help='The name of the reverse reads of paired-end FASTQ formatted reads.')
 
@@ -165,9 +182,20 @@ def main():
                               help="Temporary directory to store datafiles and processes in")
 
 
-    ### process args now ### 
     parser.set_defaults(func=run_subtool)
+
+    ### process args now ###
+    # if no args then print help and exit
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+        
     args = parser.parse_args()
+    fh = logging.FileHandler('AAFTF.log')
+    fh.setLevel(logging.INFO)
+    
+    logger.addHandler(fh)
+    logger.setLevel(logging.INFO)
     
     if args.quiet:
         logger.setLevel(logging.ERROR)
