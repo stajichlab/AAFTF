@@ -10,7 +10,7 @@ def run(parser,args):
 
     if not args.outdir:
         args.outdir = dirname(args.left)
-        
+    os.makedirs(args.outdir,exist_ok=True)
     if args.trimmomatic:
         jarfile          = args.trimmomatic
         path_to_adaptors = args.trimmomatic_adaptors
