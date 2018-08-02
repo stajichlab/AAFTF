@@ -61,14 +61,6 @@ def main():
                         action="version",
                         version="%(prog)s " + str(myversion))
     
-    parser.add_argument('--tmpdir',type=str,
-                        required=False,default="working_AAFTF",
-                        help="Temporary directory to store datafiles and processes in")
-
-    parser.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
-                        help="Number of CPUs/threads to use.")
-    
-
     subparsers = parser.add_subparsers(title='[sub-commands]', dest='command', parser_class=ArgumentParserWithDefaults)
     #########################################
     # create the individual tool parsers
@@ -103,6 +95,10 @@ def main():
     parser_trim.add_argument('-o','--outdir',type=str,
                              required=False,
     help="Output directory for trimmed reads")
+
+    parser_trim.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
 
     parser_trim.add_argument('-ml','--minlength',type=int,
                              default=75,
@@ -143,16 +139,14 @@ def main():
 
     trimmomatic_group.add_argument('--trimmomatic_slidingwindow',
                                    default="4:15",type=str,
-                                   help="Trimmomatic window processing arguments, default: SLIDINGWINDOW:4:15")
-
-    
-    paired_reads = parser_trim.add_argument_group(title='Paired Reads',
-                                                  description="Paired Read FASTQ files")
-    
+                                   help="Trimmomatic window processing arguments, default: SLIDINGWINDOW:4:15")    
     trimmomatic_group.add_argument('--trimmomatic_quality',
                                    default="phred33",
                                    help="Trimmomatic quality encoding -phred33 or phred64")
 
+    paired_reads = parser_trim.add_argument_group(title='Paired Reads',
+                                                  description="Paired Read FASTQ files")
+    
     paired_reads.add_argument('--left',type=str,
                               required=False,
             help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
@@ -180,6 +174,16 @@ def main():
         description="Filter reads which match contaminant databases such as phiX",
     help='Filter contaminanting reads')
 
+    parser_filter.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
+
+    parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                        help="Number of CPUs/threads to use.")
+    
+    parser_filter.add_argument('-p','--prefix',type=str,
+                        required=True,
+                        help="Input/Output Prefix for fileset")
 
     parser_filter.add_argument('-a','--screen_accessions',type = str,
                                nargs="*",
@@ -187,10 +191,7 @@ def main():
     parser_filter.add_argument('-u','--screen_urls',type = str,
                                nargs="*",
                                help="URLs to download and screen out initial reads.")
-    
-#    parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
-#                              help="Number of CPUs/threads to use.")
-    
+        
     parser_filter.add_argument('-i','--indir',type=str,
                                required=True,
                                help="Directory for input of trimmed reads")
@@ -207,10 +208,6 @@ def main():
                                action='store_false',dest='pairing',
                                help="Paired or unpaired sequence reads")
     
-    parser_filter.add_argument('-p','--prefix',type=str,
-                               required=True,
-                               help="Input/Output Prefix for fileset")
-
     tool_group = parser_filter.add_mutually_exclusive_group(required=True)
 
     tool_group.add_argument('--bowtie2',
@@ -231,7 +228,54 @@ def main():
                             default='0',
             help="Use bbmap for read filtering (specify path to bbmap prog if not in PATH already)")
 
+    ##########
+    # assemble
+    ##########
+    # arguments
+    # -i / --indir:  input folder
+    # -o / --outdir: output folder
+    # -p / --prefix: input/outfile prefix
+    # --paired or --unpaired
+    # --spades
 
+    parser_asm = subparsers.add_parser('assemble',
+                                       description="Run assembler on cleaned reads",
+                                       help='Assemble reads')
+    parser_asm.add_argument('-i','--indir',type=str,
+                               required=True,
+                               help="Directory for input of clean reads")
+
+    parser_asm.add_argument('-o','--outdir',type=str,
+                               required=False,
+                               help="Directory where spades folder goes (defaults to indir)")
+
+    parser_asm.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
+
+    parser_asm.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                        help="Number of CPUs/threads to use.")
+    
+    parser_asm.add_argument('-p','--prefix',type=str,
+                        required=True,
+                        help="Input/Output Prefix for fileset")
+
+    parser_asm.add_argument('-m','--memory',type=str,
+                            dest='memory',required=False,default='32',
+                            help="Memory (in GB) setting for SPAdes. Default is 32")
+        
+    parser_asm.add_argument('--paired',action='store_true',
+                               dest='pairing',default=True,
+                               help="Paired or unpaired sequence reads")
+    
+    parser_asm.add_argument('--unpaired','--single',
+                               action='store_false',dest='pairing',
+                               help="Paired or unpaired sequence reads")
+
+    parser_asm.add_argument('--spades',
+                            type=str,required=False,default='1',const='1',nargs='?',
+                            help='spades.py executable path (specify path to spades.py if not in PATH already)')
+    
     ##########
     # vecscreen
     ##########
@@ -243,8 +287,8 @@ def main():
                             description="Screen contigs for vector and common contaminantion",
                                              help='Vector and Contaminant Screening of assembled contigs')
 
-#    parser_vecscreen.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
-#                                  help="Number of CPUs/threads to use.")
+    parser_vecscreen.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
+                                  help="Number of CPUs/threads to use.")
     
     parser_vecscreen.add_argument('-i','--infile',type=str,
                                   required=True,

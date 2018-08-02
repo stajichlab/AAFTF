@@ -12,7 +12,6 @@ from AAFTF.resources import SeqDBs
 from AAFTF.resources import DB_Links
 
 def run(parser,args):
-    print(parser,args)
     
     if not args.tmpdir:
         args.tmpdir = 'working_AAFTF'
@@ -27,16 +26,26 @@ def run(parser,args):
     contam_filenames = []
     # db of contaminant (PhiX)
     for url in Contaminant_Accessions.values():
-        acc = os.path.basename(str(url))
+        acc = os.path.basename(url)
         acc_file = os.path.join(args.tmpdir,acc)
         contam_filenames.append(acc_file)
         if not os.path.exists(acc_file):
             urllib.request.urlretrieve(url,acc_file)
-        print("acc file: ",acc_file)
         if ( earliest_file_age < 0 or
              earliest_file_age < os.path.getctime(acc_file) ):
             earliest_file_age = os.path.getctime(acc_file)
-            
+
+    # download univec too
+    url = DB_Links['UniVec']
+    acc = os.path.basename(DB_Links['UniVec'])
+    acc_file = os.path.join(args.tmpdir,acc)
+    contam_filenames.append(acc_file)
+    if not os.path.exists(acc_file):
+        urllib.request.urlretrieve(url,acc_file)
+        if ( earliest_file_age < 0 or
+             earliest_file_age < os.path.getctime(acc_file) ):
+            earliest_file_age = os.path.getctime(acc_file)
+    
     if args.screen_accessions:
         for acc in args.screen_accessions:
             acc_file = os.path.join(args.tmpdir,acc+".fna")
@@ -63,14 +72,11 @@ def run(parser,args):
     contamdb = os.path.join(args.tmpdir,'contamdb')
     if ( not os.path.exists(contamdb) or
          ( os.path.getctime(contamdb) < earliest_file_age)):
-         print("running concat")
          with open(contamdb, 'wb') as wfd:
              for fname in contam_filenames:
                  with open(fname,'rb') as fd: # reasonably fast copy for append
                      shutil.copyfileobj(fd, wfd)
 
-    # univec?
-    print("bwa is ",args.bwa, " bowtie is ", args.bowtie2, " bbmap is ", args.bbmap)
     left = os.path.join(args.indir,args.prefix + "_1P")
     right = os.path.join(args.indir,args.prefix + "_2P")
 
@@ -83,7 +89,7 @@ def run(parser,args):
                                    args.prefix + "_cleaned")
 
         print(clean_reads)
-        if ( not os.path.exists(clean_reads + '.1.gz') or
+        if ( not os.path.exists(clean_reads + '_1.fq.gz') or
              os.path.getctime(clean_reads+'.1.gz') < os.path.getctime(contamdb)):
             if args.pairing:
                 DEVNULL = open(os.devnull, 'w')
@@ -96,6 +102,10 @@ def run(parser,args):
                                 '-1',left,'-2',right,
                                 '--un-conc-gz', clean_reads+'.gz'],
                                stdout=DEVNULL)
+                shutil.move(clean_reads+'.1.gz',
+                            clean_reads+'_1.fq.gz')
+                shutil.move(clean_reads+'.2.gz',
+                            clean_reads+'_2.fq.gz')
 
             else:
                 single = os.path.join(args.indir,
@@ -111,8 +121,10 @@ def run(parser,args):
                                 '-q','--very-sensitive',
                                 '-U',single,
                                 '--un-conc-gz', clean_reads+'.gz'],
-                               stdout=DEVNULL)
-            
+                               stdout=DEVNULL)x
+                shutil.move(clean_reads+'.gz',
+                            clean_reads+'_single.fq.gz')
+                
     elif args.bwa == '1':
         print("do bwa")
         if not os.path.exists(contamdb + ".amb"):
@@ -125,7 +137,7 @@ def run(parser,args):
         bamfileunmapsort = os.path.join(args.tmpdir,
                                    args.prefix + ".contam_unmapped_sort.bam")
         outsam = open(samfile, 'w')
-        clean_reads += ".12.gz"
+        clean_reads += "_12.fq.gz"
         subprocess.run(['bwa','mem','-t',
                         str(args.cpus),contamdb,
                         left, right],stdout=outsam)
@@ -135,6 +147,7 @@ def run(parser,args):
                         '-b',bamfile, '-f', '12','-o',bamfileunmapped])
         subprocess.run(['samtools','sort','-@',str(args.cpus),'-n',
                         '-b',bamfileunmapped, '-o',bamfileunmapsort])
+
         subprocess.run(['bedtools','bamtofastq','-i',
                         bamfileunmapsort,'-fq', clean_reads])
         subprocess.run(['gzip',clean_reads])        
