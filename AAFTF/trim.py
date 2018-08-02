@@ -5,12 +5,21 @@ from os.path import dirname
 import logging
 logger = logging.getLogger('AAFTF')
 
-def run(parser,args):
-    
+# process trimming reads with trimmomatic or sickle
+
+def run(parser,args):    
 
     if not args.outdir:
         args.outdir = dirname(args.left)
     os.makedirs(args.outdir,exist_ok=True)
+
+    left_expected = os.path.join(args.outdir,args.prefix)+"_1P"
+    if ( os.path.exists(left_expected) and
+         os.path.getctime(left_expected) >
+         os.path.getctime(args.left) ):
+        logger.info("Already ran trimming on %s %s" % (args.left,args.right))
+        return
+            
     if args.trimmomatic:
         jarfile          = args.trimmomatic
         path_to_adaptors = args.trimmomatic_adaptors

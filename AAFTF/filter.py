@@ -90,7 +90,7 @@ def run(parser,args):
 
         print(clean_reads)
         if ( not os.path.exists(clean_reads + '_1.fq.gz') or
-             os.path.getctime(clean_reads+'.1.gz') < os.path.getctime(contamdb)):
+             os.path.getctime(clean_reads+'_1.fq.gz') < os.path.getctime(contamdb)):
             if args.pairing:
                 DEVNULL = open(os.devnull, 'w')
                 print(['bowtie2','-x',contamdb,
@@ -121,7 +121,7 @@ def run(parser,args):
                                 '-q','--very-sensitive',
                                 '-U',single,
                                 '--un-conc-gz', clean_reads+'.gz'],
-                               stdout=DEVNULL)x
+                               stdout=DEVNULL)
                 shutil.move(clean_reads+'.gz',
                             clean_reads+'_single.fq.gz')
                 
