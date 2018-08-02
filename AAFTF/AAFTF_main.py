@@ -60,6 +60,15 @@ def main():
     parser.add_argument("-v", "--version", help="Installed AAFTF version",
                         action="version",
                         version="%(prog)s " + str(myversion))
+    
+    parser.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
+
+    parser.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                        help="Number of CPUs/threads to use.")
+    
+
     subparsers = parser.add_subparsers(title='[sub-commands]', dest='command', parser_class=ArgumentParserWithDefaults)
     #########################################
     # create the individual tool parsers
@@ -71,12 +80,10 @@ def main():
     # arguments
     # --trimmomatic or --sickle: arguments are path to JAR or application respectively
     # assume java is PATH already for trimmomatic
-    # -c / --cpus: CPUs [default=1]
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
     # -ml / --minlength: min read length
     
-    # --tmpdir: temporary directory to write tmp files [optional]
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
@@ -93,10 +100,6 @@ def main():
     parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                               help="Number of CPUs/threads to use.")
     
-    parser_trim.add_argument('--tmpdir',type=str,
-                             required=False,
-    help="Temporary directory to store datafiles and processes in")
-
     parser_trim.add_argument('-o','--outdir',type=str,
                              required=False,
     help="Output directory for trimmed reads")
@@ -170,31 +173,48 @@ def main():
     # -i / --indir:  input dir
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
+    # --paired or --unpaired
+    # -a / --screen_accessions - screening accessions
 
     parser_filter = subparsers.add_parser('filter',
-       description="Filter reads which match contaminant databases such as phiX",
-       help='Filter contaminanting reads')
+        description="Filter reads which match contaminant databases such as phiX",
+    help='Filter contaminanting reads')
 
-    parser_filter.add_argument('-a','--screen_accessions',type=str,
-                               metavar='accessions',nargs="*",
-                            help="Genbank accession number(s) to screen out from initial reads.")
-    parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
-                              help="Number of CPUs/threads to use.")
-    parser_filter.add_argument('--tmpdir',type=str,metavar='tmpdir',
-                              help="Temporary directory to store datafiles and processes in")
 
+    parser_filter.add_argument('-a','--screen_accessions',type = str,
+                               nargs="*",
+                               help="Genbank accession number(s) to screen out from initial reads.")
+    parser_filter.add_argument('-u','--screen_urls',type = str,
+                               nargs="*",
+                               help="URLs to download and screen out initial reads.")
+    
+#    parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
+#                              help="Number of CPUs/threads to use.")
+    
     parser_filter.add_argument('-i','--indir',type=str,
-                             required=True,
-    help="Directory for input of trimmed reads")
+                               required=True,
+                               help="Directory for input of trimmed reads")
 
     parser_filter.add_argument('-o','--outdir',type=str,
-                             required=False,
-                             help="Directory for filtered reads (defaults to indir)")
+                               required=False,
+                               help="Directory for filtered reads (defaults to indir)")
+
+    parser_filter.add_argument('--paired',action='store_true',
+                               dest='pairing',default=True,
+                               help="Paired or unpaired sequence reads")
+    
+    parser_filter.add_argument('--unpaired','--single',
+                               action='store_false',dest='pairing',
+                               help="Paired or unpaired sequence reads")
+    
+    parser_filter.add_argument('-p','--prefix',type=str,
+                               required=True,
+                               help="Input/Output Prefix for fileset")
 
     tool_group = parser_filter.add_mutually_exclusive_group(required=True)
 
     tool_group.add_argument('--bowtie2',
-                            type=str,required=False,default='1',const='1',nargs='?',
+                            type=str,required=False,default='0',const='1',nargs='?',
                             help='Bowtie2 executable path (specify path to bowtie2 if not in PATH already)')
     
     tool_group.add_argument('--bwa',type=str,
@@ -212,7 +232,33 @@ def main():
             help="Use bbmap for read filtering (specify path to bbmap prog if not in PATH already)")
 
 
+    ##########
+    # vecscreen
+    ##########
+    # arguments
+    # -i / --in:  input assembly file
+    # -o / --out: output cleaned assembly
+    # -p / --prefix: outfile prefix
+    parser_vecscreen = subparsers.add_parser('vecscreen',
+                            description="Screen contigs for vector and common contaminantion",
+                                             help='Vector and Contaminant Screening of assembled contigs')
+
+#    parser_vecscreen.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
+#                                  help="Number of CPUs/threads to use.")
     
+    parser_vecscreen.add_argument('-i','--infile',type=str,
+                                  required=True,
+                                  help="Input contigs or scaffold assembly")
+
+    parser_vecscreen.add_argument('-o','--outfile',type=str,
+                                  required=False,
+                                  help="Output vector screened and cleaned assembly (defaults to infile.clean.fasta)")
+
+    parser_vecscreen.add_argument('-pid','--percent_id',type=float,
+                                  required=False,
+                                  help="Percent Identity cutoff for vecscreen adaptor matches")
+
+
     parser.set_defaults(func=run_subtool)
 
     ### process args now ###

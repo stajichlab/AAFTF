@@ -3,12 +3,16 @@ Contaminant_Accessions = {"phiX": 'ftp://ftp.ncbi.nlm.nih.gov/genomes/Viruses/en
         }
 
 DB_Links = {'UniVec': 'ftp://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec',
-        'EukContam': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_euks.fa.gz',
-        'ProkContam': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_prok.fa',
-        'Mito': 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/mito.nt.gz',
+            'CONTAM_EUKS': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_euks.fa.gz',
+            'CONTAM_PROKS': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_prok.fa',
+            'MITO': 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/mito.nt.gz',
         }
 
 Applications = {'megablast': 'blastn',
                 'trimmomatic': 'java -jar %s',
                 }
 
+SeqDBs = {'nucleotide': 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=%s&rettype=fasta',
+          'nucleotide_ebi': 'https://www.ebi.ac.uk/ena/data/view/%s?display=fasta',
+          'nucleotide_ncbi': 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=%s&rettype=fasta',
+          }

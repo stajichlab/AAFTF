@@ -7,7 +7,7 @@ logger = logging.getLogger('AAFTF')
 
 def run(parser,args):
     
-    prefix  = args.prefix
+
     if not args.outdir:
         args.outdir = dirname(args.left)
         
@@ -41,14 +41,14 @@ def run(parser,args):
             cmd = ['java', '-jar', jarfile, 'PE',
                    '-threads',str(args.cpus),quality,
                    args.left,args.right,'-baseout',
-                   os.path.join(args.outdir,prefix),
+                   os.path.join(args.outdir,args.prefix),
                    clipstr, leadingwindow, trailingwindow,slidingwindow,
                    "MINLEN:%d" %(args.minlength) ]
         elif args.single:
             cmd = ['java', '-jar', jarfile, 'SE',
                    '-threads',str(args.cpus),
                    quality,  args.single,
-                   '-baseout', os.path.join(args.outdir,prefix),
+                   '-baseout', os.path.join(args.outdir,args.prefix),
                    clipstr, leadingwindow, trailingwindow,slidingwindow,
                    "MINLEN:%d" %(args.minlength) ]
         else:
@@ -56,7 +56,7 @@ def run(parser,args):
             return
 
         logger.info("running cmd: %s" %(" ".join(cmd)))
-        subprocess.call(cmd)
+        subprocess.run(cmd)
 
         # could change this up and support sickle or other processors
     elif args.sickle:
@@ -65,20 +65,20 @@ def run(parser,args):
         if args.left and args.right:
             cmd = ['sickle', 'pe', '-t', 'sanger',
                    '-f',args.left,'-r',args.right,'-l',str(args.minlength),
-                   '-o',os.path.join(args.outdir,prefix)+"_1P",
-                   '-p',os.path.join(args.outdir,prefix)+"_2P",
-                   '-s',os.path.join(args.outdir,prefix)+"_1U"
+                   '-o',os.path.join(args.outdir,args.prefix)+"_1P",
+                   '-p',os.path.join(args.outdir,args.prefix)+"_2P",
+                   '-s',os.path.join(args.outdir,args.prefix)+"_1U"
             ]
         elif args.single:
             cmd = ['sickle', 'se', '-t', 'sanger',
                    '-f',single, '-l',args.minlength,
-                   '-o',os.path.join(args.outdir,prefix)+"_1U" ]
+                   '-o',os.path.join(args.outdir,args.prefix)+"_1U" ]
         else:
             logger.error("Must provide left and right pairs or single read set")
             return
         print(cmd)
         logger.info("running cmd: %s" %(" ".join(cmd)))
-        subprocess.call(cmd)
+        subprocess.run(cmd)
 
 
     else:

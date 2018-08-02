@@ -1,4 +1,4 @@
-import sys, csv, re, operator,os
+import sys, csv, re, operator,os, subprocess
 
 # biopython needed
 from Bio import SeqIO
@@ -6,7 +6,7 @@ from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
 # for processing identify vector sequence
-percent_id_cutoff = 98
+default_percent_id_cutoff = 98
 
 #logging
 import logging
@@ -54,7 +54,7 @@ def parse_clean_blastn(fastafile,blastn,pid_cutoff):
 
     fastafile = sys.argv[1]
     blastn = sys.argv[2]
-    prefix=os.path.splitext(fastafile)[0]
+    prefix = os.path.splitext(fastafile)[0]
     cleaned = prefix + ".clean.fsa"
     logging = prefix + ".parse.log"
 
@@ -113,12 +113,70 @@ def parse_clean_blastn(fastafile,blastn,pid_cutoff):
             if(len(record) >= 200):
                 SeqIO.write(record, output_handle, "fasta")
 
+def make_blastdb(type,file,name):
+    indexfile = file
+    if type eq 'nucl':
+        indexfile += ".pin"
+    else:
+        indexfile += ".pin"
+        
+    if ( not os.path.exists(indexfile) or
+         os.path.getctime(indexfile) < os.path.getctime(file)):
+        subprocess.call(["makeblastdb",'-dbtype',type,
+                         '-in',file,'-out',name])
+
+        
 def run(parser,args):
-    #DB = UniVec
-    #blastn -task blastn -reward 1 -penalty -5 -gapopen 3 \
-#		-gapextend 3 -dust yes -soft_masking true -evalue 700 -searchsp 1750000000000 \
-#	-db $DB -outfmt 6 -num_threads $CPUS_PER_JOB -query $FASTA \
-#		-out $PREF.r$ROUND.vecscreen.tab
+
+    print(args.tmpdir)
+    
+    if not args.tmpdir:
+        args.tmpdir = 'working_AAFTF'
+
+    if not os.path.exists(args.tmpdir):
+        os.mkdir(args.tmpdir)
+
+    if args.percent_id:
+        percentid_cutoff = args.percent_id
+    else:
+        percentid_cutoff = default_percent_id_cutoff
+        
+    # Common Euk/Prot contaminats for blastable DB later on
+    makeblastdblist = []
+    for db,url in DB_Links:
+        dbname = os.path.basename(str(url))
+        file = os.path.join(args.tmpdir,dbname)
+        if file.endswith(".gz"):
+            nogz = os.path.splitext(file)[0]
+            urllib.request.urlretrieve(url,file)
+            subprocess.call(['gunzip',file])
+            make_blastdb('nucl',nogz,os.path.join(args.tmpdir,db))
+        else:
+            if not os.path.exists(file):
+                urllib.request.urlretrieve(url,file)
+                make_blastdb('nucl',file,os.path.join(args.tmpdir,db))
+
+    prefix =os.basename(args.infile)
+    prefix = os.path.splitext(prefix)[0]
+    infile = args.infile
+    round = 0
+    while 1:
+        report = os.path.join(args.tmpdir,"%s.r%d.vecscreen.tab"%(prefix,round))
+        subprocess.call(['blastn','-task','blastn',
+                        '-reward','1','-penalty','-5','-gapopen','3',
+                        '-gapextend', '3', '-dust','yes','-soft_masking','true',
+                        '-evalue', '700','-searchsp','1750000000000',
+                        '-db', os.path.join(args.tmpdir,'UniVec'),
+                        '-outfmt', '6', '-num_threads',args.cpus,
+                        '-query', infile,
+                        '-out', report])
+        # this needs to know/return the new fasta file?
+        count = parse_clean_blastn(infile,report,percentid_cutoff)
+        if count == 0: # if there are no vector matches < than the pid cutoff
+            break
+        else:
+            round += 1
+        
 # probably run this in python rather than shell out again and depend on gawk but it is fast either way I am guessing
 #if [ -f $PREF.r$ROUND.vecscreen.tab ]; then
 #	    COUNT=$(awk -v cutoff=$PID_CUTOFF 'BEGIN { sum = 0 } { if ( $3 >= cutoff ) sum +=1 } END { print sum }' $PREF.r$ROUND.vecscreen.tab)
