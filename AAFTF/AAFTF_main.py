@@ -302,6 +302,10 @@ def main():
                                   required=False,
                                   help="Percent Identity cutoff for vecscreen adaptor matches")
 
+    parser_vecscreen.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
+
 
     parser.set_defaults(func=run_subtool)
 
