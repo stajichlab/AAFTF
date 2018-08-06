@@ -152,6 +152,17 @@ def run(parser,args):
     else:
         percentid_cutoff = default_percent_id_cutoff
         
+    prefix = os.path.basename(args.infile)
+    prefix = os.path.splitext(prefix)[0]
+    infile = args.infile
+    outfile = args.outfile
+
+    if not outfile:
+        outfile = "%s.vecscreen.fasta" % prefix
+
+    outfile_vec = os.path.join(args.tmpdir,
+                               "%s.tmp_vecscreen.fasta" % (prefix))
+
     # Common Euk/Prot contaminats for blastable DB later on
     makeblastdblist = []
     for db in DB_Links:
@@ -170,16 +181,6 @@ def run(parser,args):
                 urllib.request.urlretrieve(url,file)
             make_blastdb('nucl',file,os.path.join(args.tmpdir,db))
 
-    prefix = os.path.basename(args.infile)
-    prefix = os.path.splitext(prefix)[0]
-    infile = args.infile
-    outfile = args.outfile
-
-    if not outfile:
-        outfile = "%s.clean.fasta" % prefix
-
-    outfile_vec = os.path.join(args.tmpdir,
-                               "%s.vecscreen.fasta" % (prefix))
     rnd = 0
     count = 1
     while (count > 0):
@@ -213,6 +214,8 @@ def run(parser,args):
     for contam in ["CONTAM_EUKS",
                    "CONTAM_PROKS" ]:                       
         logger.info("%s Contamination Screen" % (contam))
+        blastreport = os.path.join(args.tmpdir,
+                                   "%s.%s.blastn" % (contam, prefix))
         blastnargs = ['blastn',
                       '-query', outfile_vec,
                       '-db', os.path.join(args.tmpdir,contam),
@@ -220,11 +223,12 @@ def run(parser,args):
                       '-dust', 'yes', '-soft_masking', 'true',
                       '-perc_identity',BlastPercent_ID_ContamMatch,
                       '-lcase_masking', '-outfmt',
-                      '6 "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"']
-            
-        with Popen(blastnargs, stdout=PIPE) as proc:
-            stdout = proc.communicate()[0]
-            colparser = csv.reader(stdout, delimiter="\t")
+                      '6 "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"',
+                      '-out',blastreport ]
+        call(blastnargs)
+        
+        with open(blastreport) as report:
+            colparser = csv.reader(report, delimiter="\t")
             for row in colparser:
                 if( ( float(row[2]) >= 98.0 and
                       int(row[3]) >= 50)  or
@@ -238,25 +242,23 @@ def run(parser,args):
             #done with EUK and PROK screen
             
     # MITO screen
+    blastreport = os.path.join(args.tmpdir,
+                               "%s.%s.blastn" % ('MITO',prefix))
     blastnargs = ['blastn',
                   '-query', outfile_vec,
                   '-db', os.path.join(args.tmpdir,'MITO'),
                   '-num_threads', str(args.cpus),
                   '-dust', 'yes', '-soft_masking', 'true',
                   '-perc_identity',BlastPercent_ID_MitoMatch,
-                  '-lcase_masking', '-outfmt','6']
-    print("args are ",blastnargs)
-    with Popen(blastnargs, stdout = PIPE) as proc:
-        stdout = proc.communicate()[0]
-        for line in stdout:
-            print("line is %s"%(line))
-#        colparser = csv.reader(stdout, delimiter="\t")
-#        print("colparser is ",colparser)
-#        for row in colparser:
-#            print("row is ",row)
-#            if int(row[3]) >= 120:
-#                logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
-#                contigs_to_remove[row[0]] = 1
+                  '-lcase_masking', '-outfmt','6',
+                  '-out', blastreport]
+    call(blastnargs)
+    with open(blastreport) as report:
+        colparser = csv.reader(report, delimiter="\t")
+        for row in colparser:
+            if int(row[3]) >= 120:
+                logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
+                contigs_to_remove[row[0]] = 1
         
     print("These contigs will be skipped:",contigs_to_remove)
 
