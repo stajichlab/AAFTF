@@ -129,6 +129,8 @@ def run(parser,args):
         print("do bwa")
         if not os.path.exists(contamdb + ".amb"):
             subprocess.call(['bwa','index',contamdb])
+        clean_reads = os.path.join(args.outdir,
+                                   args.prefix + "_cleaned")
         samfile = os.path.join(args.tmpdir,
                                    args.prefix + ".contam_map.sam")
         bamfile = os.path.splitext(samfile)[0] + ".bam"
