@@ -138,16 +138,17 @@ def run(parser,args):
                                    args.prefix + ".contam_unmapped.bam")
         bamfileunmapsort = os.path.join(args.tmpdir,
                                    args.prefix + ".contam_unmapped_sort.bam")
-        outsam = open(samfile, 'w')
         clean_reads += "_12.fq.gz"
-        subprocess.run(['bwa','mem','-t',
-                        str(args.cpus),contamdb,
-                        left, right],stdout=outsam)
-        subprocess.run(['samtools','view','-@',str(args.cpus),
+        if not os.path.exist(samfile):
+            outsam = open(samfile, 'w')
+            subprocess.run(['bwa','mem','-t',
+                            str(args.cpus),contamdb,
+                            left, right],stdout=outsam)
+            subprocess.run(['samtools','view','-@',str(args.cpus),
                         '-b',samfile, '-o',bamfile])
-        subprocess.run(['samtools','view','-@',str(args.cpus),
+            subprocess.run(['samtools','view','-@',str(args.cpus),
                         '-b',bamfile, '-f', '12','-o',bamfileunmapped])
-        subprocess.run(['samtools','sort','-@',str(args.cpus),'-n',
+            subprocess.run(['samtools','sort','-@',str(args.cpus),'-n',
                         '-b',bamfileunmapped, '-o',bamfileunmapsort])
 
         subprocess.run(['bedtools','bamtofastq','-i',
