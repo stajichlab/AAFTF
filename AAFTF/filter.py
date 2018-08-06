@@ -80,23 +80,21 @@ def run(parser,args):
     left = os.path.join(args.indir,args.prefix + "_1P")
     right = os.path.join(args.indir,args.prefix + "_2P")
 
-    if args.bowtie2 == '1':
-        print("do bowtie2")
+    if args.bowtie2 == '1':        
         if not os.path.exists(contamdb + ".1.bt2"):
             subprocess.call(['bowtie2-build',contamdb,contamdb])
 
         clean_reads = os.path.join(args.outdir,
                                    args.prefix + "_cleaned")
 
-        print(clean_reads)
         if ( not os.path.exists(clean_reads + '_1.fq.gz') or
              os.path.getctime(clean_reads+'_1.fq.gz') < os.path.getctime(contamdb)):
             if args.pairing:
                 DEVNULL = open(os.devnull, 'w')
-                print(['bowtie2','-x',contamdb,
-                       '-p', str(args.cpus),'-q','--very-sensitive',
-                       '-1',left,'-2',right,
-                       '--un-conc-gz', clean_reads])
+                logger.info(['bowtie2','-x',contamdb,
+                             '-p', str(args.cpus),'-q','--very-sensitive',
+                             '-1',left,'-2',right,
+                             '--un-conc-gz', clean_reads])
                 subprocess.run(['bowtie2','-x',contamdb,
                                 '-p', str(args.cpus),'-q','--very-sensitive',
                                 '-1',left,'-2',right,

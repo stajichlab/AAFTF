@@ -31,14 +31,19 @@ def run(parser,args):
         quality = "-%s" % (quality) # add leading dash
 
         if not path_to_adaptors:
-            path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-PE.fa"
+            path_to_adaptors = os.path.join(dirname(jarfile),
+                                            "/adapters/TruSeq3-PE.fa")
+            
+        logger.info("Tried to find adaptors in %s"%(path_to_adaptors))
 
         if not os.path.exists(path_to_adaptors):
-            path_to_adaptors=dirname(dirname(jarfile))+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+            path_to_adaptors=os.path.join(dirname(dirname(jarfile)),
+                                          "/share/trimmomatic/adapters/TruSeq3-PE.fa")
 
+        logger.info("Tried to find adaptors in %s"%(path_to_adaptors))
         if not os.path.exists(path_to_adaptors):
             print("Cannot find adaptors file, please specify manually")
-            logger.info("Cannot find adaptors file, please specify manually")
+            logger.info("Cannot find adaptors file in %s, please specify manually" % (path_to_adaptors))
             return
         
         clipstr = args.trimmomatic_clip % (path_to_adaptors)
