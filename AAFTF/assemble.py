@@ -10,7 +10,7 @@ def run(parser,args):
         args.outdir=args.indir
 
     spadescmd = ['spades.py','--threads',str(args.cpus),
-                 '-k', '21,33,55,77,99,127','--mem',args.memory,
+                 '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
                  '-o',os.path.join(args.outdir,args.prefix) ]
     if args.pairing:
         left = os.path.join(args.indir,args.prefix + "_cleaned_1.fq.gz")

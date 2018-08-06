@@ -282,7 +282,8 @@ def main():
     # arguments
     # -i / --in:  input assembly file
     # -o / --out: output cleaned assembly
-    # -p / --prefix: outfile prefix
+    # --tmpdir
+    # --pid 
     parser_vecscreen = subparsers.add_parser('vecscreen',
                             description="Screen contigs for vector and common contaminantion",
                                              help='Vector and Contaminant Screening of assembled contigs')
@@ -305,6 +306,75 @@ def main():
     parser_vecscreen.add_argument('--tmpdir',type=str,
                         required=False,default="working_AAFTF",
                         help="Temporary directory to store datafiles and processes in")
+
+    ##########
+    # blobpurge
+    ##########
+    # arguments
+    # -i / --in: input assembly file
+    # -o / --out: output cleaned assembly
+    # -rp / --reads-prefix: input/outfile prefix
+
+    # --tmpdir
+    # --phylum: phylum to keep
+    parser_blob = subparsers.add_parser('blobpurge',
+                            description="Purge contigs based on BlobPlot results",
+                                        help='Purge contigs based on BlobPlot results')
+
+    parser_blob.add_argument('-i','--infile',type=str,
+                             required=True,
+                             help="Input contigs or scaffold assembly")
+
+    parser_blob.add_argument('-o','--outfile',type=str,
+                             required=False,
+                             help="Output blobplot cleaned assembly (defaults to infile.blobclean.fasta)")
+    
+    parser_blob.add_argument('-rp','--read-prefix',required=True,
+                                  help="Prefix of the read pairs ")
+
+    parser_blob.add_argument('-ph','--phylum',required=True,nargs="+",
+                             help="Phylum or Phyla to keep matches from megablast")
+    
+    parser_blob.add_argument('--blastdb',required=True,
+                             help="NCBI nt blast db for classifying contigs/scaffolds by taxa")
+    # remote or local megablast?
+    
+    ##########
+    # clean
+    ##########
+    # funannotate clean
+    
+    ##########
+    # pilon
+    ##########
+    # arguments
+    # -i / --in: input assembly file
+    # -o / --out: output cleaned assembly
+    # -rp / --reads-prefix: input/outfile reads prefix
+    # --iterations: default 5
+    # --tmpdir
+    # --phylum: phylum to keep
+    parser_pilon = subparsers.add_parser('pilon',
+                                         description="Polish contig sequences with Pilon",
+                                        help='Purge contigs based on BlobPlot results')
+
+    parser_pilon.add_argument('-o','--outfile',type=str,
+                             required=False,
+                             help="Output Pilon polished assembly (defaults to infile.pilon.fasta)")
+
+    parser_pilon.add_argument('-i','--infile',type=str,
+                              required=True,
+                              help="Input contigs or scaffold assembly")
+
+    parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
+                                  help="Number of CPUs/threads to use.")
+
+    parser_pilon.add_argument('-rp','--read-prefix',required=True,
+                              help="Prefix of the read pairs ")
+
+    parser_pilon.add_argument('-it','--iterations',type=int,default=5,
+                              help="Number of Polishing iterations to run")
+
 
 
     parser.set_defaults(func=run_subtool)
