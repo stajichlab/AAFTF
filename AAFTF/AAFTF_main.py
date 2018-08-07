@@ -105,17 +105,13 @@ def main():
                              required=False,
                              help="Minimum read length after trimming, default: 75")
 
-    tool_group = parser_trim.add_mutually_exclusive_group(required=True)
+    tool_group = parser_trim.add_mutually_exclusive_group(required=False)
 
     tool_group.add_argument('--trimmomatic','--jar', metavar='trimmomatic_jar',
                             type=str,required=False,
                             help='Trimmomatic JAR path')
     
-    tool_group.add_argument('--sickle',type=str,
-                            required=False,
-                            nargs="?",
-                            const='1',
-                            default='0',
+    tool_group.add_argument('--sickle',action='store_true',
             help="Use sickle program for read processing (specify path to prog if not in PATH already)")
     
     trimmomatic_group = parser_trim.add_argument_group(title='Trimmomatic options',
