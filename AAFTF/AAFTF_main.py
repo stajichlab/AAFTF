@@ -70,7 +70,7 @@ def main():
     # trim
     ##########
     # arguments
-    # --trimmomatic or --sickle: arguments are path to JAR or application respectively
+    # --trimmomatic: arguments are path to JAR or application respectively
     # assume java is PATH already for trimmomatic
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
@@ -110,10 +110,7 @@ def main():
     tool_group.add_argument('--trimmomatic','--jar', metavar='trimmomatic_jar',
                             type=str,required=False,
                             help='Trimmomatic JAR path')
-    
-    tool_group.add_argument('--sickle',action='store_true',
-            help="Use sickle program for read processing (specify path to prog if not in PATH already)")
-    
+        
     trimmomatic_group = parser_trim.add_argument_group(title='Trimmomatic options',
                                               description="Trimmomatic trimming options")
 
