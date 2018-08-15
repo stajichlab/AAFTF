@@ -2,6 +2,9 @@ import sys, os
 
 from subprocess import call, Popen, PIPE, STDOUT
 
+# this runs rountines to identify and remove duplicate
+# contigs
+
 #logging
 import logging
 logger = logging.getLogger('AAFTF')
