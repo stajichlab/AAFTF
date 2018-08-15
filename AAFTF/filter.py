@@ -80,6 +80,19 @@ def run(parser,args):
     left = os.path.join(args.indir,args.prefix + "_1P")
     right = os.path.join(args.indir,args.prefix + "_2P")
 
+    # could probably subroutine this for left and right but its not that hard to code it here
+    if not os.path.exists(left):
+        if os.path.exists(left + ".fastq"):
+            left +=  ".fastq"
+        elif os.path.exists(left + ".fastq.gz"):
+            left += ".fastq.gz"
+
+    if not os.path.exists(right):
+        if os.path.exists(right + ".fastq"):
+            right +=  ".fastq"
+        elif os.path.exists(right + ".fastq.gz"):
+            right += ".fastq.gz"
+
     if args.bowtie2 == '1':        
         if not os.path.exists(contamdb + ".1.bt2"):
             subprocess.call(['bowtie2-build',contamdb,contamdb])
