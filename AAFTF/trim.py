@@ -1,3 +1,7 @@
+# trims fastq files of reads (typically Illumina)
+# using trimmomatic or other specific trimmer (when written)
+# attemps to remove vector and primer sequences
+
 import sys, os, subprocess
 
 from os.path import dirname

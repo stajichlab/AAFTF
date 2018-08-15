@@ -1,3 +1,13 @@
+# this runs rountines to identify contaminant contigs
+# which are presumably sequences that were not screened out
+# in the filter step.
+# vector library UniVec and known or user specified contaminanting
+# sequences (by GenBank accession number) can be provided for
+# additional cleanup
+
+# default lirbaries screen are located in resources.py
+# and include common Euk, Prok, and MITO contaminants
+
 import sys, csv, re, operator,os
 import shutil
 
