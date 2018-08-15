@@ -77,8 +77,8 @@ def run(parser,args):
         
         #clean-up as we iterate to prevent tmp directory from blowing up
         dirty = [initialFasta+'.sa', initialFasta+'.amb', initialFasta+'.ann',
-                 initialFasta+'.pac', initialFasta+'.bwt', os.path.join(args.tmpdir(pilonBAM), 
-                 os.path.join(args.tmpdir,pilonBAM+'.bai')]
+                 initialFasta+'.pac', initialFasta+'.bwt', os.path.join(args.tmpdir, pilonBAM), 
+                 os.path.join(args.tmpdir, pilonBAM+'.bai')]
         for f in dirty:
             if i == 1:
                 if os.path.isfile(os.path.join(args.tmpdir, f)):

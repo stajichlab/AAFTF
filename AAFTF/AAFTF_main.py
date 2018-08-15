@@ -429,6 +429,17 @@ def main():
     parser_pilon.add_argument('-it','--iterations',type=int,default=5,
                               help="Number of Polishing iterations to run")
 
+    parser_pilon.add_argument('--left',type=str,
+                              required=False,
+            help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
+
+    parser_pilon.add_argument('--right',type=str,
+                              required=False,
+            help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
+
+    parser_pilon.add_argument('--tmpdir',type=str,
+                               required=False,default="working_AAFTF",
+                               help="Temporary directory to store datafiles and processes in")
     
     ##########
     # rmdup
