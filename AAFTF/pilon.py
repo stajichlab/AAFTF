@@ -38,7 +38,7 @@ def run(parser,args):
     
     DEVNULL = open(os.devnull, 'w')
     for i in range(1, args.iterations+1):
-        print('INFO: Pilon polishing iteration {:}'.format(i))
+        print('INFO: Starting Pilon polishing iteration {:}'.format(i))
         correctedFasta = 'pilon'+str(i)+'.fasta'
         if i == 1: #first loop
             initialFasta = args.infile
@@ -92,7 +92,7 @@ def run(parser,args):
         polishedFasta = args.outfile
     else:
         polishedFasta = os.path.basename(args.infile).split('.f')[0]+'.pilon.fasta'
-    shutil.copyfile(os.path.join(args.tmpdir, 'pilon'+str(args.iterations+1)+'.fasta'), polishedFasta)
+    shutil.copyfile(os.path.join(args.tmpdir, 'pilon'+str(args.iterations)+'.fasta'), polishedFasta)
     print('INFO: AAFTF pilon completed {:} iterations.'.format(args.iterations))
     print('INFO: Pilon polished assembly: {:}'.format(polishedFasta))
         
