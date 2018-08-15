@@ -1,7 +1,14 @@
 import sys, os, shutil, gzip, subprocess
 import urllib.request
 
+# this runs rountines to remove sequence reads
+# which match contaminant databases and sources
+# including by default PhiX and others specified by
+# the user
 
+# it will download the libraries from GenBank using
+# accession numbers as well as some hard coded links
+# to PhiX - see resouces.py for these defaults
 
 #logging
 import logging
@@ -104,6 +111,8 @@ def run(parser,args):
              os.path.getctime(clean_reads+'_1.fq.gz') < os.path.getctime(contamdb)):
             if args.pairing:
                 DEVNULL = open(os.devnull, 'w')
+                # it seems that it would be useful to report how many reads matched the contaminantion
+                # databases (PhiX and others?)
                 logger.info(['bowtie2','-x',contamdb,
                              '-p', str(args.cpus),'-q','--very-sensitive',
                              '-1',left,'-2',right,
