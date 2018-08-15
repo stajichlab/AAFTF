@@ -1,3 +1,8 @@
+# run a set of default genome assembly using
+# SPAdes. Additional tools could be supported or
+# users may prefer to run their custom assembly and skip this step
+
+
 import sys, os, subprocess
 
 #logging
