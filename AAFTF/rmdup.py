@@ -1,5 +1,7 @@
 import sys, os
 
+from subprocess import call, Popen, PIPE, STDOUT
+
 #logging
 import logging
 logger = logging.getLogger('AAFTF')
@@ -18,7 +20,7 @@ def run(parser,args):
     if not os.path.exists(args.tmpdir):
         os.mkdir(args.tmpdir)
 
-    input = args.in # this is required
+    input = args.input
     out = args.out     # this is also required
 
     print(sys.argv[0])
@@ -28,17 +30,27 @@ def run(parser,args):
 
     if args.percent_id:
         cmd.append('--pident')
-        cmd.append(args.percent_id)
+        cmd.append(str(args.percent_id))
 
-    print(cmd)
+    if args.coverage:
+        cmd.append('--coverage')
+        cmd.append(str(args.coverage))
+        
+    if args.minlen:
+        cmd.append('--minlen')
+        cmd.append(str(args.minlen))
+
+    if args.exhaustive:
+        cmd.append('--exhaustive')
+
+    if args.method:
+        cmd.append('--method')
+        cmd.append(args.method)
+
+    if args.debug:
+        cmd.append('--debug')
+
+    call(cmd)
            
-           
 
-    if not os.path.exists(args.tmpdir):
-        os.mkdir(args.tmpdir)
-
-    if args.percent_id:
-        percentid_cutoff = args.percent_id
-    else:
-        percentid_cutoff = default_percent_id_cutoff
         
