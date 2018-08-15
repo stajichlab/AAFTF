@@ -110,7 +110,6 @@ def main():
     tool_group.add_argument('--trimmomatic','--jar', metavar='trimmomatic_jar',
                             type=str,required=False,
                             help='Trimmomatic JAR path')
-        
     trimmomatic_group = parser_trim.add_argument_group(title='Trimmomatic options',
                                               description="Trimmomatic trimming options")
 
@@ -333,9 +332,13 @@ def main():
     # remote or local megablast?
     
     ##########
-    # clean
+    # rmdup
     ##########
-    # funannotate clean
+
+    # -i / --in
+    # -o / --out
+    # --tmpdir
+    
     
     ##########
     # pilon
@@ -346,7 +349,6 @@ def main():
     # -rp / --reads-prefix: input/outfile reads prefix
     # --iterations: default 5
     # --tmpdir
-    # --phylum: phylum to keep
     parser_pilon = subparsers.add_parser('pilon',
                                          description="Polish contig sequences with Pilon",
                                         help='Purge contigs based on BlobPlot results')
@@ -369,6 +371,7 @@ def main():
                               help="Number of Polishing iterations to run")
 
 
+    
 
     parser.set_defaults(func=run_subtool)
 
