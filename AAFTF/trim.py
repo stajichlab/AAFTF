@@ -5,13 +5,10 @@ from os.path import dirname
 import logging
 logger = logging.getLogger('AAFTF')
 
+from AAFTF.utility import which_path
+
+
 # process trimming reads with trimmomatic
-def which_path(file_name):
-    for path in os.environ["PATH"].split(os.pathsep):
-        full_path = os.path.join(path, file_name)
-        if os.path.exists(full_path) and os.access(full_path, os.X_OK):
-            return full_path
-    return None
 
 def find_trimmomatic():
     if which_path('trimmomatic'):
@@ -21,7 +18,9 @@ def find_trimmomatic():
                     items = line.split(' ')
                     for x in items:
                         if x.endswith('.jar'):
+                            print(x)
                             return x
+                        
     else:
         return False
     
@@ -52,11 +51,17 @@ def run(parser,args):
         quality = args.trimmomatic_quality
         quality = "-%s" % (quality) # add leading dash
 
-        if not path_to_adaptors:
+        if not os.path.exists(path_to_adaptors):
             path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-PE.fa"
             
             if not os.path.exists(path_to_adaptors):
-                path_to_adaptors=dirname(dirname(jarfile))+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+                findpath=dirname(jarfile)
+                path_to_adaptors=""
+                while findpath:
+                    if os.path.exists(findpath + "/share"):
+                        path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+                        break
+                    findpath=dirname(findpath)
 
             if not os.path.exists(path_to_adaptors):
                 print("Cannot find adaptors file, please specify manually")
