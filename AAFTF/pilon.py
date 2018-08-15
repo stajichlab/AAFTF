@@ -4,12 +4,7 @@ import sys, os, shutil, subprocess
 import logging
 logger = logging.getLogger('AAFTF')
 
-def line_count(fname):
-    with open(fname) as f:
-        i = -1
-        for i, l in enumerate(f):
-            pass
-    return i + 1
+from AAFTF.utility import line_count
 
 def run(parser,args):
     
@@ -38,7 +33,7 @@ def run(parser,args):
     
     DEVNULL = open(os.devnull, 'w')
     for i in range(1, args.iterations+1):
-        print('INFO: Pilon polishing iteration {:}'.format(i))
+        logger.info(' Starting Pilon polishing iteration {:}'.format(i))
         correctedFasta = 'pilon'+str(i)+'.fasta'
         if i == 1: #first loop
             initialFasta = args.infile
@@ -48,16 +43,17 @@ def run(parser,args):
         pilonBAM = os.path.basename(initialFasta)+'.bwa.bam'
         if not os.path.isfile(os.path.join(args.tmpdir, pilonBAM)):
             bwa_index = ['bwa', 'index', os.path.basename(initialFasta)]
-            print('CMD: {:}'.format(' '.join(bwa_index)))
+            print(' CMD: {:}'.format(' '.join(bwa_index)))
             subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
             bwa_cmd = ['bwa', 'mem', '-t', str(args.cpus), os.path.basename(initialFasta), forReads]
             if revReads:
                 bwa_cmd.append(revReads)
     
             #run BWA and pipe to samtools sort
-            print('CMD: {:}'.format(' '.join(bwa_cmd)))
+            print(' CMD: {:}'.format(' '.join(bwa_cmd)))
             p1 = subprocess.Popen(bwa_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),'-o', pilonBAM, '-'], cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),'-o', pilonBAM, '-'], 
+            			cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
             p2.communicate()
             
@@ -69,16 +65,16 @@ def run(parser,args):
                      '--output', correctedFasta.split('.fasta')[0], '--threads', str(args.cpus), 
                      '--changes']
         pilon_log = 'pilon'+str(i)+'.log'
-        print('CMD: {:}'.format(' '.join(pilon_cmd)))
+        print(' CMD: {:}'.format(' '.join(pilon_cmd)))
         with open(os.path.join(args.tmpdir, pilon_log), 'w') as logfile:
             subprocess.run(pilon_cmd, cwd=args.tmpdir, stderr=logfile, stdout=logfile)
         num_changes = line_count(os.path.join(args.tmpdir, 'pilon'+str(i)+'.changes'))
-        print('INFO: found {:,} changes in Pilon iteration {:}'.format(num_changes, i))
+        logger.info(' found {:,} changes in Pilon iteration {:}'.format(num_changes, i))
         
         #clean-up as we iterate to prevent tmp directory from blowing up
         dirty = [initialFasta+'.sa', initialFasta+'.amb', initialFasta+'.ann',
-                 initialFasta+'.pac', initialFasta+'.bwt', os.path.join(args.tmpdir(pilonBAM), 
-                 os.path.join(args.tmpdir,pilonBAM+'.bai')]
+                 initialFasta+'.pac', initialFasta+'.bwt', os.path.join(args.tmpdir, pilonBAM), 
+                 os.path.join(args.tmpdir, pilonBAM+'.bai')]
         for f in dirty:
             if i == 1:
                 if os.path.isfile(os.path.join(args.tmpdir, f)):
@@ -92,8 +88,8 @@ def run(parser,args):
         polishedFasta = args.outfile
     else:
         polishedFasta = os.path.basename(args.infile).split('.f')[0]+'.pilon.fasta'
-    shutil.copyfile(os.path.join(args.tmpdir, 'pilon'+str(args.iterations+1)+'.fasta'), polishedFasta)
-    print('INFO: AAFTF pilon completed {:} iterations.'.format(args.iterations))
-    print('INFO: Pilon polished assembly: {:}'.format(polishedFasta))
+    shutil.copyfile(os.path.join(args.tmpdir, 'pilon'+str(args.iterations)+'.fasta'), polishedFasta)
+    logger.info(' AAFTF pilon completed {:} iterations.'.format(args.iterations))
+    logger.info(' Pilon polished assembly: {:}'.format(polishedFasta))
         
         
