@@ -1,7 +1,7 @@
 import sys, os
 import shutil
 
-from subprocess import call, run, Popen, PIPE, STDOUT
+from subprocess import call, Popen, PIPE, STDOUT
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -15,11 +15,14 @@ logger = logging.getLogger('AAFTF')
 
 def run(parser,args):
 
+    print("here")
+
     if not args.tmpdir:
         args.tmpdir = 'working_AAFTF'
 
     if not os.path.exists(args.tmpdir):
         os.mkdir(args.tmpdir)
+    
 
     #find reads for blobplot
     forReads, revReads = (None,)*2
@@ -94,22 +97,50 @@ def run(parser,args):
                   '-evalue',args.evalue,
                   '-out', megablast_working]
     if args.debug:
-        logger.debug(blastn_cmd)
-    if os.path.exists(os.path.join(args.tmpdir,megablas_working)):
+        logger.debug(" ".join(blastn_cmd))
+    if os.path.exists(os.path.join(args.tmpdir,megablast_working)):
         logger.info("Megablast out %s already exists, not rerunning" % (os.path.join(args.tmpdir,megablas_working)))
     else:
-        subprocess.run(blastn_cmd,cwd=args.tmpdir)
+        #subprocess.run(blastn_cmd,cwd=args.tmpdir)
+        logger.debug(" ".join(blastn_cmd))
 
     blob_cmd = ['blobtools','create','-i',assembly_working,
                 '-t',megablast_working,
                 '-b', blobBAM,
+                '-o', args.prefix
                 ]
     # could add -y spades not sure it matters though since providing -b bam
     if args.debug:
         logger.debug(blob_cmd)
+
     subprocess.run(blob_cmd,cwd=args.tmpdir)
+
+    blob_cmd = ['blobtools','view',
+                '-i',args.prefix + ".json"]
+    if args.debug:
+        logger.debug(' CMD: {:}'.
+                     format(' '.join(blob_cmd)))
+    subprocess.run(blob_cmd,cwd=args.tmpdir)
+    total_coverage = 0
+    coverages = {}
+    #calculate average coverage of largest 50 scaffolds
+    with open(os.path.join(args.tmpdir,
+                           args.prefix + ".blobDB.table.txt")) as table:
+        for line in table:
+            if line.startswith("#"):
+                continue
+            row = line.split()
+            coverages.append([row[0],int(row[1]),row[6]])
+
+    i=0
+    for ctg in reversed(sorted(coverages, key=lambda ctg: ctg[1])):
+        total_coverage += ctg[2]
+        if i > 50:
+            break
+        i = i+1
+
+    min_coverage = int(total_coverage * 0.05)
     
-#    blobtools view -i blobDB.json
 #	grep -v '^#' blobDB.table.txt > blob.summary.txt
 #	blobtools blobplot -i blobDB.json
 
