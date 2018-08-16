@@ -22,8 +22,8 @@ def run_subtool(parser, args):
         import AAFTF.assemble as submodule
     elif args.command == 'vecscreen':
         import AAFTF.vecscreen as submodule
-    elif args.command == 'blobfilter':
-        import AAFTF.blobfilter as submodule
+    elif args.command == 'blobpurge':
+        import AAFTF.blobpurge as submodule
     elif args.command == 'assess':
         import AAFTF.assess as submodule
     elif args.command == 'rmdup':
@@ -307,10 +307,10 @@ def main():
     # --tmpdir
     # --phylum: phylum to keep
     parser_blob = subparsers.add_parser('blobpurge',
-                            description="Purge contigs based on BlobPlot results",
+                                        description="Purge contigs based on BlobPlot results",
                                         help='Purge contigs based on BlobPlot results')
 
-    parser_blob.add_argument('-a','--assembly',type=str,
+    parser_blob.add_argument('-i','--input',type=str,
                              required=True,
                              help="Input contigs or scaffold assembly")
 
@@ -318,12 +318,8 @@ def main():
                              required=True, # think about sensible replacement in future
                              help="Output blobplot cleaned assembly")
 
-    parser_blob.add_argument('-i','--indir',type=str,
-                             required=True,
-                             help="Input directory where sequence reads are found")
-
-    parser_blob.add_argument('-p','--prefix',required=True,
-                                  help="Prefix of the sequence reads files")
+    parser_blob.add_argument('-p','--prefix',required=False,
+                             help="Prefix of the sequence reads files")
 
     parser_blob.add_argument('--left',required=False,
                              help="Left (Forward) reads")
@@ -343,6 +339,9 @@ def main():
     parser_blob.add_argument('-e','--evalue',type=str,default="1e-25",
                              help="Megablast e-value cutoff")
 
+    parser_blob.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
 
     parser_blob.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
@@ -410,7 +409,7 @@ def main():
     # --tmpdir
     parser_pilon = subparsers.add_parser('pilon',
                                          description="Polish contig sequences with Pilon",
-                                        help='Purge contigs based on BlobPlot results')
+                                        help='Polish contig sequences with Pilon')
 
     parser_pilon.add_argument('-o','--outfile',type=str,
                              required=False,

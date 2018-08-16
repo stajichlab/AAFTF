@@ -1,7 +1,7 @@
-import sys, os
-import shutil
+import sys, os, shutil
 
 from subprocess import call, Popen, PIPE, STDOUT
+import subprocess
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -15,15 +15,12 @@ logger = logging.getLogger('AAFTF')
 
 def run(parser,args):
 
-    print("here")
-
     if not args.tmpdir:
         args.tmpdir = 'working_AAFTF'
 
     if not os.path.exists(args.tmpdir):
         os.mkdir(args.tmpdir)
     
-
     #find reads for blobplot
     forReads, revReads = (None,)*2
     if args.left:
@@ -42,41 +39,38 @@ def run(parser,args):
         sys.exit(1)
         
     # hard coded tmpfile
-    assembly_working = 'assembly.fasta'
+    assembly_working  = 'assembly.fasta'
     megablast_working = 'megablast.out'
-    blobBAM="remapped.bam"
-    shutils.copy(args.input,os.path.join(args.tmpdir,assembly_working))
+    blobBAM           = "remapped.bam"
+    shutil.copy(args.input,os.path.join(args.tmpdir,assembly_working))
     # index
     bwa_index  = ['bwa','index',assembly_working]
     
     if args.debug:
         logger.debug(bwa_index)
-        
-    subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
 
-    # get ready to map reads        
-    # bwa is forcing these to be 2 pairs not interleaved
-    # may need to detect/correct this if not
-    left = os.path.join(args.indir,args.prefix + "_cleaned_1.fq.gz")
-    right = os.path.join(args.indir,args.prefix + "_cleaned_2.fq.gz")
+    DEVNULL = open(os.devnull, 'w')
+    if not os.path.exists(os.path.join(args.tmpdir,assembly_working+".amb")):
+        subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
+
     #mapped reads to assembly using BWA
-    bwa_args = ['bwa','mem',
+    bwa_cmd = ['bwa','mem',
                '-t', str(args.cpus),
                 assembly_working, # assembly index base
                 forReads]
     
     if revReads:
-        bwa_args.append(revReads)
+        bwa_cmd.append(revReads)
     
     #run BWA and pipe to samtools sort
 
     logger.info('CMD: {:}'.format(' '.join(bwa_cmd)))
     if os.path.exists(os.path.join(args.tmpdir,
-                                   blobBLAM)):
+                                   blobBAM)):
         logger.info("BAM file %s already exists, not rerunning" %
-                    os.path.join(args.tmpdir,blobBLAM))
+                    os.path.join(args.tmpdir,blobBAM))
     else:
-        p1 = subprocess.Popen(bwa_args, cwd=args.tmpdir,
+        p1 = subprocess.Popen(bwa_cmd, cwd=args.tmpdir,
                               stdout=subprocess.PIPE, stderr=DEVNULL)
         p2 = subprocess.Popen(['samtools', 'sort', '--threads', str(args.cpus),
                                '-o', blobBAM, '-'], cwd=args.tmpdir,
@@ -96,6 +90,7 @@ def run(parser,args):
                   '-num_threads', str(args.cpus),
                   '-evalue',args.evalue,
                   '-out', megablast_working]
+    logger.info('CMD: {:}'.format(' '.join(blastn_cmd)))
     if args.debug:
         logger.debug(" ".join(blastn_cmd))
     if os.path.exists(os.path.join(args.tmpdir,megablast_working)):
@@ -109,6 +104,7 @@ def run(parser,args):
                 '-b', blobBAM,
                 '-o', args.prefix
                 ]
+    logger.info('CMD: {:}'.format(' '.join(blob_cmd)))
     # could add -y spades not sure it matters though since providing -b bam
     if args.debug:
         logger.debug(blob_cmd)
