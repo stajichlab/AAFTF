@@ -4,6 +4,9 @@ import sys, subprocess, os, itertools, argparse
 from Bio import SeqIO
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
+import logging
+logger = logging.getLogger('AAFTF')
+
 #setup menu with argparse
 class MyFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self,prog):
@@ -38,7 +41,7 @@ def CheckDependencies(input):
             missing.append(p)
     if missing != []:
         error = ", ".join(missing)
-        log.error("Missing Dependencies: %s.  Please install missing dependencies and re-run script" % (error))
+        logger.error("Missing Dependencies: %s.  Please install missing dependencies and re-run script" % (error))
         sys.exit(1)
 
 def calcN50(input):
@@ -65,8 +68,8 @@ def Sortbysize(input, n50):
     keep = []
     with open(input, 'rU') as input:
         records = list(SeqIO.parse(input, 'fasta'))
-        records.sort(cmp=lambda x,y: cmp(len(y),len(x)), reverse=True)
-        for rec in records:
+#        records.sort(cmp=lambda x,y: cmp(len(y),len(x)), reverse=True)
+        for rec in reversed(sorted(records, key=lambda x: len(x))):
             length = len(rec.seq)
             if length >= args.minlen:
                 if n50:
@@ -88,7 +91,7 @@ def countfasta(input):
 
 def softwrap(string, every=80):
     lines = []
-    for i in xrange(0, len(string), every):
+    for i in range(0, len(string), every):
         lines.append(string[i:i+every])
     return '\n'.join(lines)
          
