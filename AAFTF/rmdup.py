@@ -27,16 +27,18 @@ def run(parser,args):
     out = args.out     # this is also required
 
     print(sys.argv[0])
-    cmd = ['scripts/funannotate-contig_cleaner.py',
+    cmd = [os.path.join(os.path.dirname(sys.argv[0]),
+        'funannotate-contig_cleaner.py'),
            '--input',input,
            '--out',out]
 
+    print(str(int(args.percent_id)) + " is percentid")
     if args.percent_id:
         cmd.append('--pident')
         cmd.append(str(args.percent_id))
 
     if args.coverage:
-        cmd.append('--coverage')
+        cmd.append('--cov')
         cmd.append(str(args.coverage))
         
     if args.minlen:
@@ -52,6 +54,7 @@ def run(parser,args):
 
     if args.debug:
         cmd.append('--debug')
+        logger.info("CMD: %s"%(" ".join(cmd)))
 
     call(cmd)
            
