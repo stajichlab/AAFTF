@@ -289,7 +289,7 @@ def main():
                                   required=False,
                                   help="Output vector screened and cleaned assembly (defaults to infile.clean.fasta)")
 
-    parser_vecscreen.add_argument('-pid','--percent_id',type=float,
+    parser_vecscreen.add_argument('-pid','--percent_id',type=int,
                                   required=False,
                                   help="Percent Identity cutoff for vecscreen adaptor matches")
 
@@ -402,57 +402,6 @@ def main():
 
     
     ##########
-    # rmdup
-    ##########
-
-    # -i / --in
-    # -o / --out
-    # --tmpdir
-    # --percent_id
-    # -c / --coverage
-    # -m / --minlen
-    # --exhaustive
-    # --method (mummer/minimap2)
-    # --debug
-
-    # its possible an alternative method could be used here to remove duplicated but for now this is
-    # tied directly to funannotate clean script (see our copy in scripts/funannotate-contig_cleaner.py)
-    parser_rmdup = subparsers.add_parser('rmdup',
-                                         description="Remove duplicate contigs",
-                                         help='Remove duplicate contigs')
-    parser_rmdup.add_argument('-i','--input',type=str,
-                               required=True,
-                               help="Input Assembly fasta file(contigs or scaffolds)")
-
-    parser_rmdup.add_argument('-o','--out',type=str,
-                               required=True,
-                               help="Output new version of assembly with duplicated contigs/scaffolds removed")
-    
-    parser_rmdup.add_argument('--tmpdir',type=str,
-                               required=False,default="working_AAFTF",
-                               help="Temporary directory to store datafiles and processes in")
-
-    parser_rmdup.add_argument('-pid','--percent_id',type=float,
-                               required=False,default=95.0,
-                               help="Percent Identity used in matching contigs for redundancy")
-
-    parser_rmdup.add_argument('-c','--coverage',type=float,
-                               required=False,default=95.0,
-                               help="Coverage of contig used to decide if it is redundant")
-
-    parser_rmdup.add_argument('-m','--minlen',type=int,
-                               required=False,default=500,
-                               help="Minimum contig length to keep, shorter ones are dropped")
-
-    parser_rmdup.add_argument('--exhaustive',action='store_true',
-                               help="Compute overlaps for every contig, otherwise only process contigs for L50 and below")
-
-    parser_rmdup.add_argument('--method',default='minimap2', choices=['mummer', 'minimap2'],
-                               help='program to use for calculating overlaps')
-
-    parser_rmdup.add_argument('--debug',action='store_true', help='Run rmdup in debugging mode for more output')
-    
-    ##########
     # pilon
     ##########
     # arguments
@@ -525,12 +474,12 @@ def main():
                                required=False,default="working_AAFTF",
                                help="Temporary directory to store datafiles and processes in")
 
-    parser_rmdup.add_argument('-pid','--percent_id',type=float,
-                               required=False,default=95.0,
+    parser_rmdup.add_argument('-pid','--percent_id',type=int,
+                               required=False,default=95,
                                help="Percent Identity used in matching contigs for redundancy")
 
-    parser_rmdup.add_argument('-c','--coverage',type=float,
-                               required=False,default=95.0,
+    parser_rmdup.add_argument('-c','--coverage',type=int,
+                               required=False,default=95,
                                help="Coverage of contig used to decide if it is redundant")
 
     parser_rmdup.add_argument('-m','--minlen',type=int,
