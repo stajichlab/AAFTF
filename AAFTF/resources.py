@@ -15,4 +15,5 @@ Applications = {'megablast': 'blastn',
 SeqDBs = {'nucleotide': 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=%s&rettype=fasta',
           'nucleotide_ebi': 'https://www.ebi.ac.uk/ena/data/view/%s?display=fasta',
           'nucleotide_ncbi': 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=%s&rettype=fasta',
+          'sourmash': 'https://osf.io/zskb9/download?version=1'
           }

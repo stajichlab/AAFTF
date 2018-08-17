@@ -24,6 +24,8 @@ def run_subtool(parser, args):
         import AAFTF.vecscreen as submodule
     elif args.command == 'blobpurge':
         import AAFTF.blobpurge as submodule
+    elif args.command == 'sourpurge':
+        import AAFTF.sourpurge as submodule
     elif args.command == 'assess':
         import AAFTF.assess as submodule
     elif args.command == 'rmdup':
@@ -346,6 +348,58 @@ def main():
     parser_blob.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
     # remote or local megablast?
+
+    ##########
+    # sourpurge
+    ##########
+    # arguments
+    # -a / --assembly: input assembly file
+    # -o / --out: output cleaned assembly file
+    # -p / --prefix: sequence reads prefix
+    # -i / --indir: directory where sequence reads are located
+    # -c / --cpus: number of cpus
+    # --tmpdir
+    # --phylum: phylum to keep
+    parser_sour = subparsers.add_parser('sourpurge',
+                                        description="Purge contigs based on sourmash results",
+                                        help='Purge contigs based on sourmash results')
+
+    parser_sour.add_argument('-i','--input',type=str,
+                             required=True,
+                             help="Input contigs or scaffold assembly")
+
+    parser_sour.add_argument('-o','--out',type=str,
+                             required=True, # think about sensible replacement in future
+                             help="Output blobplot cleaned assembly")
+
+    parser_sour.add_argument('-p','--prefix',required=False,
+                             help="Prefix of the sequence reads files")
+
+    parser_sour.add_argument('--left',required=False,
+                             help="Left (Forward) reads")
+
+    parser_sour.add_argument('--right',required=False,
+                             help="Right (Reverse) reads")
+
+    parser_sour.add_argument('--phylum',required=True,nargs="+",
+                             help="Phylum or Phyla to keep matches from megablast")
+    
+    parser_sour.add_argument('--sourdb',required=True,
+                             help="SourMash LCA k-31 taxonomy database")
+
+    parser_sour.add_argument('-m', '--mincovpct',default=5,type=int,
+                             help="Minimum percent of N50 coverage to remove")
+
+    parser_sour.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
+                                  help="Number of CPUs/threads to use.")
+
+    parser_sour.add_argument('--tmpdir',type=str,
+                        required=False,default="working_AAFTF",
+                        help="Temporary directory to store datafiles and processes in")
+
+    parser_sour.add_argument('-v','--debug',action='store_true',
+                             help="Provide debugging messages")
+
     
     ##########
     # rmdup
