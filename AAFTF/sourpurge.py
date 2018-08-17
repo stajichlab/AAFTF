@@ -53,10 +53,12 @@ def run(parser,args):
     if not os.path.isfile(os.path.join(args.tmpdir, blobBAM)):  
         # index
         bwa_index  = ['bwa','index', os.path.basename(assembly_working)]     
-        logger.info('Building BWA index')
-        logger.info('CMD: {:}'.format(' '.join(bwa_index)))
-        subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
-
+        if not os.path.isfile(os.path.join(args.tmpdir,os.path.basename(assembly_working)+".amb")):
+            logger.info('Building BWA index')
+            logger.info('CMD: {:}'.format(' '.join(bwa_index)))
+            subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
+        else:
+            logger.info("BWA index already exists for %s"%(os.path.join(args.tmpdir,os.path.basename(assembly_working))))
         #mapped reads to assembly using BWA
         bwa_cmd = ['bwa','mem',
                    '-t', str(args.cpus),
@@ -76,7 +78,9 @@ def run(parser,args):
                               stdin=p1.stdout)
         p1.stdout.close()
         p2.communicate()
-        subprocess.run(['samtools', 'index', blobBAM], cwd=args.tmpdir)
+
+        if os.path.exists(blobBAM):
+            subprocess.run(['samtools', 'index', blobBAM], cwd=args.tmpdir)
     
     #now calculate coverage
     logger.info('Calculating read coverage per contig')
