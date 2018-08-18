@@ -3,7 +3,7 @@
 # users may prefer to run their custom assembly and skip this step
 
 
-import sys, os, subprocess
+import sys, os, subprocess, shutil
 
 #logging
 import logging
@@ -18,10 +18,13 @@ def run(parser,args):
         os.mkdir(args.tmpdir)
 
 
-    spadescmd = ['spades.py','--threads',str(args.cpus),
+    spadescmd = ['spades.py','--threads', str(args.cpus),
                  '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
                  '-o', os.path.join(args.tmpdir, 'spades')]
-    #find reads
+    if os.path.isdir(os.path.join(args.tmpdir, 'spades')):
+        spadescmd.append('--continue')
+        
+    #find reads -- use --left/right or look for cleaned in tmpdir
     forReads, revReads = (None,)*2
     if args.left:
         forReads = os.path.abspath(args.left)
@@ -39,10 +42,25 @@ def run(parser,args):
         sys.exit(1)
     
     if not revReads:
-    	spadescmd = spadescmd + ['-s', forReads]
+        spadescmd = spadescmd + ['-s', forReads]
     else:
-    	spadescmd = spadescmd + ['--pe1-1', forReads, '--pe1-2', revReads]
+        spadescmd = spadescmd + ['--pe1-1', forReads, '--pe1-2', revReads]
 
     # now run the spades job
-    print(spadescmd)
+    logger.info('CMD: {:}'.format(' '.join(spadescmd)))
     subprocess.run(spadescmd)
+    
+    #pull out assembly
+    if args.out:
+        finalOut = args.out
+    else:
+        if args.prefix:
+            finalOut = args.prefix+'.spades.fasta'
+        else:
+            finalOut = os.basename(forReads).split('.')[0]+'.spades.fasta'
+    if os.path.isfile(os.path.join(args.tmpdir, 'spades', 'scaffolds.fasta')):
+        shutil.copyfile(os.path.join(args.tmpdir, 'spades', 'scaffolds.fasta'), finalOut)
+        logger.info(' Spades assembly finished: {:}'.format(finalOut))
+    else:
+        logger.error(' Spades assembly output missing -- check logfiles.')
+    

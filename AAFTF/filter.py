@@ -199,8 +199,9 @@ def run(parser,args):
         logger.info(' {:,} reads mapped to contamintation database'.format(mapped))
         logger.info(' {:,} reads unmapped and writing to file'.format(unmapped))
         #now output unmapped reads from bamfile
+        #this needs to be -f 5 so unmapped-pairs
         if forReads and revReads:
-            samtools_cmd = ['samtools', 'fastq', '-f', '4',
+            samtools_cmd = ['samtools', 'fastq', '-f', '5',
                             '-1', clean_reads+'_1.fastq.gz',
                             '-2', clean_reads+'_2.fastq.gz',
                             alignBAM]

@@ -96,7 +96,7 @@ def main():
     
     parser_trim.add_argument('-o','--outdir',type=str,
                              default='working_AAFTF',
-    						 help="Output directory for trimmed reads")
+                             help="Output directory for trimmed reads")
 
     parser_trim.add_argument('-ml','--minlength',type=int,
                              default=75,
@@ -190,8 +190,8 @@ def main():
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
     
     parser_filter.add_argument('--aligner', default='bwa', 
-    						   choices=['bowtie2', 'bwa', 'minimap2'],
-    						   help='Aligner to use to map reads to contamination database')
+                               choices=['bowtie2', 'bwa', 'minimap2'],
+                               help='Aligner to use to map reads to contamination database')
     
 
     ##########
@@ -209,7 +209,7 @@ def main():
                                        help='Assemble reads')
     
     parser_asm.add_argument('-o','--out',type=str,
-                             required=True, # think about sensible replacement in future
+                             required=False, # think about sensible replacement in future
                              help="Output spades assembly")
 
     parser_asm.add_argument('--tmpdir',type=str,
