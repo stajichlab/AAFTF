@@ -97,7 +97,7 @@ def run(parser,args):
                 earliest_file_age = os.path.getctime(url_file)
 
     # concat vector db
-    logger.info(' Generating combined contamination database:\n {:}'.format(', '.join(contam_filenames)))
+    logger.info(' Generating combined contamination database:\n{:}'.format('\n'.join(contam_filenames)))
     contamdb = os.path.join(args.tmpdir,'contamdb')
     if ( not os.path.exists(contamdb) or
          ( os.path.getctime(contamdb) < earliest_file_age)):
@@ -201,7 +201,7 @@ def run(parser,args):
         #now output unmapped reads from bamfile
         #this needs to be -f 5 so unmapped-pairs
         if forReads and revReads:
-            samtools_cmd = ['samtools', 'fastq', '-f', '5',
+            samtools_cmd = ['samtools', 'fastq', '-f', '12',
                             '-1', clean_reads+'_1.fastq.gz',
                             '-2', clean_reads+'_2.fastq.gz',
                             alignBAM]
