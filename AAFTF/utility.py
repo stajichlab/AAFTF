@@ -1,5 +1,7 @@
 import os
 import subprocess
+import gzip
+
 
 def which_path(file_name):
     for path in os.environ["PATH"].split(os.pathsep):
@@ -22,6 +24,21 @@ def countfasta(input):
             if line.startswith (">"):
                 count += 1
     return count
+
+def countfastq(input):
+    lines = sum(1 for line in open(input))
+    count = int(lines) // 4
+    return count
+    
+def bam_read_count(bamfile):
+    cmd = ['samtools', 'idxstats', bamfile]
+    mapped = 0
+    unmapped = 0
+    for line in execute(cmd, '.'):
+        rname, rlen, nm, nu = line.rstrip().split()
+        mapped += int(nm)
+        unmapped += int(nu)
+    return (mapped, unmapped)
 
 def calcN50(lengths):
     lengths.sort()

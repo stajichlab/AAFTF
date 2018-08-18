@@ -17,6 +17,8 @@ logger = logging.getLogger('AAFTF')
 from AAFTF.resources import Contaminant_Accessions
 from AAFTF.resources import SeqDBs
 from AAFTF.resources import DB_Links
+from AAFTF.utility import bam_read_count
+from AAFTF.utility import countfastq
 
 def run(parser,args):
     
@@ -26,15 +28,29 @@ def run(parser,args):
     if not os.path.exists(args.tmpdir):
         os.mkdir(args.tmpdir)
 
-    if not args.outdir:
-        args.outdir = args.indir
+    #parse database locations
+    DB = None
+    if not args.AAFTF_DB:
+        try:
+            DB = os.environ["AAFTF_DB"]
+        except KeyError:
+            if args.AAFTF_DB:
+                DB = args.AAFTF_DB
+            else:
+                pass
+    else:
+        DB = args.AAFTF_DB
+
         
     earliest_file_age = -1
     contam_filenames = []
     # db of contaminant (PhiX)
     for url in Contaminant_Accessions.values():
         acc = os.path.basename(url)
-        acc_file = os.path.join(args.tmpdir,acc)
+        if DB:
+            acc_file = os.path.join(DB, acc)
+        else:
+            acc_file = os.path.join(args.tmpdir,acc)
         contam_filenames.append(acc_file)
         if not os.path.exists(acc_file):
             urllib.request.urlretrieve(url,acc_file)
@@ -45,7 +61,10 @@ def run(parser,args):
     # download univec too
     url = DB_Links['UniVec']
     acc = os.path.basename(DB_Links['UniVec'])
-    acc_file = os.path.join(args.tmpdir,acc)
+    if DB:
+        acc_file = os.path.join(DB, acc)
+    else:
+        acc_file = os.path.join(args.tmpdir,acc)
     contam_filenames.append(acc_file)
     if not os.path.exists(acc_file):
         urllib.request.urlretrieve(url,acc_file)
@@ -55,7 +74,10 @@ def run(parser,args):
     
     if args.screen_accessions:
         for acc in args.screen_accessions:
-            acc_file = os.path.join(args.tmpdir,acc+".fna")
+            if DB:
+                acc_file = os.path.join(DB, acc+".fna")
+            else:
+                acc_file = os.path.join(args.tmpdir,acc+".fna")
             contam_filenames.append(acc_file)
             if not os.path.exists(acc_file):
                 url = SeqDBs['nucleotide'] % (acc)
@@ -63,7 +85,6 @@ def run(parser,args):
             if ( earliest_file_age < 0 or
                  earliest_file_age < os.path.getctime(acc_file) ):
                 earliest_file_age = os.path.getctime(acc_file)
-
 
     if args.screen_urls:
         for url in args.screen_urls:
@@ -76,6 +97,7 @@ def run(parser,args):
                 earliest_file_age = os.path.getctime(url_file)
 
     # concat vector db
+    logger.info(' Generating combined contamination database:\n {:}'.format(', '.join(contam_filenames)))
     contamdb = os.path.join(args.tmpdir,'contamdb')
     if ( not os.path.exists(contamdb) or
          ( os.path.getctime(contamdb) < earliest_file_age)):
@@ -83,101 +105,112 @@ def run(parser,args):
              for fname in contam_filenames:
                  with open(fname,'rb') as fd: # reasonably fast copy for append
                      shutil.copyfileobj(fd, wfd)
+    
+    #find reads
+    forReads, revReads = (None,)*2
+    if args.left:
+        forReads = os.path.abspath(args.left)
+    if args.right:
+        revReads = os.path.abspath(args.right)
+    if not forReads:
+        for file in os.listdir(args.tmpdir):
+            if '_1P' in file:
+                forReads = os.path.abspath(os.path.join(args.tmpdir, file))
+            if '_2P' in file:
+                revReads = os.path.abspath(os.path.join(args.tmpdir, file))
+    if not forReads:
+        logger.error(' Unable to located FASTQ reads')
+        sys.exit(1)
+        
+    #logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
+    DEVNULL = open(os.devnull, 'w')
+    alignBAM = os.path.join(args.tmpdir, 'contam_db.bam')
+    clean_reads = os.path.join(args.tmpdir, args.prefix + "_cleaned")
+    
+    if args.aligner == 'bowtie2':  
+        if not os.path.isfile(alignBAM):
+            logger.info(' Aligning reads to contamination database using bowtie2')
+            bowtie_index = ['bowtie2-build', contamdb, contamdb]
+            logger.info('CMD: {:}'.format(' '.join(bowtie_index)))
+            subprocess.run(bowtie_index, stderr=DEVNULL, stdout=DEVNULL)
 
-    left = os.path.join(args.indir,args.prefix + "_1P")
-    right = os.path.join(args.indir,args.prefix + "_2P")
-
-    # could probably subroutine this for left and right but its not that hard to code it here
-    if not os.path.exists(left):
-        if os.path.exists(left + ".fastq"):
-            left +=  ".fastq"
-        elif os.path.exists(left + ".fastq.gz"):
-            left += ".fastq.gz"
-
-    if not os.path.exists(right):
-        if os.path.exists(right + ".fastq"):
-            right +=  ".fastq"
-        elif os.path.exists(right + ".fastq.gz"):
-            right += ".fastq.gz"
-
-    if args.bowtie2 == '1':        
-        if not os.path.exists(contamdb + ".1.bt2"):
-            subprocess.call(['bowtie2-build',contamdb,contamdb])
-
-        clean_reads = os.path.join(args.outdir,
-                                   args.prefix + "_cleaned")
-
-        if ( not os.path.exists(clean_reads + '_1.fq.gz') or
-             os.path.getctime(clean_reads+'_1.fq.gz') < os.path.getctime(contamdb)):
-            if args.pairing:
-                DEVNULL = open(os.devnull, 'w')
-                # it seems that it would be useful to report how many reads matched the contaminantion
-                # databases (PhiX and others?)
-                logger.info(['bowtie2','-x',contamdb,
-                             '-p', str(args.cpus),'-q','--very-sensitive',
-                             '-1',left,'-2',right,
-                             '--un-conc-gz', clean_reads])
-                subprocess.run(['bowtie2','-x',contamdb,
-                                '-p', str(args.cpus),'-q','--very-sensitive',
-                                '-1',left,'-2',right,
-                                '--un-conc-gz', clean_reads+'.gz'],
-                               stdout=DEVNULL)
-                shutil.move(clean_reads+'.1.gz',
-                            clean_reads+'_1.fq.gz')
-                shutil.move(clean_reads+'.2.gz',
-                            clean_reads+'_2.fq.gz')
-
-            else:
-                single = os.path.join(args.indir,
-                                args.prefix + "_1U")
-                DEVNULL = open(os.devnull, 'w')
-                print(['bowtie2','-x',contamdb,
-                                '-p', str(args.cpus),
-                                '-q','--very-sensitive',
-                                '-U',single,
-                                '--un-conc-gz', clean_reads+'.gz'])
-                subprocess.run( ['bowtie2','-x',contamdb,
-                                '-p', str(args.cpus),
-                                '-q','--very-sensitive',
-                                '-U',single,
-                                '--un-conc-gz', clean_reads+'.gz'],
-                               stdout=DEVNULL)
-                shutil.move(clean_reads+'.gz',
-                            clean_reads+'_single.fq.gz')
+            bowtie_cmd = ['bowtie2','-x', os.path.basename(contamdb),
+                          '-p', str(args.cpus), '--very-sensitive']
+            if forReads and revReads:
+                bowtie_cmd = bowtie_cmd + ['-1', forReads, '-2', revReads]
+            elif forReads:
+                bowtie_cmd = bowtie_cmd + ['-U', forReads]
+            
+            #now run and write to BAM sorted
+            logger.info('CMD: {:}'.format(' '.join(bowtie_cmd)))
+            p1 = subprocess.Popen(bowtie_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
+                                   '-o', os.path.basename(alignBAM), '-'],
+                                   cwd=args.tmpdir, stdout=subprocess.PIPE, 
+                                   stderr=DEVNULL, stdin=p1.stdout)
+            p1.stdout.close()
+            p2.communicate()        
                 
-    elif args.bwa == '1':
-        print("do bwa")
-        if not os.path.exists(contamdb + ".amb"):
-            subprocess.call(['bwa','index',contamdb])
-        clean_reads = os.path.join(args.outdir,
-                                   args.prefix + "_cleaned")
-        samfile = os.path.join(args.tmpdir,
-                                   args.prefix + ".contam_map.sam")
-        bamfile = os.path.splitext(samfile)[0] + ".bam"
-        bamfileunmapped = os.path.join(args.tmpdir,
-                                   args.prefix + ".contam_unmapped.bam")
-        bamfileunmapsort = os.path.join(args.tmpdir,
-                                   args.prefix + ".contam_unmapped_sort.bam")
-        clean_reads += "_12.fq.gz"
-        if not os.path.exist(samfile):
-            outsam = open(samfile, 'w')
-            subprocess.run(['bwa','mem','-t',
-                            str(args.cpus),contamdb,
-                            left, right],stdout=outsam)
-            subprocess.run(['samtools','view','-@',str(args.cpus),
-                        '-b',samfile, '-o',bamfile])
-            subprocess.run(['samtools','view','-@',str(args.cpus),
-                        '-b',bamfile, '-f', '12','-o',bamfileunmapped])
-            subprocess.run(['samtools','sort','-@',str(args.cpus),'-n',
-                        '-b',bamfileunmapped, '-o',bamfileunmapsort])
-
-        subprocess.run(['bedtools','bamtofastq','-i',
-                        bamfileunmapsort,'-fq', clean_reads])
-        subprocess.run(['gzip',clean_reads])        
-    elif args.bbmap == '1':
-        print("do bbmap")
+    elif args.aligner == 'bwa':
+        if not os.path.isfile(alignBAM):
+            logger.info(' Aligning reads to contamination database using bowtie2')
+            bwa_index = ['bwa','index', contamdb]
+            logger.info('CMD: {:}'.format(' '.join(bwa_index)))
+            subprocess.run(bwa_index, stderr=DEVNULL, stdout=DEVNULL)
+            
+            bwa_cmd = ['bwa', 'mem', '-t', str(args.cpus), os.path.basename(contamdb), forReads]
+            if revReads:
+                bwa_cmd.append(revReads)
+            
+            #now run and write to BAM sorted
+            logger.info('CMD: {:}'.format(' '.join(bwa_cmd)))
+            p1 = subprocess.Popen(bwa_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
+                                   '-o', os.path.basename(alignBAM), '-'],
+                                   cwd=args.tmpdir, stdout=subprocess.PIPE, 
+                                   stderr=DEVNULL, stdin=p1.stdout)
+            p1.stdout.close()
+            p2.communicate()                
+      
+    elif args.aligner == 'minimap2':
+        if not os.path.isfile(alignBAM):
+            logger.info(' Aligning reads to contamination database using minimap2')
+            
+            minimap2_cmd = ['minimap2', '-ax', 'sr', '-t', str(args.cpus), os.path.basename(contamdb), forReads]
+            if revReads:
+                minimap2_cmd.append(revReads)
+            
+            #now run and write to BAM sorted
+            logger.info('CMD: {:}'.format(' '.join(minimap2_cmd)))
+            p1 = subprocess.Popen(minimap2_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
+                                   '-o', os.path.basename(alignBAM), '-'],
+                                   cwd=args.tmpdir, stdout=subprocess.PIPE, 
+                                   stderr=DEVNULL, stdin=p1.stdout)
+            p1.stdout.close()
+            p2.communicate()    
     else:
-        print("Must specify bowtie2,bwa, or bbmap for filtering")
-        logger.info("Must specify bowtie2,bwa, or bbmap for filtering")
-
+        logger.error(" Must specify bowtie2, bwa, or minimap2 for filtering")
+    
+    if os.path.isfile(alignBAM):
+        #display mapping stats in terminal
+        subprocess.run(['samtools', 'index', alignBAM])
+        mapped, unmapped = bam_read_count(alignBAM)
+        logger.info(' {:,} reads mapped to contamintation database'.format(mapped))
+        logger.info(' {:,} reads unmapped and writing to file'.format(unmapped))
+        #now output unmapped reads from bamfile
+        if forReads and revReads:
+            samtools_cmd = ['samtools', 'fastq', '-f', '4',
+                            '-1', clean_reads+'_1.fastq.gz',
+                            '-2', clean_reads+'_2.fastq.gz',
+                            alignBAM]
+        elif forReads:
+            samtools_cmd = ['samtools', 'fastq', '-f', '4',
+                            '-1', clean_reads+'_1.fastq.gz',
+                            alignBAM]
+        subprocess.run(samtools_cmd, stderr=DEVNULL)
+        if revReads:
+            logger.info(' Filtering complete:\n For: {:}\n Rev: {:}'.format(clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
+        else:
+            logger.info(' Filtering complete:\n Single: {:}'.format(clean_reads+'_1.fastq.gz'))
             

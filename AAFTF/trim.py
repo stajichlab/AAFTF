@@ -13,18 +13,29 @@ from AAFTF.utility import which_path
 
 
 # process trimming reads with trimmomatic
+# Homebrew install of trimmomatic uses a shell script
+'''
+#!/bin/bash
+exec java  -jar /usr/local/Cellar/trimmomatic/0.36/libexec/trimmomatic-0.36.jar "$@"
+'''
+#while bioconda install uses a python script that launches java apps
 
 def find_trimmomatic():
-    if which_path('trimmomatic'):
+    trim_path = which_path('trimmomatic')
+    if trim_path:
         with open(os.path.abspath(which_path('trimmomatic')), 'rU') as trim_shell:
-            for line in trim_shell:
-                if line.startswith('exec java'):
-                    items = line.split(' ')
-                    for x in items:
-                        if x.endswith('.jar'):
-                            print(x)
-                            return x
-                        
+            firstLine = trim_shell.readline()
+            if '#!/bin/bash' in firstLine: #then homebrew do routine to get jar location
+                for line in trim_shell:         
+                    if line.startswith('exec java'):
+                        items = line.split(' ')
+                        for x in items:
+                            if x.endswith('.jar'):
+                                return x
+            elif '#!/usr/bin/env python' in firstLine:
+                return os.path.join(os.path.dirname(os.path.realpath(trim_path)), 'trimmomatic.jar')
+            else:
+                return False         
     else:
         return False
     
@@ -40,11 +51,15 @@ def run(parser,args):
          os.path.getctime(args.left) ):
         logger.info("Already ran trimming on %s %s" % (args.left,args.right))
         return
-    
-    if args.trimmomatic:
-        jarfile      = args.trimmomatic
+    #find path    
+    trimmomatic_path = find_trimmomatic()
+    if trimmomatic_path:
+        jarfile = trimmomatic_path
+    elif args.trimmomatic:
+        jarfile = args.trimmomatic
     else:
-        jarfile      = find_trimmomatic()
+        logger.error('Trimmomatic cannot be found - please provide location of trimmomatic.jar file.')
+        sys.exit(1)
         
     if jarfile:
         path_to_adaptors = args.trimmomatic_adaptors
@@ -73,7 +88,6 @@ def run(parser,args):
                 return
         
         clipstr = args.trimmomatic_clip % (path_to_adaptors)
-
         
         cmd = []
         
@@ -101,6 +115,3 @@ def run(parser,args):
         logger.info("running cmd: %s" %(" ".join(cmd)))
         subprocess.run(cmd)
 
-    else:
-        print("Only trimmomatic or sickle supported as trim tool at the moment")
-        logger.info("Only trimmomatic or sickle supported as trim tool at the moment")

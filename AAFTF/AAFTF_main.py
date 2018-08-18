@@ -95,12 +95,8 @@ def main():
                               help="Number of CPUs/threads to use.")
     
     parser_trim.add_argument('-o','--outdir',type=str,
-                             required=False,
-    help="Output directory for trimmed reads")
-
-    parser_trim.add_argument('--tmpdir',type=str,
-                        required=False,default="working_AAFTF",
-                        help="Temporary directory to store datafiles and processes in")
+                             default='working_AAFTF',
+    						 help="Output directory for trimmed reads")
 
     parser_trim.add_argument('-ml','--minlength',type=int,
                              default=75,
@@ -172,51 +168,31 @@ def main():
                         help="Number of CPUs/threads to use.")
     
     parser_filter.add_argument('-p','--prefix',type=str,
-                        required=True,
+                        required=False,
                         help="Input/Output Prefix for fileset")
 
     parser_filter.add_argument('-a','--screen_accessions',type = str,
                                nargs="*",
                                help="Genbank accession number(s) to screen out from initial reads.")
+                               
     parser_filter.add_argument('-u','--screen_urls',type = str,
                                nargs="*",
                                help="URLs to download and screen out initial reads.")
-        
-    parser_filter.add_argument('-i','--indir',type=str,
-                               required=True,
-                               help="Directory for input of trimmed reads")
 
-    parser_filter.add_argument('-o','--outdir',type=str,
+    parser_filter.add_argument('--left',required=False,
+                             help="Left (Forward) reads")
+
+    parser_filter.add_argument('--right',required=False,
+                             help="Right (Reverse) reads")
+    
+    parser_filter.add_argument('--AAFTF_DB',type=str,
                                required=False,
-                               help="Directory for filtered reads (defaults to indir)")
-
-    parser_filter.add_argument('--paired',action='store_true',
-                               dest='pairing',default=True,
-                               help="Paired or unpaired sequence reads")
+                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
     
-    parser_filter.add_argument('--unpaired','--single',
-                               action='store_false',dest='pairing',
-                               help="Paired or unpaired sequence reads")
+    parser_filter.add_argument('--aligner', default='bwa', 
+    						   choices=['bowtie2', 'bwa', 'minimap2'],
+    						   help='Aligner to use to map reads to contamination database')
     
-    tool_group = parser_filter.add_mutually_exclusive_group(required=True)
-
-    tool_group.add_argument('--bowtie2',
-                            type=str,required=False,default='0',const='1',nargs='?',
-                            help='Bowtie2 executable path (specify path to bowtie2 if not in PATH already)')
-    
-    tool_group.add_argument('--bwa',type=str,
-                            required=False,
-                            nargs="?",
-                            const='1',
-                            default='0',
-            help="Use bwa for read filtering (specify path to bwa prog if not in PATH already)")
-
-    tool_group.add_argument('--bbmap',type=str,
-                            required=False,
-                            nargs="?",
-                            const='1',
-                            default='0',
-            help="Use bbmap for read filtering (specify path to bbmap prog if not in PATH already)")
 
     ##########
     # assemble
@@ -231,13 +207,10 @@ def main():
     parser_asm = subparsers.add_parser('assemble',
                                        description="Run assembler on cleaned reads",
                                        help='Assemble reads')
-    parser_asm.add_argument('-i','--indir',type=str,
-                               required=True,
-                               help="Directory for input of clean reads")
-
-    parser_asm.add_argument('-o','--outdir',type=str,
-                               required=False,
-                               help="Directory where spades folder goes (defaults to indir)")
+    
+    parser_asm.add_argument('-o','--out',type=str,
+                             required=True, # think about sensible replacement in future
+                             help="Output spades assembly")
 
     parser_asm.add_argument('--tmpdir',type=str,
                         required=False,default="working_AAFTF",
@@ -247,25 +220,19 @@ def main():
                         help="Number of CPUs/threads to use.")
     
     parser_asm.add_argument('-p','--prefix',type=str,
-                        required=True,
+                        required=False,
                         help="Input/Output Prefix for fileset")
 
     parser_asm.add_argument('-m','--memory',type=str,
                             dest='memory',required=False,default='32',
                             help="Memory (in GB) setting for SPAdes. Default is 32")
-        
-    parser_asm.add_argument('--paired',action='store_true',
-                               dest='pairing',default=True,
-                               help="Paired or unpaired sequence reads")
-    
-    parser_asm.add_argument('--unpaired','--single',
-                               action='store_false',dest='pairing',
-                               help="Paired or unpaired sequence reads")
 
-    parser_asm.add_argument('--spades',
-                            type=str,required=False,default='1',const='1',nargs='?',
-                            help='spades.py executable path (specify path to spades.py if not in PATH already)')
-    
+    parser_asm.add_argument('--left',required=False,
+                             help="Left (Forward) reads")
+
+    parser_asm.add_argument('--right',required=False,
+                             help="Right (Reverse) reads")
+
     ##########
     # vecscreen
     ##########
@@ -282,7 +249,7 @@ def main():
                                   help="Number of CPUs/threads to use.")
     
     parser_vecscreen.add_argument('-i','--input','--infile',type=str,
-                                  required=True,
+                                  required=True, dest='infile', 
                                   help="Input contigs or scaffold assembly")
 
     parser_vecscreen.add_argument('-o','--outfile',type=str,
@@ -296,6 +263,10 @@ def main():
     parser_vecscreen.add_argument('--tmpdir',type=str,
                         required=False,default="working_AAFTF",
                         help="Temporary directory to store datafiles and processes in")
+
+    parser_vecscreen.add_argument('--AAFTF_DB',type=str,
+                               required=False,
+                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
 
     ##########
     # blobpurge
@@ -370,7 +341,7 @@ def main():
 
     parser_sour.add_argument('-o','--out',type=str,
                              required=True, # think about sensible replacement in future
-                             help="Output blobplot cleaned assembly")
+                             help="Output sourmash cleaned assembly")
 
     parser_sour.add_argument('-p','--prefix',required=False,
                              help="Prefix of the sequence reads files")
@@ -381,8 +352,8 @@ def main():
     parser_sour.add_argument('--right',required=False,
                              help="Right (Reverse) reads")
 
-    parser_sour.add_argument('--phylum',required=True,nargs="+",
-                             help="Phylum or Phyla to keep matches from megablast")
+    parser_sour.add_argument('--phylum',required=True, nargs="+",
+                             help="Phylum or Phyla to keep matches, i.e. Ascomycota")
     
     parser_sour.add_argument('--sourdb',required=True,
                              help="SourMash LCA k-31 taxonomy database")
@@ -399,6 +370,10 @@ def main():
 
     parser_sour.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
+
+    parser_sour.add_argument('--AAFTF_DB',type=str,
+                               required=False,
+                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
 
     
     ##########
@@ -428,7 +403,7 @@ def main():
     parser_pilon.add_argument('-rp','--read-prefix',required=True,
                               help="Prefix of the read pairs ")
 
-    parser_pilon.add_argument('-it','--iterations',type=int,default=5,
+    parser_pilon.add_argument('-it','--iterations', type=int, default=5,
                               help="Number of Polishing iterations to run")
 
     parser_pilon.add_argument('--left',type=str,
@@ -518,10 +493,15 @@ def main():
     parser_assess.add_argument('-s','--stats',action='store_true',
                                help='Only print the summary stats (L50,N50) and do not run completeness assay')
 
-    parser_assess.add_argument('-m','--method',default="busco",choices=["BUSCO"], # later FGMP
+    parser_assess.add_argument('-m','--method',default="busco",choices=["busco"], # later FGMP
                                help='Method for assess completeness - BUSCO is default')
+    
     parser_assess.add_argument('--clade',default='fungi_odb9',
                                help='BUSCO clade to use in completeness assessment')
+
+    parser_assess.add_argument('--AAFTF_DB',type=str,
+                               required=False,
+                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
     
     parser_assess.add_argument('--tmpdir',type=str,
                                required=False,default="working_AAFTF",

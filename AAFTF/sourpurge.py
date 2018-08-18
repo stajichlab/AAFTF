@@ -9,7 +9,7 @@ from Bio.Alphabet import generic_dna
 from AAFTF.utility import execute
 from AAFTF.utility import calcN50
 from AAFTF.utility import countfasta
-from AAFTF.resources import SeqDBs
+from AAFTF.resources import DB_Links
 
 #logging
 
@@ -41,7 +41,23 @@ def run(parser,args):
     if not forReads:
         print('Unable to located FASTQ raw reads')
         sys.exit(1)
-        
+    
+    #parse database locations
+    if not args.sourdb:
+        try:
+        	DB = os.environ["AAFTF_DB"]
+    	except KeyError:
+    		if args.AAFTF_DB:
+        		SOUR = os.path.join(args.AAFTF_DB, 'genbank-k31.lca.json.gz')
+        	else:
+        		logger.error("$AAFTF_DB environmental variable not found, pass --sourdb")
+        		sys.exit(1)
+        SOUR = os.path.join(DB, 'genbank-k31.lca.json.gz')
+        if not os.path.isfile(SOUR):
+        	logger.error("{:} sourmash database not found".format(SOUR))
+	else:
+    	SOUR = os.path.abspath(args.sourdb)
+    		        
     # hard coded tmpfile
     assembly_working  = 'assembly.fasta'
     megablast_working = 'megablast.out'
@@ -53,12 +69,9 @@ def run(parser,args):
     if not os.path.isfile(os.path.join(args.tmpdir, blobBAM)):  
         # index
         bwa_index  = ['bwa','index', os.path.basename(assembly_working)]     
-        if not os.path.isfile(os.path.join(args.tmpdir,os.path.basename(assembly_working)+".amb")):
-            logger.info('Building BWA index')
-            logger.info('CMD: {:}'.format(' '.join(bwa_index)))
-            subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
-        else:
-            logger.info("BWA index already exists for %s"%(os.path.join(args.tmpdir,os.path.basename(assembly_working))))
+        logger.info('Building BWA index')
+        logger.info('CMD: {:}'.format(' '.join(bwa_index)))
+        subprocess.run(bwa_index, cwd=args.tmpdir, stderr=DEVNULL)
         #mapped reads to assembly using BWA
         bwa_cmd = ['bwa','mem',
                    '-t', str(args.cpus),
@@ -79,8 +92,7 @@ def run(parser,args):
         p1.stdout.close()
         p2.communicate()
 
-        if os.path.exists(blobBAM):
-            subprocess.run(['samtools', 'index', blobBAM], cwd=args.tmpdir)
+        subprocess.run(['samtools', 'index', blobBAM], cwd=args.tmpdir)
     
     #now calculate coverage
     logger.info('Calculating read coverage per contig')
@@ -133,7 +145,7 @@ def run(parser,args):
     logger.info('CMD: {:}'.format(' '.join(sour_compute)))
     subprocess.run(sour_compute, cwd=args.tmpdir, stderr=DEVNULL)
     
-    sour_classify = ['sourmash', 'lca', 'classify', '--db', os.path.abspath(args.sourdb),
+    sour_classify = ['sourmash', 'lca', 'classify', '--db', SOUR,
                      '--query', sour_sketch]
     logger.info('CMD: {:}'.format(' '.join(sour_classify)))
     # output csv: ID,status,superkingdom,phylum,class,order,family,genus,species,strain
