@@ -8,7 +8,7 @@
 # default lirbaries screen are located in resources.py
 # and include common Euk, Prok, and MITO contaminants
 
-import sys, csv, re, operator,os
+import sys, csv, re, operator, os
 import shutil
 
 from subprocess import call, Popen, PIPE, STDOUT
@@ -17,14 +17,11 @@ import urllib.request
 from AAFTF.resources import SeqDBs
 from AAFTF.resources import DB_Links
 from AAFTF.utility import printCMD
+from AAFTF.utility import softwrap
+from AAFTF.utility import countfasta
 
 # biopython needed
 from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
-
-# for processing identify vector sequence
-default_percent_id_cutoff = 98
 
 #logging
 import logging
@@ -33,110 +30,147 @@ logger = logging.getLogger('AAFTF')
 BlastPercent_ID_ContamMatch = "90.0"
 BlastPercent_ID_MitoMatch   = "98.6"
 DEVNULL = open(os.devnull, 'w')
-# this code is based on this post on stackexchange
-# https://codereview.stackexchange.com/questions/69242/merging-overlapping-intervals
-def merge_intervals(intervals):
-    """
-    A simple algorithm can be used:
-    1. Sort the intervals in increasing order
-    2. Push the first interval on the stack
-    3. Iterate through intervals and for each one compare current interval
-       with the top of the stack and:
-       A. If current interval does not overlap, push on to stack
-       B. If current interval does overlap, merge both intervals in to one
-          and push on to stack
-    4. At the end return stack
-    """
-    merged = []
-    sorted_by_lower_bound = sorted(intervals, key=operator.itemgetter(0))
 
-    if not sorted_by_lower_bound:  # no intervals to merge
-        return
+#VecScreen matches
+'''
+Strong Match to Vector
+(Expect 1 random match in 1,000,000 queries of length 350 kb.)
+Terminal match with Score ≥ 24.
+Internal match with Score ≥ 30.
+Moderate Match to Vector
+(Expect 1 random match in 1,000 queries of length 350 kb.)
+Terminal match with Score 19 to 23.
+Internal match with Score 25 to 29.
+Weak Match to Vector
+(Expect 1 random match in 40 queries of length 350 kb.)
+Terminal match with Score 16 to 18.
+Internal match with Score 23 to 24.
+Segment of Suspect Origin
+Any segment of fewer than 50 bases between two vector matches or between a match and an end.
+'''
 
-    for higher in sorted_by_lower_bound:
-        if not merged:
-            merged.append(higher)
-        else:
-            lower = merged[-1]
-            #added this condition branch
-            if higher[0] - lower[1] == 1:
-                merged[-1] = (lower[0], higher[1])  # replace by merged interval
-            #end addition. Also changed if below to elif
-            # test for intersection between lower and higher:
-            # we know via sorting that lower[0] <= higher[0]
-            elif higher[0] <= lower[1]:
-                upper_bound = max(lower[1], higher[1])
-                merged[-1] = (lower[0], upper_bound)  # replace by merged interval
-            else:
-                merged.append(higher)
-    return merged
+def group(lst, n):
+    for i in range(0, len(lst), n):
+        val = lst[i:i+n]
+        if len(val) == n:
+            yield tuple(val)
 
-def parse_clean_blastn(fastafile,prefix,blastn,pid_cutoff):
+def parse_clean_blastn(fastafile, prefix, blastn, stringent):
+    '''
+    Blast header rows:
+    qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue score qlen
+    '''
 
     cleaned = prefix + ".clean.fsa"
     logging = prefix + ".parse.log"
 
     excludes = {}
+    VecHits = {}
     found_vector_seq = 0
     with open(blastn,"r") as vectab:
         rdr = csv.reader(vectab,delimiter="\t")
         for row in rdr:
-            idin = row[0]
-            pid = row[2]
-            if float(pid) < pid_cutoff:
+            qaccver,saccver,pid,length,mismatch,gapopen,qstart,qend,sstart,send,evalue,bitscore,score,qlen = row
+            if qaccver in contigs_to_remove:
                 continue
-                # skip this line since PID is lower than needed
-
-            loc = [int(row[6]), int(row[7])]
+            #vecscreen https://www.ncbi.nlm.nih.gov/tools/vecscreen/about/#Moderate
+            #says to use score here (I'm interpret as score not bitscore)
+            #need to determine if match is terminal or if internal
+            loc = [int(qstart), int(qend)]
             if loc[0] > loc[1]:
                 loc = [loc[1],loc[0]]
-
-            if idin not in excludes:
-                excludes[idin] = []
-
-            excludes[idin].append(loc)
-            found_vector_seq += 1
-
-    if found_vector_seq == 0:
-        return (0,fastafile)
-
-    with open(cleaned, "w") as output_handle, open(logging,"w") as log:
+            #check for location
+            terminal = False
+            position = None
+            if loc[0] <= 25:
+                terminal = True
+                position = '5'
+            if (int(qlen) - loc[1]) <= 25:
+                terminal = True
+                position = '3'
+            Match = 0 # weak=0, moderate=1, strong=2
+            score = int(score)
+            if terminal:
+                if score >= 19:
+                    Match = 1
+                if score >= 24:
+                    Match = 2
+            else:
+                if score >= 25:
+                    Match = 1
+                if score >= 30:
+                    Match = 2
+            if Match == 0:
+                continue
+            if stringent == 'high':
+                if Match > 0:
+                    found_vector_seq += 1
+                    if not qaccver in VecHits:
+                        VecHits[qaccver] = [(saccver, int(qlen), loc, int(score), terminal, position)]
+                    else:
+                        VecHits[qaccver].append((saccver, int(qlen), loc, int(score), terminal, position))
+            else:
+                if Match > 1:
+                    found_vector_seq += 1
+                    if not qaccver in VecHits:
+                        VecHits[qaccver] = [(saccver, int(qlen), loc, int(score), terminal, position)]
+                    else:
+                        VecHits[qaccver].append((saccver, int(qlen), loc, int(score), terminal, position))          
+    
+    trimTerminal = 0
+    splitContig = 0
+    with open(cleaned, "w") as output_handle, open(logging, "w") as log:
         for record in SeqIO.parse(fastafile, "fasta"):
-            record.description = ""
-            trimloc = []
-            if record.id in excludes:
-                trimloc = excludes[record.id]
-
-            if len(trimloc) > 1:
-                trimloc = sorted(merge_intervals(trimloc),
-                                 reverse=True,
-                                 key=lambda locitem: locitem[0])
-
-            seqlen = len(record)
-            for loc in trimloc:
-                left = int( loc[0] ) - 1
-                right = int( loc[1] )
-                newrecord = Seq("",generic_dna)
-                log.write("trimming %d to %d in %s len=%d"
-                      % (left,right,record.id,len(record)))
-                if left == 0:
-                    newrecord = record[right-1:]
-                elif right == len(record):
-                    newrecord = record[:left]
+            FiveEnd = 0
+            ThreeEnd = len(record.seq)
+            internals = []
+            slicer = []
+            sInt = []
+            Seq = str(record.seq)
+            if not record.id in VecHits:
+                if len(record.seq) >= 200:
+                    output_handle.write('>{:}\n{:}\n'.format(record.id, softwrap(Seq)))
+            else:
+                #VecHits contains list of tuples of information, if terminal, then just truncate
+                #off the closest side. Also, need to check if multiple intervals are within 50
+                #bp of each other, that whole interval is removed.
+                #should be able to accomplish above with the several rounds that it runs with, 
+                #so split on internal and trim terminal. done.
+                for hit in VecHits[record.id]:
+                    ID,length,loc,score,terminal,pos = hit
+                    if terminal and pos == '5':
+                        if loc[1] > FiveEnd:
+                            FiveEnd = loc[1]
+                    elif terminal and pos == '3':
+                        if loc[0] < ThreeEnd:
+                            ThreeEnd = loc[0]
+                    else: #internal hits to add to list
+                        if not loc in internals:
+                            internals.append(loc)
+                #now sort intervals
+                sInt = sorted(internals, key=lambda x: int(x[0]))
+                #now construct slicing list
+                if len(sInt) < 1:
+                    slicer = [FiveEnd,ThreeEnd]
                 else:
-                    # internal slicing
-                    log.write("-->internal slicing :%d .. %d:" % (left,right-1))
-                    log.write('  left string is %s' % record[0:left])
-                    log.write('  right string is %s' % record[right-1:])
-                    newrecord = record[0:left] + record[right-1:]
-                    newrecord.id = record.id
-                    log.write(" -- new len for %s is %d: %s" % (newrecord.id, len(newrecord),newrecord))
-                record = newrecord
+                    slicer = [FiveEnd]
+                    for x in sInt:
+                        slicer = slicer + x
+                    slicer.append(ThreeEnd)
+                paired_slicer = list(group(slicer, 2))
+                if len(paired_slicer) < 2:
+                    logger.info('Terminal trimming {:} to {:}'.format(record.id, paired_slicer))
+                    newSeq = Seq[paired_slicer[0][0]:paired_slicer[0][1]]
+                    if len(newSeq) >= 200:
+                        output_handle.write('>{:}\n{:}\n'.format(record.id, softwrap(newSeq)))
+                else:
+                    logger.info('Spliting contig {:} into {:}'.format(record.id, paired_slicer))
+                    for num,y in enumerate(paired_slicer):
+                        newSeq = Seq[y[0]:y[1]]
+                        if len(newSeq) >= 200:
+                            output_handle.write('>split{:}_{:}\n{:}\n'.format(num+1, record.id, softwrap(newSeq)))
 
-            if(len(record) >= 200):
-                SeqIO.write(record, output_handle, "fasta")
-
-    return (found_vector_seq,cleaned)
+    return (found_vector_seq, cleaned)
 
 def make_blastdb(type,file,name):
     indexfile = name
@@ -171,14 +205,12 @@ def run(parser,args):
     
     if args.percent_id:
         percentid_cutoff = args.percent_id
-    else:
-        percentid_cutoff = default_percent_id_cutoff
 
     prefix = os.path.basename(args.infile)
     if '_' in prefix:
-    	prefix = prefix.split('_')[0]
+        prefix = prefix.split('_')[0]
     else:
-    	prefix = os.path.splitext(prefix)[0]
+        prefix = os.path.splitext(prefix)[0]
     infile = args.infile
     outfile = args.outfile
 
@@ -189,7 +221,7 @@ def run(parser,args):
                                "%s.tmp_vecscreen.fasta" % (prefix))
 
     # Common Euk/Prot contaminats for blastable DB later on
-    logger.info('Building blast databases for vector screen.')
+    logger.info('Building blast databases for contamination screen.')
     makeblastdblist = []
     for d in DB_Links:
         if d == 'sourmash':
@@ -213,56 +245,24 @@ def run(parser,args):
             if not os.path.exists(file):
                 urllib.request.urlretrieve(url,file)
             make_blastdb('nucl',file,os.path.join(args.workdir,d))
-
-    rnd = 0
-    count = 1
-    while (count > 0):
-        filepref = "%s.r%d" % (prefix,rnd)
-        report = os.path.join(args.workdir,"%s.vecscreen.tab"%(filepref))
-        if not os.path.exists(report):
-            cmd = ['blastn','-task','blastn',
-                  '-reward','1','-penalty','-5','-gapopen','3',
-                  '-gapextend', '3', '-dust','yes','-soft_masking','true',
-                  '-evalue', '700','-searchsp','1750000000000',
-                  '-db', os.path.join(args.workdir,'UniVec'),
-                  '-outfmt', '6', '-num_threads',str(args.cpus),
-                  '-query', infile, '-out', report]
-            #logger.info('CMD: {:}'.format(printCMD(cmd,7)))
-            call(cmd)
-        # this needs to know/return the new fasta file?
-        logger.info("parsing %s for %s infile=%s"%(filepref,report,infile))
-        (count,cleanfile) = parse_clean_blastn(infile,
-                                               os.path.join(args.workdir,
-                                                            filepref),
-                                               report,percentid_cutoff)       
-        logger.info("count is %d cleanfile is %s"%(count,cleanfile))
-        if count == 0: # if there are no vector matches < than the pid cutoff
-            logger.info("copying %s to %s"%(infile,outfile_vec))
-            shutil.copy(infile,outfile_vec)
-        else:
-            rnd += 1
-            infile = cleanfile
-
-    # loop is finished for vecscreen now screen for common contaminants
-
+    
+    global contigs_to_remove
     contigs_to_remove = {}
-    for contam in ["CONTAM_EUKS",
-                   "CONTAM_PROKS" ]:                       
+    
+    for contam in ["CONTAM_EUKS","CONTAM_PROKS" ]:                       
         logger.info("%s Contamination Screen" % (contam))
         blastreport = os.path.join(args.workdir,
                                    "%s.%s.blastn" % (contam, prefix))
         blastnargs = ['blastn',
-                      '-query', outfile_vec,
+                      '-query', infile,
                       '-db', os.path.join(args.workdir,contam),
                       '-num_threads', str(args.cpus),
                       '-dust', 'yes', '-soft_masking', 'true',
                       '-perc_identity',BlastPercent_ID_ContamMatch,
-                      '-lcase_masking', '-outfmt',
-                      '6',
-                      '-out',blastreport ]
+                      '-lcase_masking', '-outfmt', '6', '-out',blastreport]
         logger.info('CMD: {:}'.format(printCMD(blastnargs, 7)))
         call(blastnargs)
-        
+        hits = 0
         with open(blastreport) as report:
             colparser = csv.reader(report, delimiter="\t")
             for row in colparser:
@@ -272,16 +272,16 @@ def run(parser,args):
                       int(row[3]) >= 100) or
                     ( float(row[2]) >= 90.0 and
                       int(row[3]) >= 200) ):
-                    #logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
-                    contigs_to_remove[row[0]] = 1
-                    
-            #done with EUK and PROK screen
+                    contigs_to_remove[row[0]] = (contam, row[1], float(row[2]))
+        logger.info('{:} screening finished'.format(contam))
             
     # MITO screen
+    logger.info('Mitochondria Contamination Screen')
+    mitoHits = []
     blastreport = os.path.join(args.workdir,
                                "%s.%s.blastn" % ('MITO',prefix))
     blastnargs = ['blastn',
-                  '-query', outfile_vec,
+                  '-query', infile,
                   '-db', os.path.join(args.workdir,'MITO'),
                   '-num_threads', str(args.cpus),
                   '-dust', 'yes', '-soft_masking', 'true',
@@ -294,15 +294,50 @@ def run(parser,args):
         colparser = csv.reader(report, delimiter="\t")
         for row in colparser:
             if int(row[3]) >= 120:
-                #logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
-                contigs_to_remove[row[0]] = 1
-        
-    logger.info("{:,} contigs will be dropped:\n\t{:}".format(
-    			len(contigs_to_remove), '\n\t'.join(list(contigs_to_remove.keys()))))
+                contigs_to_remove[row[0]] = ('MitoScreen', row[1], float(row[2]))
+                mitoHits.append(row[0])
+    logger.info('Mito screening finished.')
 
-    with open(outfile, "w") as output_handle:
+    #vecscreen starts here
+    logger.info('Starting VecScreen, will remove terminal matches and split internal matches')
+    rnd = 0
+    count = 1
+    while (count > 0):
+        filepref = "%s.r%d" % (prefix,rnd)
+        report = os.path.join(args.workdir,"%s.vecscreen.tab"%(filepref))
+        if not os.path.exists(report):
+            cmd = ['blastn','-task','blastn',
+                  '-reward','1','-penalty','-5','-gapopen','3',
+                  '-gapextend', '3', '-dust','yes','-soft_masking','true',
+                  '-evalue', '700','-searchsp','1750000000000',
+                  '-db', os.path.join(args.workdir,'UniVec'),
+                  '-outfmt', '6 qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore score qlen', 
+                  '-num_threads',str(args.cpus),
+                  '-query', infile, '-out', report]
+            #logger.info('CMD: {:}'.format(printCMD(cmd,7)))
+            call(cmd)
+        # this needs to know/return the new fasta file?
+        logger.info("Parsing VecScreen round {:}: {:} for {:}".format(rnd+1, filepref,report))
+        (count,cleanfile) = parse_clean_blastn(infile, os.path.join(args.workdir,filepref),report, args.stringency)
+        logger.info("count is %d cleanfile is %s"%(count,cleanfile))
+        if count == 0: # if there are no vector matches < than the pid cutoff
+            logger.info("copying %s to %s"%(infile,outfile_vec))
+            shutil.copy(infile,outfile_vec)
+        else:
+            rnd += 1
+            infile = cleanfile
+
+    logger.info("{:,} contigs will be removed:".format(len(contigs_to_remove)))
+    for k,v in sorted(contigs_to_remove.items()):
+        print('\t{:} --> dbhit={:}; hit={:}; pident={:}'.format(k,v[0], v[1], v[2]))
+    mitochondria = prefix+'.mitochondria.fasta'
+    with open(outfile, "w") as output_handle, open(mitochondria, 'w') as mito_handle:
         for record in SeqIO.parse(outfile_vec, "fasta"):
-            if record.id not in contigs_to_remove:
+            if not record.id in contigs_to_remove:
                 SeqIO.write(record, output_handle, "fasta")
+            elif record.id in mitoHits:
+                SeqIO.write(record, mito_handle, "fasta")
+    logger.info('Writing {:,} cleaned contigs to: {:}'.format(countfasta(outfile), outfile))
+    logger.info('Writing {:,} mitochondrial contigs to: {:}'.format(countfasta(mitochondria), mitochondria))
     logger.info('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:}\n'.format(outfile, prefix+'.sourpurge.fasta', args.cpus))
     

@@ -16,6 +16,9 @@ def run(parser,args):
     # thing we need to fix it to better handle running multiple analysis
     # from same working dir - so a prefix or tempfolder is needed
     # maybe an update to that code
+    
+    #okay --> lets just rewrite and integrate here, i.e. import as rest of modules 
+    #and perhaps drop mummer, just use minimap2 as already a dependency.
 
     if not args.tmpdir:
         args.tmpdir = 'working_AAFTF'

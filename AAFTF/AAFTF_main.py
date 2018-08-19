@@ -271,8 +271,9 @@ def main():
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
 
-    parser_vecscreen.add_argument('-v','--debug',action='store_true',
-                             help="Print Spades stdout to terminal")
+    parser_vecscreen.add_argument('-s', '--stringency', default='high', choices=['high','low'],
+                             help="Stringency to filter VecScreen hits")
+
 
     ##########
     # blobpurge
@@ -361,7 +362,7 @@ def main():
     parser_sour.add_argument('--phylum',required=True, nargs="+",
                              help="Phylum or Phyla to keep matches, i.e. Ascomycota")
     
-    parser_sour.add_argument('--sourdb',required=True,
+    parser_sour.add_argument('--sourdb',required=False,
                              help="SourMash LCA k-31 taxonomy database")
 
     parser_sour.add_argument('-m', '--mincovpct',default=5,type=int,
@@ -370,7 +371,7 @@ def main():
     parser_sour.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
 
-    parser_sour.add_argument('--tmpdir',type=str,
+    parser_sour.add_argument('-w', '--workdir', '--tmpdir',type=str, dest='workdir',
                         required=False,default="working_AAFTF",
                         help="Temporary directory to store datafiles and processes in")
 
@@ -380,6 +381,9 @@ def main():
     parser_sour.add_argument('--AAFTF_DB',type=str,
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
+
+    parser_sour.add_argument('--just-show-taxonomy',dest='taxonomy', action='store_true',
+                               help="Show taxonomy information and exit")
 
     
     ##########

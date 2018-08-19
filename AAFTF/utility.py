@@ -1,6 +1,7 @@
 import os
 import subprocess
 import gzip
+from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 
 def which_path(file_name):
@@ -25,10 +26,25 @@ def countfasta(input):
                 count += 1
     return count
 
+def fastastats(input):
+    count = 0
+    length = 0
+    with open(input, 'rU') as f:
+    	for Header, Seq in SimpleFastaParser(f):
+    		count += 1
+    		length += len(Seq)
+    return count,length
+
 def countfastq(input):
     lines = sum(1 for line in open(input))
     count = int(lines) // 4
     return count
+    
+def softwrap(string, every=80):
+    lines = []
+    for i in range(0, len(string), every):
+        lines.append(string[i:i+every])
+    return '\n'.join(lines)
     
 def bam_read_count(bamfile):
     cmd = ['samtools', 'idxstats', bamfile]
