@@ -45,19 +45,19 @@ def run(parser,args):
     #parse database locations
     if not args.sourdb:
         try:
-        	DB = os.environ["AAFTF_DB"]
-    	except KeyError:
-    		if args.AAFTF_DB:
-        		SOUR = os.path.join(args.AAFTF_DB, 'genbank-k31.lca.json.gz')
-        	else:
-        		logger.error("$AAFTF_DB environmental variable not found, pass --sourdb")
-        		sys.exit(1)
+            DB = os.environ["AAFTF_DB"]
+        except KeyError:
+            if args.AAFTF_DB:
+                SOUR = os.path.join(args.AAFTF_DB, 'genbank-k31.lca.json.gz')
+            else:
+                logger.error("$AAFTF_DB environmental variable not found, pass --sourdb")
+                sys.exit(1)
         SOUR = os.path.join(DB, 'genbank-k31.lca.json.gz')
         if not os.path.isfile(SOUR):
-        	logger.error("{:} sourmash database not found".format(SOUR))
-	else:
-    	SOUR = os.path.abspath(args.sourdb)
-    		        
+            logger.error("{:} sourmash database not found".format(SOUR))
+    else:
+        SOUR = os.path.abspath(args.sourdb)
+                    
     # hard coded tmpfile
     assembly_working  = 'assembly.fasta'
     megablast_working = 'megablast.out'
@@ -133,7 +133,7 @@ def run(parser,args):
         if v[1] <= min_coverage:
             Contigs2Drop.append(k)
     logger.info('Found {:,} contigs with coverage less than {:}X ({:}%)'.format(len(Contigs2Drop), 
-    			min_coverage, args.mincovpct))
+                min_coverage, args.mincovpct))
             
     #now filter for taxonomy with sourmash lca classify
     # sourmash compute -k 31 --scaled=1000 --singleton NRRL_66455_July2018.polished_assembly.fasta 

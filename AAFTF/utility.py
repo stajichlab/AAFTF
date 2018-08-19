@@ -52,6 +52,9 @@ def calcN50(lengths):
             n50 = n
     return n50
 
+def printCMD(cmd, num):
+	return " \\\n\t\t".join([" ".join(cmd[i:i+num]) for i in range(0,len(cmd),num)])
+
 #from https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
 def execute(cmd, dir):
     DEVNULL = open(os.devnull, 'w')

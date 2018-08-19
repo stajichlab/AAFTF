@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger('AAFTF')
 
 from AAFTF.utility import which_path
-
+from AAFTF.utility import printCMD
 
 # process trimming reads with trimmomatic
 # Homebrew install of trimmomatic uses a shell script
@@ -44,6 +44,14 @@ def run(parser,args):
     if not args.outdir:
         args.outdir = dirname(args.left)
     os.makedirs(args.outdir,exist_ok=True)
+    
+    if not args.prefix:
+        if '_' in os.path.basename(args.left):
+            args.prefix = os.path.basename(args.left).split('_')[0]
+        elif '.' in os.path.basename(args.left):
+            args.prefix = os.path.basename(args.left).split('.')[0]
+        else:
+            args.prefix = os.path.basename(args.left)
 
     left_expected = os.path.join(args.outdir,args.prefix)+"_1P.fastq"
     if ( os.path.exists(left_expected) and
@@ -51,6 +59,7 @@ def run(parser,args):
          os.path.getctime(args.left) ):
         logger.info("Already ran trimming on %s %s" % (args.left,args.right))
         return
+    
     #find path    
     trimmomatic_path = find_trimmomatic()
     if trimmomatic_path:
@@ -71,14 +80,20 @@ def run(parser,args):
         quality = "-%s" % (quality) # add leading dash
 
         if not os.path.exists(path_to_adaptors):
-            path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-PE.fa"
+            if args.right:
+                path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-PE.fa"
+            else:
+                path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-SE.fa"
             
             if not os.path.exists(path_to_adaptors):
                 findpath=dirname(jarfile)
                 path_to_adaptors=""
                 while findpath:
                     if os.path.exists(findpath + "/share"):
-                        path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+                        if args.right:
+                            path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+                        else:
+                            path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-SE.fa"
                         break
                     findpath=dirname(findpath)
 
@@ -101,10 +116,10 @@ def run(parser,args):
                    os.path.join(args.outdir,args.prefix+'_2U.fastq'),
                    clipstr, leadingwindow, trailingwindow,slidingwindow,
                    "MINLEN:%d" %(args.minlength) ]
-        elif args.single:
+        elif args.left and not args.right:
             cmd = ['java', '-jar', jarfile, 'SE',
                    '-threads',str(args.cpus),
-                   quality,  args.single,
+                   quality,  args.left,
                    os.path.join(args.outdir,args.prefix+'_1U.fastq'),
                    clipstr, leadingwindow, trailingwindow,slidingwindow,
                    "MINLEN:%d" %(args.minlength) ]
@@ -112,6 +127,19 @@ def run(parser,args):
             logger.error("Must provide left and right pairs or single read set")
             return
         
-        logger.info("running cmd: %s" %(" ".join(cmd)))
-        subprocess.run(cmd)
+        DEVNULL = open(os.devnull, 'w')
+        logger.info(' Running trimmomatic adapter and quality trimming')
+        logger.info("CMD: {:}".format(printCMD(cmd, 4)))
+        if args.debug:
+            subprocess.run(cmd)
+        else:
+            subprocess.run(cmd, stderr=DEVNULL)
+        if args.right:
+            logger.info('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
+                        os.path.join(args.outdir,args.prefix+'_1P.fastq'),
+                        os.path.join(args.outdir,args.prefix+'_2P.fastq')))
+        else:
+            logger.info('Trimming finished:\n\tSingle: {:}'.format(
+                        os.path.join(args.outdir,args.prefix+'_1P.fastq')))
+        logger.info('Your next command might be:\n\tAAFTF filter -w {:} -c {:}\n'.format(args.outdir, args.cpus))    
 

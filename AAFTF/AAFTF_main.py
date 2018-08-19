@@ -88,20 +88,31 @@ def main():
        help='Trim FASTQ input reads')
     
     parser_trim.add_argument('-p','--prefix',type=str,
-                             required=True,
-                             help="Output Prefix")
+                             required=False,
+                             help="Output Prefix, default to base name of --left reads")
 
     parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                               help="Number of CPUs/threads to use.")
     
-    parser_trim.add_argument('-o','--outdir',type=str,
-                             default='working_AAFTF',
+    parser_trim.add_argument('-o','--outdir', '-w', '--workdir',type=str,
+                             default='working_AAFTF', dest='outdir',
                              help="Output directory for trimmed reads")
 
     parser_trim.add_argument('-ml','--minlength',type=int,
                              default=75,
                              required=False,
                              help="Minimum read length after trimming, default: 75")
+    
+    parser_trim.add_argument('--left',type=str,
+                              required=True,
+            help='left/forward reads of paired-end FASTQ or single-end FASTQ.')
+
+    parser_trim.add_argument('--right',type=str,
+                              required=False,
+            help='right/reverse reads of paired-end FASTQ.')
+
+    parser_trim.add_argument('-v','--debug',action='store_true',
+                             help="Provide debugging messages")
 
     tool_group = parser_trim.add_mutually_exclusive_group(required=False)
 
@@ -134,17 +145,6 @@ def main():
                                    default="phred33",
                                    help="Trimmomatic quality encoding -phred33 or phred64")
 
-    paired_reads = parser_trim.add_argument_group(title='Paired Reads',
-                                                  description="Paired Read FASTQ files")
-    
-    paired_reads.add_argument('--left',type=str,
-                              required=False,
-            help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
-
-    paired_reads.add_argument('--right',type=str,
-                              required=False,
-            help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
-
 
     ##########
     # filter
@@ -160,9 +160,9 @@ def main():
         description="Filter reads which match contaminant databases such as phiX",
     help='Filter contaminanting reads')
 
-    parser_filter.add_argument('--tmpdir',type=str,
-                        required=False,default="working_AAFTF",
-                        help="Temporary directory to store datafiles and processes in")
+    parser_filter.add_argument('-w', '--workdir',type=str,
+                        default="working_AAFTF",
+                        help="Working directory to store datafiles and processes in")
 
     parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
@@ -212,8 +212,8 @@ def main():
                              required=False, # think about sensible replacement in future
                              help="Output spades assembly")
 
-    parser_asm.add_argument('--tmpdir',type=str,
-                        required=False,default="working_AAFTF",
+    parser_asm.add_argument('-w', '--workdir', '--tmpdir',type=str,
+                        dest='workdir' ,default="working_AAFTF",
                         help="Temporary directory to store datafiles and processes in")
 
     parser_asm.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
@@ -232,6 +232,9 @@ def main():
 
     parser_asm.add_argument('--right',required=False,
                              help="Right (Reverse) reads")
+
+    parser_asm.add_argument('-v','--debug',action='store_true',
+                             help="Print Spades stdout to terminal")
 
     ##########
     # vecscreen
@@ -260,13 +263,16 @@ def main():
                                   required=False,
                                   help="Percent Identity cutoff for vecscreen adaptor matches")
 
-    parser_vecscreen.add_argument('--tmpdir',type=str,
-                        required=False,default="working_AAFTF",
-                        help="Temporary directory to store datafiles and processes in")
+    parser_vecscreen.add_argument('-w', '--workdir', '--tmpdir',type=str,
+                        default="working_AAFTF",
+                        help="Working directory to store datafiles and processes in")
 
     parser_vecscreen.add_argument('--AAFTF_DB',type=str,
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
+
+    parser_vecscreen.add_argument('-v','--debug',action='store_true',
+                             help="Print Spades stdout to terminal")
 
     ##########
     # blobpurge

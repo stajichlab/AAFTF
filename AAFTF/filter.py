@@ -22,11 +22,12 @@ from AAFTF.utility import countfastq
 
 def run(parser,args):
     
-    if not args.tmpdir:
-        args.tmpdir = 'working_AAFTF'
+    if args.workdir == 'working_AAFTF' and not args.prefix and not args.left and args.cpus == 1: 
+        logger.error(' Please provide either -w,--workdir, -p,--prefix, or --left reads.')
+        sys.exit(1)
 
-    if not os.path.exists(args.tmpdir):
-        os.mkdir(args.tmpdir)
+    if not os.path.exists(args.workdir):
+        os.mkdir(args.workdir)
 
     #parse database locations
     DB = None
@@ -40,8 +41,7 @@ def run(parser,args):
                 pass
     else:
         DB = args.AAFTF_DB
-
-        
+            
     earliest_file_age = -1
     contam_filenames = []
     # db of contaminant (PhiX)
@@ -50,7 +50,7 @@ def run(parser,args):
         if DB:
             acc_file = os.path.join(DB, acc)
         else:
-            acc_file = os.path.join(args.tmpdir,acc)
+            acc_file = os.path.join(args.workdir,acc)
         contam_filenames.append(acc_file)
         if not os.path.exists(acc_file):
             urllib.request.urlretrieve(url,acc_file)
@@ -64,7 +64,7 @@ def run(parser,args):
     if DB:
         acc_file = os.path.join(DB, acc)
     else:
-        acc_file = os.path.join(args.tmpdir,acc)
+        acc_file = os.path.join(args.workdir,acc)
     contam_filenames.append(acc_file)
     if not os.path.exists(acc_file):
         urllib.request.urlretrieve(url,acc_file)
@@ -77,7 +77,7 @@ def run(parser,args):
             if DB:
                 acc_file = os.path.join(DB, acc+".fna")
             else:
-                acc_file = os.path.join(args.tmpdir,acc+".fna")
+                acc_file = os.path.join(args.workdir,acc+".fna")
             contam_filenames.append(acc_file)
             if not os.path.exists(acc_file):
                 url = SeqDBs['nucleotide'] % (acc)
@@ -88,7 +88,7 @@ def run(parser,args):
 
     if args.screen_urls:
         for url in args.screen_urls:
-            url_file = os.path.join(args.tmpdir,os.basename(url))
+            url_file = os.path.join(args.workdir,os.basename(url))
             contam_filenames.append(url_file)
             if not os.path.exists(url_file):
                 urllib.request.urlretrieve(url,url_file)
@@ -98,7 +98,7 @@ def run(parser,args):
 
     # concat vector db
     logger.info(' Generating combined contamination database:\n{:}'.format('\n'.join(contam_filenames)))
-    contamdb = os.path.join(args.tmpdir,'contamdb')
+    contamdb = os.path.join(args.workdir,'contamdb')
     if ( not os.path.exists(contamdb) or
          ( os.path.getctime(contamdb) < earliest_file_age)):
          with open(contamdb, 'wb') as wfd:
@@ -113,19 +113,27 @@ def run(parser,args):
     if args.right:
         revReads = os.path.abspath(args.right)
     if not forReads:
-        for file in os.listdir(args.tmpdir):
+        for file in os.listdir(args.workdir):
             if '_1P' in file:
-                forReads = os.path.abspath(os.path.join(args.tmpdir, file))
+                forReads = os.path.abspath(os.path.join(args.workdir, file))
             if '_2P' in file:
-                revReads = os.path.abspath(os.path.join(args.tmpdir, file))
+                revReads = os.path.abspath(os.path.join(args.workdir, file))
     if not forReads:
         logger.error(' Unable to located FASTQ reads')
         sys.exit(1)
+
+    if not args.prefix:
+        if '_' in os.path.basename(forReads):
+            args.prefix = os.path.basename(forReads).split('_')[0]
+        elif '.' in os.path.basename(forReads):
+            args.prefix = os.path.basename(forReads).split('.')[0]
+        else:
+            args.prefix = os.path.basename(forReads)
         
     #logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
     DEVNULL = open(os.devnull, 'w')
-    alignBAM = os.path.join(args.tmpdir, 'contam_db.bam')
-    clean_reads = os.path.join(args.tmpdir, args.prefix + "_cleaned")
+    alignBAM = os.path.join(args.workdir, 'contam_db.bam')
+    clean_reads = os.path.join(args.workdir, args.prefix + "_cleaned")
     
     if args.aligner == 'bowtie2':  
         if not os.path.isfile(alignBAM):
@@ -143,17 +151,17 @@ def run(parser,args):
             
             #now run and write to BAM sorted
             logger.info('CMD: {:}'.format(' '.join(bowtie_cmd)))
-            p1 = subprocess.Popen(bowtie_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
+            p1 = subprocess.Popen(bowtie_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
                                    '-o', os.path.basename(alignBAM), '-'],
-                                   cwd=args.tmpdir, stdout=subprocess.PIPE, 
+                                   cwd=args.workdir, stdout=subprocess.PIPE, 
                                    stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
             p2.communicate()        
                 
     elif args.aligner == 'bwa':
         if not os.path.isfile(alignBAM):
-            logger.info(' Aligning reads to contamination database using bowtie2')
+            logger.info(' Aligning reads to contamination database using BWA')
             bwa_index = ['bwa','index', contamdb]
             logger.info('CMD: {:}'.format(' '.join(bwa_index)))
             subprocess.run(bwa_index, stderr=DEVNULL, stdout=DEVNULL)
@@ -164,10 +172,10 @@ def run(parser,args):
             
             #now run and write to BAM sorted
             logger.info('CMD: {:}'.format(' '.join(bwa_cmd)))
-            p1 = subprocess.Popen(bwa_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
+            p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
                                    '-o', os.path.basename(alignBAM), '-'],
-                                   cwd=args.tmpdir, stdout=subprocess.PIPE, 
+                                   cwd=args.workdir, stdout=subprocess.PIPE, 
                                    stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
             p2.communicate()                
@@ -182,10 +190,10 @@ def run(parser,args):
             
             #now run and write to BAM sorted
             logger.info('CMD: {:}'.format(' '.join(minimap2_cmd)))
-            p1 = subprocess.Popen(minimap2_cmd, cwd=args.tmpdir, stdout=subprocess.PIPE, stderr=DEVNULL)
+            p1 = subprocess.Popen(minimap2_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
                                    '-o', os.path.basename(alignBAM), '-'],
-                                   cwd=args.tmpdir, stdout=subprocess.PIPE, 
+                                   cwd=args.workdir, stdout=subprocess.PIPE, 
                                    stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
             p2.communicate()    
@@ -211,7 +219,10 @@ def run(parser,args):
                             alignBAM]
         subprocess.run(samtools_cmd, stderr=DEVNULL)
         if revReads:
-            logger.info(' Filtering complete:\n For: {:}\n Rev: {:}'.format(clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
+            logger.info(' Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
+                        clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
         else:
-            logger.info(' Filtering complete:\n Single: {:}'.format(clean_reads+'_1.fastq.gz'))
+            logger.info(' Filtering complete:\n\tSingle: {:}'.format(clean_reads+'_1.fastq.gz'))
+        logger.info('Your next command might be:\n\tAAFTF assemble -w {:} -c {:} -o {:}\n'.format(
+                    args.workdir, args.cpus, args.prefix+'.spades.fasta'))
             

@@ -16,6 +16,7 @@ from subprocess import call, Popen, PIPE, STDOUT
 import urllib.request
 from AAFTF.resources import SeqDBs
 from AAFTF.resources import DB_Links
+from AAFTF.utility import printCMD
 
 # biopython needed
 from Bio import SeqIO
@@ -31,6 +32,7 @@ logger = logging.getLogger('AAFTF')
 
 BlastPercent_ID_ContamMatch = "90.0"
 BlastPercent_ID_MitoMatch   = "98.6"
+DEVNULL = open(os.devnull, 'w')
 # this code is based on this post on stackexchange
 # https://codereview.stackexchange.com/questions/69242/merging-overlapping-intervals
 def merge_intervals(intervals):
@@ -143,71 +145,94 @@ def make_blastdb(type,file,name):
     else:
         indexfile += ".pin"
     
-    if ( not os.path.exists(indexfile) or
-         os.path.getctime(indexfile) < os.path.getctime(file)):
-        call(["makeblastdb",'-dbtype',type,
-              '-in',file,'-out',name])
+    if not os.path.exists(indexfile) or os.path.getctime(indexfile) < os.path.getctime(file):
+        cmd = ['makeblastdb','-dbtype',type,'-in',file,'-out',name]
+        logger.info('CMD: {:}'.format(' '.join(cmd)))
+        call(cmd, stdout=DEVNULL, stderr=DEVNULL)
 
         
 def run(parser,args):
 
-    if not args.tmpdir:
-        args.tmpdir = 'working_AAFTF'
-
-    if not os.path.exists(args.tmpdir):
-        os.mkdir(args.tmpdir)
+    if not os.path.exists(args.workdir):
+        os.mkdir(args.workdir)
+    
+    #parse database locations
+    DB = None
+    if not args.AAFTF_DB:
+        try:
+            DB = os.environ["AAFTF_DB"]
+        except KeyError:
+            if args.AAFTF_DB:
+                DB = args.AAFTF_DB
+            else:
+                pass
+    else:
+        DB = args.AAFTF_DB
     
     if args.percent_id:
         percentid_cutoff = args.percent_id
     else:
         percentid_cutoff = default_percent_id_cutoff
-        
+
     prefix = os.path.basename(args.infile)
-    prefix = os.path.splitext(prefix)[0]
+    if '_' in prefix:
+    	prefix = prefix.split('_')[0]
+    else:
+    	prefix = os.path.splitext(prefix)[0]
     infile = args.infile
     outfile = args.outfile
 
     if not outfile:
         outfile = "%s.vecscreen.fasta" % prefix
 
-    outfile_vec = os.path.join(args.tmpdir,
+    outfile_vec = os.path.join(args.workdir,
                                "%s.tmp_vecscreen.fasta" % (prefix))
 
     # Common Euk/Prot contaminats for blastable DB later on
+    logger.info('Building blast databases for vector screen.')
     makeblastdblist = []
-    for db in DB_Links:
-        url = DB_Links[db]
+    for d in DB_Links:
+        if d == 'sourmash':
+            continue
+        url = DB_Links[d]
         dbname = os.path.basename(str(url))
-        file = os.path.join(args.tmpdir,dbname)
+        if DB:
+            file = os.path.join(DB, dbname)
+        else:
+            file = os.path.join(args.workdir,dbname)
         if file.endswith(".gz"):
             nogz = os.path.splitext(file)[0]
             if not os.path.exists(nogz):
                 if not os.path.exists(file):
                     urllib.request.urlretrieve(url,file)
-                call(['gunzip',file])
-            make_blastdb('nucl',nogz,os.path.join(args.tmpdir,db))
+                call(['gunzip', '-k', file])
+                make_blastdb('nucl', nogz, os.path.join(args.workdir,d))
+            else:
+                make_blastdb('nucl', nogz, os.path.join(args.workdir,d))
         else:
             if not os.path.exists(file):
                 urllib.request.urlretrieve(url,file)
-            make_blastdb('nucl',file,os.path.join(args.tmpdir,db))
+            make_blastdb('nucl',file,os.path.join(args.workdir,d))
 
     rnd = 0
     count = 1
     while (count > 0):
         filepref = "%s.r%d" % (prefix,rnd)
-        report = os.path.join(args.tmpdir,"%s.vecscreen.tab"%(filepref))
+        report = os.path.join(args.workdir,"%s.vecscreen.tab"%(filepref))
         if not os.path.exists(report):
-            call(['blastn','-task','blastn',
+            cmd = ['blastn','-task','blastn',
                   '-reward','1','-penalty','-5','-gapopen','3',
                   '-gapextend', '3', '-dust','yes','-soft_masking','true',
                   '-evalue', '700','-searchsp','1750000000000',
-                  '-db', os.path.join(args.tmpdir,'UniVec'),
+                  '-db', os.path.join(args.workdir,'UniVec'),
                   '-outfmt', '6', '-num_threads',str(args.cpus),
-                  '-query', infile, '-out', report])
+                  '-query', infile, '-out', report]
+            #logger.info('CMD: {:}'.format(printCMD(cmd,7)))
+            call(cmd)
         # this needs to know/return the new fasta file?
         logger.info("parsing %s for %s infile=%s"%(filepref,report,infile))
         (count,cleanfile) = parse_clean_blastn(infile,
-                                               os.path.join(args.tmpdir,
+                                               os.path.join(args.workdir,
                                                             filepref),
                                                report,percentid_cutoff)       
         logger.info("count is %d cleanfile is %s"%(count,cleanfile))
@@ -224,17 +249,18 @@ def run(parser,args):
     for contam in ["CONTAM_EUKS",
                    "CONTAM_PROKS" ]:                       
         logger.info("%s Contamination Screen" % (contam))
-        blastreport = os.path.join(args.tmpdir,
+        blastreport = os.path.join(args.workdir,
                                    "%s.%s.blastn" % (contam, prefix))
         blastnargs = ['blastn',
                       '-query', outfile_vec,
-                      '-db', os.path.join(args.tmpdir,contam),
+                      '-db', os.path.join(args.workdir,contam),
                       '-num_threads', str(args.cpus),
                       '-dust', 'yes', '-soft_masking', 'true',
                       '-perc_identity',BlastPercent_ID_ContamMatch,
                       '-lcase_masking', '-outfmt',
-                      '6 "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"',
+                      '6',
                       '-out',blastreport ]
+        logger.info('CMD: {:}'.format(printCMD(blastnargs, 7)))
         call(blastnargs)
         
         with open(blastreport) as report:
@@ -245,34 +271,38 @@ def run(parser,args):
                     ( float(row[2]) >= 94.0 and
                       int(row[3]) >= 100) or
                     ( float(row[2]) >= 90.0 and
-                      row[3] >= 200) ):
-                    logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
+                      int(row[3]) >= 200) ):
+                    #logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
                     contigs_to_remove[row[0]] = 1
                     
             #done with EUK and PROK screen
             
     # MITO screen
-    blastreport = os.path.join(args.tmpdir,
+    blastreport = os.path.join(args.workdir,
                                "%s.%s.blastn" % ('MITO',prefix))
     blastnargs = ['blastn',
                   '-query', outfile_vec,
-                  '-db', os.path.join(args.tmpdir,'MITO'),
+                  '-db', os.path.join(args.workdir,'MITO'),
                   '-num_threads', str(args.cpus),
                   '-dust', 'yes', '-soft_masking', 'true',
                   '-perc_identity',BlastPercent_ID_MitoMatch,
                   '-lcase_masking', '-outfmt','6',
                   '-out', blastreport]
+    logger.info('CMD: {:}'.format(printCMD(blastnargs, 7)))
     call(blastnargs)
     with open(blastreport) as report:
         colparser = csv.reader(report, delimiter="\t")
         for row in colparser:
             if int(row[3]) >= 120:
-                logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
+                #logger.info("Removing contig %s because of match to %s"%(row[0],row[1]))
                 contigs_to_remove[row[0]] = 1
         
-    print("These contigs will be skipped:",contigs_to_remove)
+    logger.info("{:,} contigs will be dropped:\n\t{:}".format(
+    			len(contigs_to_remove), '\n\t'.join(list(contigs_to_remove.keys()))))
 
     with open(outfile, "w") as output_handle:
         for record in SeqIO.parse(outfile_vec, "fasta"):
             if record.id not in contigs_to_remove:
                 SeqIO.write(record, output_handle, "fasta")
+    logger.info('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:}\n'.format(outfile, prefix+'.sourpurge.fasta', args.cpus))
+    
