@@ -78,19 +78,22 @@ def run(parser,args):
     # output csv: ID,status,superkingdom,phylum,class,order,family,genus,species,strain
     Taxonomy = {}
     UniqueTax = []
-    for line in execute(sour_classify, args.workdir):
-        if not line or line.startswith('\n') or line.startswith('ID') or line.count(',') < 9:
-            continue
-        line = line.strip()
-        cols = line.split(',')
-        if 'found' in cols:
-            idx = cols.index('found')
-            Taxonomy[cols[0]] = cols[idx+1:]
-            taxClean = [x for x in cols[idx+1:] if x]
-            UniqueTax.append('{:}'.format(';'.join(taxClean)))
-        elif 'nomatch' in cols:
-            idx = cols.index('nomatch')
-            Taxonomy[cols[0]] = cols[idx+1:]
+    sourmashTSV = os.path.join(args.workdir, 'sourmash.tsv')
+    with open(sourmashTSV, 'w') as sour_out:
+        for line in execute(sour_classify, args.workdir):
+            sour_out.write(line)
+            if not line or line.startswith('\n') or line.startswith('ID') or line.count(',') < 9:
+                continue
+            line = line.strip()
+            cols = line.split(',')
+            if 'found' in cols:
+                idx = cols.index('found')
+                Taxonomy[cols[0]] = cols[idx+1:]
+                taxClean = [x for x in cols[idx+1:] if x]
+                UniqueTax.append('{:}'.format(';'.join(taxClean)))
+            elif 'nomatch' in cols:
+                idx = cols.index('nomatch')
+                Taxonomy[cols[0]] = cols[idx+1:]
     UniqueTax = set(UniqueTax)
     logger.info('Found {:} taxonomic classifications for contigs:\n{:}'.format(len(UniqueTax), '\n'.join(UniqueTax)))
     if args.taxonomy:
@@ -155,15 +158,18 @@ def run(parser,args):
     
     N50 = calcN50(lengths)
     Coverage = {}
+    coverageBed = os.path.join(args.workdir, 'coverage.bed')
     cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM] 
     logger.info('CMD: {:}'.format(' '.join(cov_cmd)))
-    for line in execute(cov_cmd, args.workdir):
-        if not line or line.startswith('\n') or line.count('\t') < 3:
-            continue
-        line = line.strip()
-        cols = line.split('\t')
-        cov = int(cols[3]) / float(cols[2])
-        Coverage[cols[0]] = (int(cols[2]), cov)
+    with open(coverageBed, 'w') as bed_out:
+        for line in execute(cov_cmd, args.workdir):
+            bed_out.write(line)
+            if not line or line.startswith('\n') or line.count('\t') < 3:
+                continue
+            line = line.strip()
+            cols = line.split('\t')
+            cov = int(cols[3]) / float(cols[2])
+            Coverage[cols[0]] = (int(cols[2]), cov)
     
     #get average coverage of N50 contigs
     n50Cov = []
