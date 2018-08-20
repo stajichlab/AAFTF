@@ -32,6 +32,8 @@ def run_subtool(parser, args):
         import AAFTF.rmdup as submodule
     elif args.command == 'pilon':
         import AAFTF.pilon as submodule
+    elif args.command == 'sort':
+        import AAFTF.sort as submodule
     else:
         parser.parse_args('')
         return
@@ -399,18 +401,18 @@ def main():
                                          description="Polish contig sequences with Pilon",
                                         help='Polish contig sequences with Pilon')
 
-    parser_pilon.add_argument('-o','--outfile',type=str,
+    parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile', 
                              required=False,
                              help="Output Pilon polished assembly (defaults to infile.pilon.fasta)")
 
-    parser_pilon.add_argument('-i','--infile',type=str,
+    parser_pilon.add_argument('-i','--infile','--input', type=str, dest='infile',
                               required=True,
                               help="Input contigs or scaffold assembly")
 
     parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
 
-    parser_pilon.add_argument('-rp','--read-prefix',required=True,
+    parser_pilon.add_argument('-p','--prefix',required=False,
                               help="Prefix of the read pairs ")
 
     parser_pilon.add_argument('-it','--iterations', type=int, default=5,
@@ -424,7 +426,7 @@ def main():
                               required=False,
             help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
 
-    parser_pilon.add_argument('--tmpdir',type=str,
+    parser_pilon.add_argument('-w', '--workdir', '--tmpdir',type=str, dest='workdir',
                                required=False,default="working_AAFTF",
                                help="Temporary directory to store datafiles and processes in")
     
@@ -439,11 +441,8 @@ def main():
     # -c / --coverage
     # -m / --minlen
     # --exhaustive
-    # --method (mummer/minimap2)
     # --debug
 
-    # its possible an alternative method could be used here to remove duplicated but for now this is
-    # tied directly to funannotate clean script (see our copy in scripts/funannotate-contig_cleaner.py)
     parser_rmdup = subparsers.add_parser('rmdup',
                                          description="Remove duplicate contigs",
                                          help='Remove duplicate contigs')
@@ -455,15 +454,15 @@ def main():
                                required=True,
                                help="Output new version of assembly with duplicated contigs/scaffolds removed")
     
-    parser_rmdup.add_argument('--tmpdir',type=str,
+    parser_rmdup.add_argument('-w', '--workdir', '--tmpdir', dest='workdir',type=str,
                                required=False,default="working_AAFTF",
                                help="Temporary directory to store datafiles and processes in")
 
-    parser_rmdup.add_argument('-pid','--percent_id',type=int,
+    parser_rmdup.add_argument('-pid','--percent_id',type=int, dest='percent_id', 
                                required=False,default=95,
                                help="Percent Identity used in matching contigs for redundancy")
 
-    parser_rmdup.add_argument('-c','--coverage',type=int,
+    parser_rmdup.add_argument('-pcov','--percent_cov',type=int, dest='percent_cov',
                                required=False,default=95,
                                help="Coverage of contig used to decide if it is redundant")
 
@@ -474,11 +473,29 @@ def main():
     parser_rmdup.add_argument('--exhaustive',action='store_true',
                                help="Compute overlaps for every contig, otherwise only process contigs for L50 and below")
 
-    parser_rmdup.add_argument('--method',default='minimap2', choices=['mummer', 'minimap2'],
-                               help='program to use for calculating overlaps')
-
     parser_rmdup.add_argument('--debug',action='store_true', help='Run rmdup in debugging mode for more output')
-    
+  
+    ##########
+    # sort/rename FASTA headers
+    ##########
+    # arguments
+    # -i / --input: input assembly file
+    # -o / --out: output assembly file
+    # -n / --name: base name to use default=scaffolds_
+
+    parser_sort = subparsers.add_parser('sort',
+                                         description="Sort contigs by length and rename FASTA headers",
+                                         help='Sort contigs by length and rename FASTA headers')
+
+    parser_sort.add_argument('-i','--input','--infile',required=True, dest='input',
+                               help='Input genome assembly FASTA')
+
+    parser_sort.add_argument('-o','--out','--output',required=True, dest='out',
+                               help='Output genome assembly FASTA')
+
+    parser_sort.add_argument('-n','--name','--basename',default='scaffold', dest='name',
+                               help='Basename to rename FASTA headers')
+  
     ##########
     # assess completeness
     ##########

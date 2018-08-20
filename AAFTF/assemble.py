@@ -10,6 +10,7 @@ import logging
 logger = logging.getLogger('AAFTF')
 
 from AAFTF.utility import printCMD
+from AAFTF.utility import fastastats
 
 def run(parser,args):
 
@@ -54,9 +55,9 @@ def run(parser,args):
     logger.info('CMD: {:}'.format(printCMD(spadescmd, 10)))
     DEVNULL = open(os.devnull, 'w')
     if args.debug:
-    	subprocess.run(spadescmd)
+        subprocess.run(spadescmd)
     else:
-    	subprocess.run(spadescmd, stdout=DEVNULL, stderr=DEVNULL)
+        subprocess.run(spadescmd, stdout=DEVNULL, stderr=DEVNULL)
     #pull out assembly
     if args.out:
         finalOut = args.out
@@ -68,6 +69,8 @@ def run(parser,args):
     if os.path.isfile(os.path.join(args.workdir, 'spades', 'scaffolds.fasta')):
         shutil.copyfile(os.path.join(args.workdir, 'spades', 'scaffolds.fasta'), finalOut)
         logger.info(' Spades assembly finished: {:}'.format(finalOut))
+        numSeqs, assemblySize = fastastats(finalOut)
+        logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
     else:
         logger.error(' Spades assembly output missing -- check Spades logfile.')
     logger.info('Your next command might be:\n\tAAFTF vecscreen -i {:} -c {:}\n'.format(finalOut, args.cpus))

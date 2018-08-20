@@ -211,5 +211,5 @@ def run(parser,args):
     else:
         nextOut = args.out+'.rmdup.fasta'
     
-    logger.info('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:} -w {:} -c {:}\n'.format(
-                args.out, nextOut, args.workdir, args.cpus))
+    logger.info('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(
+                args.out, nextOut))

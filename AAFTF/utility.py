@@ -1,6 +1,5 @@
 import os
 import subprocess
-import gzip
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 
