@@ -58,7 +58,7 @@ def run(parser,args):
             logger.info(' CMD: {:}'.format(' '.join(bwa_cmd)))
             p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),'-o', pilonBAM, '-'], 
-            			cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+                        cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
             p2.communicate()
             
