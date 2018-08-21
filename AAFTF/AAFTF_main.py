@@ -26,12 +26,12 @@ def run_subtool(parser, args):
         import AAFTF.blobpurge as submodule
     elif args.command == 'sourpurge':
         import AAFTF.sourpurge as submodule
-    elif args.command == 'assess':
-        import AAFTF.assess as submodule
     elif args.command == 'rmdup':
         import AAFTF.rmdup as submodule
     elif args.command == 'pilon':
         import AAFTF.pilon as submodule
+    elif args.command == 'assess':
+        import AAFTF.assess as submodule
     elif args.command == 'sort':
         import AAFTF.sort as submodule
     else:
@@ -387,49 +387,7 @@ def main():
     parser_sour.add_argument('--just-show-taxonomy',dest='taxonomy', action='store_true',
                                help="Show taxonomy information and exit")
 
-    
-    ##########
-    # pilon
-    ##########
-    # arguments
-    # -i / --in: input assembly file
-    # -o / --out: output cleaned assembly
-    # -rp / --reads-prefix: input/outfile reads prefix
-    # --iterations: default 5
-    # --tmpdir
-    parser_pilon = subparsers.add_parser('pilon',
-                                         description="Polish contig sequences with Pilon",
-                                        help='Polish contig sequences with Pilon')
-
-    parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile', 
-                             required=False,
-                             help="Output Pilon polished assembly (defaults to infile.pilon.fasta)")
-
-    parser_pilon.add_argument('-i','--infile','--input', type=str, dest='infile',
-                              required=True,
-                              help="Input contigs or scaffold assembly")
-
-    parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
-                                  help="Number of CPUs/threads to use.")
-
-    parser_pilon.add_argument('-p','--prefix',required=False,
-                              help="Prefix of the read pairs ")
-
-    parser_pilon.add_argument('-it','--iterations', type=int, default=5,
-                              help="Number of Polishing iterations to run")
-
-    parser_pilon.add_argument('--left',type=str,
-                              required=False,
-            help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
-
-    parser_pilon.add_argument('--right',type=str,
-                              required=False,
-            help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
-
-    parser_pilon.add_argument('-w', '--workdir', '--tmpdir',type=str, dest='workdir',
-                               required=False,default="working_AAFTF",
-                               help="Temporary directory to store datafiles and processes in")
-    
+        
     ##########
     # rmdup
     ##########
@@ -474,7 +432,49 @@ def main():
                                help="Compute overlaps for every contig, otherwise only process contigs for L50 and below")
 
     parser_rmdup.add_argument('--debug',action='store_true', help='Run rmdup in debugging mode for more output')
-  
+
+    ##########
+    # pilon
+    ##########
+    # arguments
+    # -i / --in: input assembly file
+    # -o / --out: output cleaned assembly
+    # -rp / --reads-prefix: input/outfile reads prefix
+    # --iterations: default 5
+    # --tmpdir
+    parser_pilon = subparsers.add_parser('pilon',
+                                         description="Polish contig sequences with Pilon",
+                                        help='Polish contig sequences with Pilon')
+
+    parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile', 
+                             required=False,
+                             help="Output Pilon polished assembly (defaults to infile.pilon.fasta)")
+
+    parser_pilon.add_argument('-i','--infile','--input', type=str, dest='infile',
+                              required=True,
+                              help="Input contigs or scaffold assembly")
+
+    parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
+                                  help="Number of CPUs/threads to use.")
+
+    parser_pilon.add_argument('-p','--prefix',required=False,
+                              help="Prefix of the read pairs ")
+
+    parser_pilon.add_argument('-it','--iterations', type=int, default=5,
+                              help="Number of Polishing iterations to run")
+
+    parser_pilon.add_argument('--left',type=str,
+                              required=False,
+            help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
+
+    parser_pilon.add_argument('--right',type=str,
+                              required=False,
+            help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
+
+    parser_pilon.add_argument('-w', '--workdir', '--tmpdir',type=str, dest='workdir',
+                               required=False,default="working_AAFTF",
+                               help="Temporary directory to store datafiles and processes in")
+
     ##########
     # sort/rename FASTA headers
     ##########

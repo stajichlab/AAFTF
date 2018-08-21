@@ -99,7 +99,7 @@ def run(parser,args):
                 if not Header in ignore:
                     clean_out.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
     numSeqs, assemblySize = fastastats(args.out)
-    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
+    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize)))
     if '_' in args.out:
         nextOut = args.out.split('_')[0]+'.pilon.fasta'
     elif '.' in args.out:

@@ -96,7 +96,7 @@ def run(parser,args):
     shutil.copyfile(os.path.join(args.workdir, 'pilon'+str(args.iterations)+'.fasta'), polishedFasta)
     logger.info(' AAFTF pilon completed {:} iterations.'.format(args.iterations))
     logger.info(' Pilon polished assembly: {:}'.format(polishedFasta))
-    if '_' in args.polishedFasta:
+    if '_' in polishedFasta:
         nextOut = polishedFasta.split('_')[0]+'.final.fasta'
     elif '.' in polishedFasta:
         nextOut = polishedFasta.split('.')[0]+'.final.fasta'
