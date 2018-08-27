@@ -20,9 +20,9 @@ def run(parser,args):
     if not forReads:
         for file in os.listdir(args.workdir):
             if '_cleaned' in file and file.endswith('q.gz'):
-                if '_1' in file:
+                if '_1.fastq' in file:
                     forReads = os.path.abspath(os.path.join(args.workdir, file))
-                if '_2' in file:
+                if '_2.fastq' in file:
                     revReads = os.path.abspath(os.path.join(args.workdir, file))
     if not forReads:
         logger.error('Unable to located FASTQ raw reads')
