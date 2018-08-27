@@ -14,18 +14,22 @@ from AAFTF.utility import fastastats
 
 def run(parser,args):
 
-    if args.workdir == 'working_AAFTF' and not args.prefix and not args.left and args.cpus == 1: 
+    if args.workdir == 'working_AAFTF' and not args.prefix and not args.left: 
         logger.error(' Please provide either -w,--workdir, -p,--prefix, or --left reads.')
         sys.exit(1)
 
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
+    prefix = args.prefix
+    if not prefix:
+        prefix = os.path.basename(args.left)
 
-
+    spadesdir = os.path.join(args.workdir,'spades_'+prefix)
+    logger.debug("spadesdir is %s"%(spadesdir))
     spadescmd = ['spades.py','--threads', str(args.cpus),
                  '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
-                 '-o', os.path.join(args.workdir, 'spades')]
-    if os.path.isdir(os.path.join(args.workdir, 'spades')):
+                 '-o', spadesdir]
+    if os.path.isdir(spadesdir):
         spadescmd.append('--continue')
         
     #find reads -- use --left/right or look for cleaned in tmpdir
@@ -34,12 +38,13 @@ def run(parser,args):
         forReads = os.path.abspath(args.left)
     if args.right:
         revReads = os.path.abspath(args.right)
+
     if not forReads:
         for file in os.listdir(args.workdir):
             if '_cleaned' in file and file.endswith('q.gz'):
-                if '_1' in file:
+                if '_1.fastq' in file:
                     forReads = os.path.abspath(os.path.join(args.workdir, file))
-                if '_2' in file:
+                if '_2.fastq' in file:
                     revReads = os.path.abspath(os.path.join(args.workdir, file))
     if not forReads:
         logger.error('Unable to located FASTQ raw reads, provide correct combination of --prefix, --workdir, or --left')
