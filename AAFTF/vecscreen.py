@@ -8,7 +8,7 @@
 # default lirbaries screen are located in resources.py
 # and include common Euk, Prok, and MITO contaminants
 
-import sys, csv, re, operator, os
+import sys, csv, re, operator, os, gzip
 import shutil
 
 from subprocess import call, Popen, PIPE, STDOUT
@@ -206,14 +206,20 @@ def run(parser,args):
     if args.percent_id:
         percentid_cutoff = args.percent_id
 
-    prefix = os.path.basename(args.infile)
-    if '_' in prefix:
-        prefix = prefix.split('_')[0]
+    if args.prefix:
+        prefix = args.prefix
     else:
-        prefix = os.path.splitext(prefix)[0]
+        prefix = os.path.basename(args.infile)
+        if '_' in prefix:
+            # not sure I like this - we may want to do this at a terminal
+            # _ ?
+            prefix = prefix.split('_')[0]
+        else:
+            prefix = os.path.splitext(prefix)[0]
+
     infile = args.infile
     outfile = args.outfile
-
+    outdir = os.path.dirname(outfile)
     if not outfile:
         outfile = "%s.vecscreen.fasta" % prefix
 
@@ -228,6 +234,7 @@ def run(parser,args):
             continue
         url = DB_Links[d]
         dbname = os.path.basename(str(url))
+        logger.debug("testing for url=%s dbname=%s"%(url,dbname))
         if DB:
             file = os.path.join(DB, dbname)
         else:
@@ -237,7 +244,10 @@ def run(parser,args):
             if not os.path.exists(nogz):
                 if not os.path.exists(file):
                     urllib.request.urlretrieve(url,file)
-                call(['gunzip', '-k', file])
+                
+                with gzip.open(file, 'rb') as ingz, open(nogz,'wb') as outfa:
+                    shutil.copyfileobj(ingz,outfa)
+#                call(['gunzip', '-k', file])
                 make_blastdb('nucl', nogz, os.path.join(args.workdir,d))
             else:
                 make_blastdb('nucl', nogz, os.path.join(args.workdir,d))
@@ -330,7 +340,11 @@ def run(parser,args):
     logger.info("{:,} contigs will be removed:".format(len(contigs_to_remove)))
     for k,v in sorted(contigs_to_remove.items()):
         print('\t{:} --> dbhit={:}; hit={:}; pident={:}'.format(k,v[0], v[1], v[2]))
-    mitochondria = prefix+'.mitochondria.fasta'
+
+    # this could instead use the outfile and strip .fasta/fsa/fna and add mito on it I suppose, but assumes 
+    # a bit about the naming structure
+
+    mitochondria = os.path.join(outdir,prefix+'.mitochondria.fasta')
     with open(outfile, "w") as output_handle, open(mitochondria, 'w') as mito_handle:
         for record in SeqIO.parse(outfile_vec, "fasta"):
             if not record.id in contigs_to_remove:
