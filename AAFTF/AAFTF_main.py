@@ -244,10 +244,12 @@ def main():
     # arguments
     # -i / --input:  input assembly file
     # -o / --out: output cleaned assembly
+    # --prefix: Prefix for output / temp files
     # --tmpdir
-    # --pid 
+    # --pid / percent_id
+
     parser_vecscreen = subparsers.add_parser('vecscreen',
-                            description="Screen contigs for vector and common contaminantion",
+                                             description="Screen contigs for vector and common contaminantion",
                                              help='Vector and Contaminant Screening of assembled contigs')
 
     parser_vecscreen.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
@@ -260,6 +262,9 @@ def main():
     parser_vecscreen.add_argument('-o','--outfile',type=str,
                                   required=False,
                                   help="Output vector screened and cleaned assembly (defaults to infile.clean.fasta)")
+    parser_vecscreen.add_argument('-p','--prefix',type=str,
+                                  required=False,
+                                  help="Input/Output Prefix for fileset and tempfiles")
 
     parser_vecscreen.add_argument('-pid','--percent_id',type=int,
                                   required=False,
@@ -274,7 +279,7 @@ def main():
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
 
     parser_vecscreen.add_argument('-s', '--stringency', default='high', choices=['high','low'],
-                             help="Stringency to filter VecScreen hits")
+                                  help="Stringency to filter VecScreen hits")
 
 
     ##########
