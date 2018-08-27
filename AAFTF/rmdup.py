@@ -41,7 +41,8 @@ def run(parser,args):
             pident = float(matches) / int(alnLen) * 100
             cov = float(alnLen) / int(qLen) * 100
             if args.debug:
-                print('\tquery={:} hit={:} pident={:.2f} coverage={:.2f}'.format(qID, tID, pident, cov)
+                print('\tquery={:} hit={:} pident={:.2f} coverage={:.2f}'.format(qID, tID, pident, cov))
+
             if pident > args.percent_id and cov > args.percent_cov:
                 print("{:} duplicated: {:.0f}% identity over {:.0f}% of the contig. length={:}".format(name, pident, cov, qLen))
                 garbage = True
@@ -99,7 +100,7 @@ def run(parser,args):
                 if not Header in ignore:
                     clean_out.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
     numSeqs, assemblySize = fastastats(args.out)
-    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize)))
+    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
     if '_' in args.out:
         nextOut = args.out.split('_')[0]+'.pilon.fasta'
     elif '.' in args.out:
