@@ -121,7 +121,8 @@ def run(parser,args):
     if not forReads:
         logger.error(' Unable to located FASTQ reads')
         sys.exit(1)
-
+    
+    # seems like this needs to be stripping trailing extension?
     if not args.prefix:
         if '_' in os.path.basename(forReads):
             args.prefix = os.path.basename(forReads).split('_')[0]

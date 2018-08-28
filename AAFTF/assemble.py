@@ -20,17 +20,16 @@ def run(parser,args):
 
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
+
     prefix = args.prefix
     if not prefix:
         prefix = os.path.basename(args.left)
 
     spadesdir = os.path.join(args.workdir,'spades_'+prefix)
     logger.debug("spadesdir is %s"%(spadesdir))
-    spadescmd = ['spades.py','--threads', str(args.cpus),
+    spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
                  '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
                  '-o', spadesdir]
-    if os.path.isdir(spadesdir):
-        spadescmd.append('--continue')
         
     #find reads -- use --left/right or look for cleaned in tmpdir
     forReads, revReads = (None,)*2
@@ -41,7 +40,7 @@ def run(parser,args):
 
     if not forReads:
         for file in os.listdir(args.workdir):
-            if '_cleaned' in file and file.endswith('q.gz'):
+            if '_cleaned' in file and file.endswith('q.gz') and file.startswith(prefix):
                 if '_1.fastq' in file:
                     forReads = os.path.abspath(os.path.join(args.workdir, file))
                 if '_2.fastq' in file:
@@ -55,6 +54,9 @@ def run(parser,args):
     else:
         spadescmd = spadescmd + ['--pe1-1', forReads, '--pe1-2', revReads]
 
+    if os.path.isdir(spadesdir):
+        spadescmd = ['spades.py','-o',spadesdir,'--continue']
+
     # now run the spades job
     logger.info('Assembling FASTQ data using Spades')
     logger.info('CMD: {:}'.format(printCMD(spadescmd, 10)))
@@ -67,12 +69,10 @@ def run(parser,args):
     if args.out:
         finalOut = args.out
     else:
-        if args.prefix:
-            finalOut = args.prefix+'.spades.fasta'
-        else:
-            finalOut = os.path.basename(forReads).split('.')[0]+'.spades.fasta'
-    if os.path.isfile(os.path.join(args.workdir, 'spades', 'scaffolds.fasta')):
-        shutil.copyfile(os.path.join(args.workdir, 'spades', 'scaffolds.fasta'), finalOut)
+        finalOut = prefix+'.spades.fasta'
+
+    if os.path.isfile(os.path.join(spadesdir, 'scaffolds.fasta')):
+        shutil.copyfile(os.path.join(spadesdir,'scaffolds.fasta'), finalOut)
         logger.info(' Spades assembly finished: {:}'.format(finalOut))
         numSeqs, assemblySize = fastastats(finalOut)
         logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))

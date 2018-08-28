@@ -1,5 +1,5 @@
 import sys
-import os
+import os, uuid
 import subprocess
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 import operator
@@ -18,11 +18,13 @@ from AAFTF.utility import fastastats
 from AAFTF.utility import execute
 
 
+        
+
 def run(parser,args):
 
-    def generateFastas(fasta, query, reference):
-        qfile = os.path.join(args.workdir, 'query.fasta')
-        rfile = os.path.join(args.workdir, 'reference.fasta')
+    def generateFastas(fasta, pref, query, reference):
+        qfile = os.path.join(args.workdir, pref +'query.fasta')
+        rfile = os.path.join(args.workdir, pref +'reference.fasta')
         with open(qfile, 'w') as qout:
             with open(rfile, 'w') as rout:
                 with open(fasta, 'rU') as infile:
@@ -32,23 +34,30 @@ def run(parser,args):
                         elif Header in reference:
                             rout.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
         return qfile, rfile
-
+    
     def runMinimap2(query, reference, name):
         FNULL = open(os.devnull, 'w')
         garbage = False #assume this is a good contig
-        for line in execute(['minimap2', '-x', 'asm5', '-N5', reference, query], '.'):
+        for line in execute(['minimap2', '-t', str(args.cpus), '-x', 'asm5', '-N5', reference, query], '.'):
             qID, qLen, qStart, qEnd, strand, tID, tLen, tStart, tEnd, matches, alnLen, mapQ = line.split('\t')[:12]
             pident = float(matches) / int(alnLen) * 100
             cov = float(alnLen) / int(qLen) * 100
             if args.debug:
                 print('\tquery={:} hit={:} pident={:.2f} coverage={:.2f}'.format(qID, tID, pident, cov))
-
-            if pident > args.percent_id and cov > args.percent_cov:
-                print("{:} duplicated: {:.0f}% identity over {:.0f}% of the contig. length={:}".format(name, pident, cov, qLen))
-                garbage = True
-                break
+            
+                if pident > args.percent_id and cov > args.percent_cov:
+                    print("{:} duplicated: {:.0f}% identity over {:.0f}% of the contig. length={:}".format(name, pident, cov, qLen))
+                    garbage = True
+                    break
         return garbage #false is good, true is repeat
-        
+
+    if args.prefix:
+        prefix = args.prefix
+    else:
+        prefix = str(uuid.uuid4())
+
+    if not prefix.endswith('_'):
+        prefix += "_"
 
     #start here -- functions nested so they can inherit the arguments
     if not os.path.exists(args.workdir):
@@ -85,7 +94,7 @@ def run(parser,args):
             break
         #generate input files for minimap2
         theRest = [i[0] for i in sortSeqs[i+1:]]
-        qfile, rfile = generateFastas(args.input, x[0], theRest)
+        qfile, rfile = generateFastas(args.input, prefix, x[0], theRest)
         #run minimap2
         result = runMinimap2(qfile, rfile, x[0])
         if result:

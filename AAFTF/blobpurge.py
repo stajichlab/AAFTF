@@ -21,6 +21,10 @@ def run(parser,args):
     if not os.path.exists(args.tmpdir):
         os.mkdir(args.tmpdir)
     
+    prefix = args.prefix
+    if not prefix:
+        prefix = os.path.basename(args.left)
+
     #find reads for blobplot
     forReads, revReads = (None,)*2
     if args.left:
@@ -29,7 +33,7 @@ def run(parser,args):
         revReads = os.path.abspath(args.right)
     if not forReads:
         for file in os.listdir(args.tmpdir):
-            if '_cleaned' in file and file.endswith('.fq.gz'):
+            if '_cleaned' in file and file.endswith('.fq.gz') and file.startswith(prefix):
                 if '_1.fastq' in file:
                     forReads = os.path.abspath(os.path.join(args.tmpdir, file))
                 if '_2.fastq' in file:

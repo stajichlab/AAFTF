@@ -9,17 +9,27 @@ from AAFTF.utility import calcN50
 from AAFTF.utility import fastastats
 from AAFTF.resources import DB_Links
 
-#logging
+# logging - we may need to think about whether this has 
+# separate name for the different runfolder
 
 import logging
 logger = logging.getLogger('AAFTF')
-
 
 def run(parser,args):
 
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
-    
+
+    if args.prefix:
+        prefix = args.prefix
+    elif args.left:
+        prefix = os.path.basename(os.path.splitext(args.left)[0])
+    elif args.outfile:
+        prefix = os.path.basename(os.path.splitext(args.outfile)[0])
+
+    if not prefix.endswith('_'):
+        prefix += "_"
+
     #find reads
     forReads, revReads = (None,)*2
     if args.left:
@@ -28,10 +38,10 @@ def run(parser,args):
         revReads = os.path.abspath(args.right)
     if not forReads:
         for file in os.listdir(args.workdir):
-            if '_cleaned' in file and file.endswith('q.gz'):
-                if '_1' in file:
+            if '_cleaned' in file and file.endswith('q.gz') and file.startswith(prefix):
+                if '_1.fastq' in file:
                     forReads = os.path.abspath(os.path.join(args.workdir, file))
-                if '_2' in file:
+                if '_2.fastq' in file:
                     revReads = os.path.abspath(os.path.join(args.workdir, file))
     if not forReads:
         print('Unable to located FASTQ raw reads')
@@ -50,13 +60,15 @@ def run(parser,args):
         SOUR = os.path.join(DB, 'genbank-k31.lca.json.gz')
         if not os.path.isfile(SOUR):
             logger.error("{:} sourmash database not found".format(SOUR))
+            # should we prompt it to download 
+            exit
     else:
         SOUR = os.path.abspath(args.sourdb)
                     
     # hard coded tmpfile
-    assembly_working  = 'assembly.fasta'
-    megablast_working = 'megablast.out'
-    blobBAM           = "remapped.bam"
+    assembly_working  = prefix + 'assembly.fasta'
+    megablast_working = prefix + 'megablast.out'
+    blobBAM           = prefix + 'remapped.bam'
     shutil.copyfile(args.input, os.path.join(args.workdir,assembly_working))
     numSeqs, assemblySize = fastastats(os.path.join(args.workdir,assembly_working))
     logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
@@ -78,7 +90,7 @@ def run(parser,args):
     # output csv: ID,status,superkingdom,phylum,class,order,family,genus,species,strain
     Taxonomy = {}
     UniqueTax = []
-    sourmashTSV = os.path.join(args.workdir, 'sourmash.tsv')
+    sourmashTSV = os.path.join(args.workdir, prefix + 'sourmash.tsv')
     with open(sourmashTSV, 'w') as sour_out:
         for line in execute(sour_classify, args.workdir):
             sour_out.write(line)
@@ -109,7 +121,7 @@ def run(parser,args):
     
     #drop contigs from taxonomy before calculating coverage
     logger.info('Dropping {:} contigs from taxonomy screen'.format(len(Tax2Drop)))
-    sourTax = os.path.join(args.workdir, 'sourmashed-tax-screen.fasta')
+    sourTax = os.path.join(args.workdir, prefix+'sourmashed-tax-screen.fasta')
     with open(sourTax, 'w') as outfile:
         with open(os.path.join(args.workdir,assembly_working), 'rU') as infile:
             for record in SeqIO.parse(infile, 'fasta'):
@@ -148,7 +160,7 @@ def run(parser,args):
 
     #now calculate coverage
     logger.info('Calculating read coverage per contig')
-    FastaBed = os.path.join(args.workdir, 'assembly.bed')
+    FastaBed = os.path.join(args.workdir, prefix+'assembly.bed')
     lengths = []
     with open(FastaBed, 'w') as bedout:
         with open(sourTax, 'rU') as SeqIn:
@@ -158,7 +170,7 @@ def run(parser,args):
     
     N50 = calcN50(lengths)
     Coverage = {}
-    coverageBed = os.path.join(args.workdir, 'coverage.bed')
+    coverageBed = os.path.join(args.workdir, prefix+'coverage.bed')
     cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM] 
     logger.info('CMD: {:}'.format(' '.join(cov_cmd)))
     with open(coverageBed, 'w') as bed_out:
@@ -196,20 +208,20 @@ def run(parser,args):
     DropFinal = Contigs2Drop + Tax2Drop
     DropFinal = set(DropFinal)
     logger.info('Dropping {:} total contigs based on taxonomy and coverage'.format(len(DropFinal)))
-    with open(args.out, 'w') as outfile:
+    with open(args.outfile, 'w') as outfile:
         with open(sourTax, 'rU') as seqin:
             for record in SeqIO.parse(seqin, 'fasta'):
                 if not record.id in DropFinal:
                     SeqIO.write(record, outfile, 'fasta')
                     
-    numSeqs, assemblySize = fastastats(args.out)
+    numSeqs, assemblySize = fastastats(args.outfile)
     logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
-    if '_' in args.out:
-        nextOut = args.out.split('_')[0]+'.rmdup.fasta'
+    if '_' in args.outfile:
+        nextOut = args.outfile.split('_')[0]+'.rmdup.fasta'
     elif '.' in args.out:
-        nextOut = args.out.split('.')[0]+'.rmdup.fasta'
+        nextOut = args.outfile.split('.')[0]+'.rmdup.fasta'
     else:
-        nextOut = args.out+'.rmdup.fasta'
+        nextOut = args.outfile+'.rmdup.fasta'
     
     logger.info('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(
-                args.out, nextOut))
+                args.outfile, nextOut))
