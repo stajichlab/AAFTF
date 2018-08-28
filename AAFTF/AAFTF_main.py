@@ -243,7 +243,7 @@ def main():
     ##########
     # arguments
     # -i / --input:  input assembly file
-    # -o / --out: output cleaned assembly
+    # -o / --outfile: output cleaned assembly
     # --prefix: Prefix for output / temp files
     # --tmpdir
     # --pid / percent_id
@@ -262,6 +262,7 @@ def main():
     parser_vecscreen.add_argument('-o','--outfile',type=str,
                                   required=False,
                                   help="Output vector screened and cleaned assembly (defaults to infile.clean.fasta)")
+
     parser_vecscreen.add_argument('-p','--prefix',type=str,
                                   required=False,
                                   help="Input/Output Prefix for fileset and tempfiles")
@@ -340,7 +341,7 @@ def main():
     # arguments
     # -a / --assembly: input assembly file
     # -o / --out: output cleaned assembly file
-    # -p / --prefix: sequence reads prefix
+    # -p / --prefix: datafile prefix and temp/output file prefix
     # -i / --indir: directory where sequence reads are located
     # -c / --cpus: number of cpus
     # --tmpdir
@@ -353,7 +354,7 @@ def main():
                              required=True,
                              help="Input contigs or scaffold assembly")
 
-    parser_sour.add_argument('-o','--out',type=str,
+    parser_sour.add_argument('-o','--outfile',type=str,
                              required=True, # think about sensible replacement in future
                              help="Output sourmash cleaned assembly")
 
@@ -416,6 +417,12 @@ def main():
     parser_rmdup.add_argument('-o','--out',type=str,
                                required=True,
                                help="Output new version of assembly with duplicated contigs/scaffolds removed")
+
+    parser_rmdup.add_argument('-p','--prefix',type=str,
+                               required=False,
+                               help="Prefix of output file names or temp files")
+    parser_rmdup.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                        help="Number of CPUs/threads to use.")
     
     parser_rmdup.add_argument('-w', '--workdir', '--tmpdir', dest='workdir',type=str,
                                required=False,default="working_AAFTF",
