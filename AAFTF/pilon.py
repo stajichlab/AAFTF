@@ -36,15 +36,21 @@ def run(parser,args):
         else:
             args.prefix = os.path.basename(forReads)
     
+    if not args.prefix.endswith('_'):
+        args.prefix += "_"
+
     DEVNULL = open(os.devnull, 'w')
     for i in range(1, args.iterations+1):
         logger.info(' Starting Pilon polishing iteration {:}'.format(i))
-        correctedFasta = 'pilon'+str(i)+'.fasta'
+        correctedFasta = args.prefix + 'pilon'+str(i)+'.fasta'
         if i == 1: #first loop
             initialFasta = args.infile
-            shutil.copyfile(args.infile, os.path.join(args.workdir, os.path.basename(args.infile)))
+            shutil.copyfile(args.infile, 
+                            os.path.join(args.workdir, 
+                                         os.path.basename(args.infile)))
         else:
-            initialFasta = os.path.join(args.workdir, 'pilon'+str(i-1)+'.fasta')
+            initialFasta = os.path.join(args.workdir, 
+                                        args.prefix + 'pilon'+str(i-1)+'.fasta')
         pilonBAM = os.path.basename(initialFasta)+'.bwa.bam'
         if not os.path.isfile(os.path.join(args.workdir, pilonBAM)):
             bwa_index = ['bwa', 'index', os.path.basename(initialFasta)]
@@ -56,9 +62,12 @@ def run(parser,args):
     
             #run BWA and pipe to samtools sort
             logger.info(' CMD: {:}'.format(' '.join(bwa_cmd)))
-            p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),'-o', pilonBAM, '-'], 
-                        cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+            p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, 
+                                  stdout=subprocess.PIPE, stderr=DEVNULL)
+            p2 = subprocess.Popen(['samtools', 'sort', 
+                                   '-@', str(args.cpus),'-o', pilonBAM, '-'], 
+                                  cwd=args.workdir, stdout=subprocess.PIPE, 
+                                  stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
             p2.communicate()
             
@@ -66,14 +75,18 @@ def run(parser,args):
             subprocess.run(['samtools', 'index', pilonBAM], cwd=args.workdir)
         
         #run Pilon
-        pilon_cmd = ['pilon', '--genome', os.path.basename(initialFasta), '--frags', pilonBAM, 
-                     '--output', correctedFasta.split('.fasta')[0], '--threads', str(args.cpus), 
+        pilon_cmd = ['pilon', '--genome', os.path.basename(initialFasta), 
+                     '--frags', pilonBAM, 
+                     '--output', correctedFasta.split('.fasta')[0], 
+                     '--threads', str(args.cpus), 
                      '--changes']
-        pilon_log = 'pilon'+str(i)+'.log'
+        pilon_log = args.prefix + 'pilon'+str(i)+'.log'
         logger.info(' CMD: {:}'.format(' '.join(pilon_cmd)))
         with open(os.path.join(args.workdir, pilon_log), 'w') as logfile:
-            subprocess.run(pilon_cmd, cwd=args.workdir, stderr=logfile, stdout=logfile)
-        num_changes = line_count(os.path.join(args.workdir, 'pilon'+str(i)+'.changes'))
+            subprocess.run(pilon_cmd, cwd=args.workdir, stderr=logfile, 
+                           stdout=logfile)
+        num_changes = line_count(os.path.join(args.workdir, 
+                                              args.prefix+'pilon'+str(i)+'.changes'))
         logger.info(' found {:,} changes in Pilon iteration {:}'.format(num_changes, i))
         
         #clean-up as we iterate to prevent tmp directory from blowing up
@@ -93,7 +106,11 @@ def run(parser,args):
         polishedFasta = args.outfile
     else:
         polishedFasta = os.path.basename(args.infile).split('.f')[0]+'.pilon.fasta'
-    shutil.copyfile(os.path.join(args.workdir, 'pilon'+str(args.iterations)+'.fasta'), polishedFasta)
+    shutil.copyfile(os.path.join(args.workdir, 
+                                 args.prefix + 'pilon'+str(args.iterations)+
+                                 '.fasta'), 
+                    polishedFasta)
+
     logger.info(' AAFTF pilon completed {:} iterations.'.format(args.iterations))
     logger.info(' Pilon polished assembly: {:}'.format(polishedFasta))
     if '_' in polishedFasta:
