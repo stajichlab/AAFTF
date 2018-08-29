@@ -28,9 +28,12 @@ def run(parser,args):
     spadesdir = os.path.join(args.workdir,'spades_'+prefix)
     logger.debug("spadesdir is %s"%(spadesdir))
     spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
-                 '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
+                 '--mem',args.memory,'--careful',
                  '-o', spadesdir]
-        
+#    spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
+#                 '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
+#                 '-o', spadesdir]
+                
     #find reads -- use --left/right or look for cleaned in tmpdir
     forReads, revReads = (None,)*2
     if args.left:
