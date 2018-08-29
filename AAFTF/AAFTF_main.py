@@ -456,7 +456,7 @@ def main():
     # --tmpdir
     parser_pilon = subparsers.add_parser('pilon',
                                          description="Polish contig sequences with Pilon",
-                                        help='Polish contig sequences with Pilon')
+                                         help='Polish contig sequences with Pilon')
 
     parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile', 
                              required=False,
@@ -483,9 +483,10 @@ def main():
                               required=False,
             help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
 
-    parser_pilon.add_argument('-w', '--workdir', '--tmpdir',type=str, dest='workdir',
-                               required=False,default="working_AAFTF",
-                               help="Temporary directory to store datafiles and processes in")
+    parser_pilon.add_argument('-w', '--workdir', '--tmpdir',
+                              type=str, dest='workdir',
+                              required=False,default="working_AAFTF",
+                              help="Temporary directory to store datafiles and processes in")
 
     ##########
     # sort/rename FASTA headers
