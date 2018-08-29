@@ -44,8 +44,8 @@ def run(parser,args):
                 if '_2.fastq' in file:
                     revReads = os.path.abspath(os.path.join(args.workdir, file))
     if not forReads:
-        print('Unable to located FASTQ raw reads')
-        sys.exit(1)
+        print('Unable to located FASTQ raw reads, so low coverage will not be used to remove contigs')
+#        sys.exit(1)
     
     #parse database locations
     if not args.sourdb:
@@ -70,13 +70,13 @@ def run(parser,args):
     megablast_working = prefix + 'megablast.out'
     blobBAM           = prefix + 'remapped.bam'
     shutil.copyfile(args.input, os.path.join(args.workdir,assembly_working))
-    numSeqs, assemblySize = fastastats(os.path.join(args.workdir,assembly_working))
-    logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
+    numSeqs, assemblySize = fastastats(os.path.join(args.workdir,
+                                                    assembly_working))
+    logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, 
+                                                              assemblySize))
     DEVNULL = open(os.devnull, 'w')
 
     #now filter for taxonomy with sourmash lca classify
-    # sourmash compute -k 31 --scaled=1000 --singleton NRRL_66455_July2018.polished_assembly.fasta 
-    # sourmash lca classify --db genbank-k31.lca.json.gz --query NRRL_66455_July2018.polished_assembly.fasta.sig -o output.csv
     logger.info('Running SourMash to get taxonomy classification for each contig')
     sour_sketch = os.path.basename(assembly_working)+'.sig'
     sour_compute = ['sourmash', 'compute', '-k', '31', '--scaled=1000',
@@ -107,7 +107,8 @@ def run(parser,args):
                 idx = cols.index('nomatch')
                 Taxonomy[cols[0]] = cols[idx+1:]
     UniqueTax = set(UniqueTax)
-    logger.info('Found {:} taxonomic classifications for contigs:\n{:}'.format(len(UniqueTax), '\n'.join(UniqueTax)))
+    logger.info('Found {:} taxonomic classifications for contigs:\n{:}'.
+                format(len(UniqueTax), '\n'.join(UniqueTax)))
     if args.taxonomy:
         sys.exit(1)
     Tax2Drop = []
@@ -128,94 +129,103 @@ def run(parser,args):
                 if not record.id in Tax2Drop:
                     SeqIO.write(record, outfile, 'fasta')
         
-    #check if BAM present, if so skip 
-    if not os.path.isfile(os.path.join(args.workdir, blobBAM)):  
-        # index
-        bwa_index  = ['bwa','index', os.path.basename(sourTax)]     
-        logger.info('Building BWA index')
-        logger.info('CMD: {:}'.format(' '.join(bwa_index)))
-        subprocess.run(bwa_index, cwd=args.workdir, stderr=DEVNULL)
-        #mapped reads to assembly using BWA
-        bwa_cmd = ['bwa','mem',
-                   '-t', str(args.cpus),
-                    os.path.basename(sourTax), # assembly index base
-                    forReads]    
-        if revReads:
-            bwa_cmd.append(revReads)
-    
-        #run BWA and pipe to samtools sort
-        logger.info('Aligning reads to assembly with BWA')
-        logger.info('CMD: {:}'.format(' '.join(bwa_cmd)))
-        p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
-                              stdout=subprocess.PIPE, stderr=DEVNULL)
-        p2 = subprocess.Popen(['samtools', 'sort', '--threads', str(args.cpus),
-                               '-o', blobBAM, '-'], cwd=args.workdir,
-                              stdout=subprocess.PIPE, stderr=DEVNULL,
-                              stdin=p1.stdout)
-        p1.stdout.close()
-        p2.communicate()
+    # only do coverage trimming if reads provided
+    Contigs2Drop = [] # this will be empty if no reads given to gather by coverage
+    if forReads:
+        #check if BAM present, if so skip running
+        if not os.path.isfile(os.path.join(args.workdir, blobBAM)):  
+            # index
+            bwa_index  = ['bwa','index', os.path.basename(sourTax)]     
+            logger.info('Building BWA index')
+            logger.info('CMD: {:}'.format(' '.join(bwa_index)))
+            subprocess.run(bwa_index, cwd=args.workdir, stderr=DEVNULL)
+            #mapped reads to assembly using BWA
+            bwa_cmd = ['bwa','mem',
+                       '-t', str(args.cpus),
+                       os.path.basename(sourTax), # assembly index base
+                       forReads]    
+            if revReads:
+                bwa_cmd.append(revReads)
 
-        subprocess.run(['samtools', 'index', blobBAM], cwd=args.workdir)
+                #run BWA and pipe to samtools sort
+                logger.info('Aligning reads to assembly with BWA')
+                logger.info('CMD: {:}'.format(' '.join(bwa_cmd)))
+                p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
+                                      stdout=subprocess.PIPE, stderr=DEVNULL)
+                p2 = subprocess.Popen(['samtools', 'sort', 
+                                       '--threads', str(args.cpus),
+                                       '-o', blobBAM, '-'], cwd=args.workdir,
+                                      stdout=subprocess.PIPE, stderr=DEVNULL,
+                                      stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+                subprocess.run(['samtools', 'index', blobBAM], cwd=args.workdir)
 
+        #now calculate coverage from BAM file
+        logger.info('Calculating read coverage per contig')
+        FastaBed = os.path.join(args.workdir, prefix+'assembly.bed')
+        lengths = []
+        with open(FastaBed, 'w') as bedout:
+            with open(sourTax, 'rU') as SeqIn:
+                for record in SeqIO.parse(SeqIn, 'fasta'):
+                    bedout.write('{:}\t{:}\t{:}\n'.format(record.id, 0, len(record.seq)))
+                    lengths.append(len(record.seq))
+    
+        N50 = calcN50(lengths)
+        Coverage = {}
+        coverageBed = os.path.join(args.workdir, prefix+'coverage.bed')
+        cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM] 
+        logger.info('CMD: {:}'.format(' '.join(cov_cmd)))
+        with open(coverageBed, 'w') as bed_out:
+            for line in execute(cov_cmd, args.workdir):
+                bed_out.write(line)
 
-    #now calculate coverage
-    logger.info('Calculating read coverage per contig')
-    FastaBed = os.path.join(args.workdir, prefix+'assembly.bed')
-    lengths = []
-    with open(FastaBed, 'w') as bedout:
-        with open(sourTax, 'rU') as SeqIn:
-            for record in SeqIO.parse(SeqIn, 'fasta'):
-                bedout.write('{:}\t{:}\t{:}\n'.format(record.id, 0, len(record.seq)))
-                lengths.append(len(record.seq))
+                if not line or line.startswith('\n') or line.count('\t') < 3:
+                    continue
+
+                line = line.strip()
+                cols = line.split('\t')
+                cov = int(cols[3]) / float(cols[2])
+                Coverage[cols[0]] = (int(cols[2]), cov)
     
-    N50 = calcN50(lengths)
-    Coverage = {}
-    coverageBed = os.path.join(args.workdir, prefix+'coverage.bed')
-    cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM] 
-    logger.info('CMD: {:}'.format(' '.join(cov_cmd)))
-    with open(coverageBed, 'w') as bed_out:
-        for line in execute(cov_cmd, args.workdir):
-            bed_out.write(line)
-            if not line or line.startswith('\n') or line.count('\t') < 3:
-                continue
-            line = line.strip()
-            cols = line.split('\t')
-            cov = int(cols[3]) / float(cols[2])
-            Coverage[cols[0]] = (int(cols[2]), cov)
-    
-    #get average coverage of N50 contigs
-    n50Cov = []
-    for k,v in Coverage.items():
-        if args.debug:
-            print('{:}; Len: {:}; Cov: {:.2f}'.format(k, v[0], v[1]))
-        if v[0] >= N50:
-            n50Cov.append(v[1])
-    n50AvgCov = sum(n50Cov) / len(n50Cov)
-    minpct = args.mincovpct / 100
-    min_coverage = float(n50AvgCov * minpct)  #should we make this a variable? 5% was something arbitrary
-    logger.info('Average coverage for N50 contigs is {:}X'.format(int(n50AvgCov)))
-    #Start list of contigs to drop
-    Contigs2Drop = []
-    for k,v in Coverage.items():
-        if v[1] <= min_coverage:
-            Contigs2Drop.append(k)
-    logger.info('Found {:,} contigs with coverage less than {:.2f}X ({:}%)'.format(len(Contigs2Drop), 
-                min_coverage, args.mincovpct))
+        #get average coverage of N50 contigs
+        n50Cov = []
+        for k,v in Coverage.items():
+            if args.debug:
+                print('{:}; Len: {:}; Cov: {:.2f}'.format(k, v[0], v[1]))
+            if v[0] >= N50:
+                n50Cov.append(v[1])
+        n50AvgCov = sum(n50Cov) / len(n50Cov)
+        minpct = args.mincovpct / 100
+        # should we make this a variable? 5% was something arbitrary
+        min_coverage = float(n50AvgCov * minpct)  
+        logger.info('Average coverage for N50 contigs is {:}X'.format(int(n50AvgCov)))
+        #Start list of contigs to drop
+        
+        for k,v in Coverage.items():
+            if v[1] <= min_coverage:
+                Contigs2Drop.append(k)
+                logger.info('Found {:,} contigs with coverage less than {:.2f}X ({:}%)'.
+                            format(len(Contigs2Drop), min_coverage, args.mincovpct))
             
     if args.debug:
         print('Contigs dropped due to coverage: {:}'.format(','.join(Contigs2Drop)))
         print('Contigs dropped due to taxonomy: {:}'.format(','.join(Tax2Drop)))
+
+        logger.debug('Contigs dropped due to coverage: {:}'.format(','.join(Contigs2Drop)))
+        logger.debug('Contigs dropped due to taxonomy: {:}'.format(','.join(Tax2Drop)))
+        
     DropFinal = Contigs2Drop + Tax2Drop
     DropFinal = set(DropFinal)
     logger.info('Dropping {:} total contigs based on taxonomy and coverage'.format(len(DropFinal)))
-    with open(args.outfile, 'w') as outfile:
-        with open(sourTax, 'rU') as seqin:
-            for record in SeqIO.parse(seqin, 'fasta'):
-                if not record.id in DropFinal:
-                    SeqIO.write(record, outfile, 'fasta')
+    with open(args.outfile, 'w') as outfile, open(sourTax, 'rU') as seqin:
+        for record in SeqIO.parse(seqin, 'fasta'):
+            if not record.id in DropFinal:
+                SeqIO.write(record, outfile, 'fasta')
                     
     numSeqs, assemblySize = fastastats(args.outfile)
-    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
+    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.
+                format(numSeqs, assemblySize))
     if '_' in args.outfile:
         nextOut = args.outfile.split('_')[0]+'.rmdup.fasta'
     elif '.' in args.out:
@@ -223,5 +233,4 @@ def run(parser,args):
     else:
         nextOut = args.outfile+'.rmdup.fasta'
     
-    logger.info('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(
-                args.outfile, nextOut))
+    logger.info('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))
