@@ -153,10 +153,15 @@ def main():
     ##########
     # arguments
     # -i / --indir:  input dir
-    # -o / --outdir: write outdir
-    # -p / --prefix: outfile prefix
-    # --paired or --unpaired
-    # -a / --screen_accessions - screening accessions
+    # -p / --prefix: in fastq reads and output prefix
+    # -a / --screen_accessions: screening sequence GenBank accessions
+    # -u / --screen_urls: screening sequence URLs (fasta format)
+    # --debug: print debug messages and do no remove contamdb BAM file
+    # read info, either paired data are required or singleton
+    # --left: left or forward reads
+    # --right: right or reverse reads
+    # or value from --prefix 
+    # --aligner: bwa, bowtie2, minimap for read alignment to contamdb
 
     parser_filter = subparsers.add_parser('filter',
         description="Filter reads which match contaminant databases such as phiX",
@@ -172,6 +177,9 @@ def main():
     parser_filter.add_argument('-p','--prefix',type=str,
                         required=False,
                         help="Input/Output Prefix for fileset")
+
+    parser_filter.add_argument('-v','--debug',action='store_true',
+                             help="Provide debugging messages and do not remove contamdb matching BAM")
 
     parser_filter.add_argument('-a','--screen_accessions',type = str,
                                nargs="*",
