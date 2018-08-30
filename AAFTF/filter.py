@@ -133,7 +133,7 @@ def run(parser,args):
         
     #logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
     DEVNULL = open(os.devnull, 'w')
-    alignBAM = os.path.join(args.workdir, 'contam_db.bam')
+    alignBAM = os.path.join(args.workdir, args.prefix+'contam_db.bam')
     clean_reads = os.path.join(args.workdir, args.prefix + "_cleaned")
     
     if args.aligner == 'bowtie2':  
