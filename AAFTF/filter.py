@@ -113,11 +113,14 @@ def run(parser,args):
     if args.right:
         revReads = os.path.abspath(args.right)
     if not forReads:
-        for file in os.listdir(args.workdir):
-            if '_1P' in file:
-                forReads = os.path.abspath(os.path.join(args.workdir, file))
-            if '_2P' in file:
-                revReads = os.path.abspath(os.path.join(args.workdir, file))
+        if not args.prefix:
+            logger.info("Must provide prefix if no left/right file pairs")
+        else:
+            for file in os.listdir(args.workdir):
+                if file.startswith(args.prefix) and '_1P.fastq' in file:
+                    forReads = os.path.abspath(os.path.join(args.workdir, file))
+                if file.startswith(args.prefix) and '_2P.fastq' in file:
+                    revReads = os.path.abspath(os.path.join(args.workdir, file))
     if not forReads:
         logger.error(' Unable to located FASTQ reads')
         sys.exit(1)

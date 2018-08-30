@@ -18,12 +18,18 @@ def run(parser,args):
     if args.right:
         revReads = os.path.abspath(args.right)
     if not forReads:
-        for file in os.listdir(args.workdir):
-            if '_cleaned' in file and file.endswith('q.gz'):
-                if '_1.fastq' in file:
-                    forReads = os.path.abspath(os.path.join(args.workdir, file))
-                if '_2.fastq' in file:
-                    revReads = os.path.abspath(os.path.join(args.workdir, file))
+        if not args.prefix:
+            logger.info("Must provide prefix if no left/right file pairs")
+        else:
+            for file in os.listdir(args.workdir):
+                if (file.startswith(args.prefix) and
+                    '_cleaned' in file and file.endswith('q.gz')):
+                    if '_1.fastq' in file:
+                        forReads = os.path.abspath(os.path.join(args.workdir, 
+                                                                file))
+                    if '_2.fastq' in file:
+                        revReads = os.path.abspath(os.path.join(args.workdir, 
+                                                                file))
     if not forReads:
         logger.error('Unable to located FASTQ raw reads')
         sys.exit(1)
