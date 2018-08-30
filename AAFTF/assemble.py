@@ -30,6 +30,10 @@ def run(parser,args):
     spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
                  '--mem',args.memory,'--careful',
                  '-o', spadesdir]
+    if args.spades_tmpdir:
+        spadescmd.append('--tmp-dir')
+        spadescmd.append(args.spades_tmpdir)
+
 #    spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
 #                 '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
 #                 '-o', spadesdir]
@@ -40,6 +44,7 @@ def run(parser,args):
         forReads = os.path.abspath(args.left)
     if args.right:
         revReads = os.path.abspath(args.right)
+
 
     if not forReads:
         for file in os.listdir(args.workdir):
