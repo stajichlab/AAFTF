@@ -213,6 +213,7 @@ def main():
     # -p / --prefix: input/outfile prefix
     # --paired or --unpaired
     # --spades
+    # --spades_tmpdir: tempdir for spades
 
     parser_asm = subparsers.add_parser('assemble',
                                        description="Run assembler on cleaned reads",
@@ -228,7 +229,7 @@ def main():
 
     parser_asm.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
-    
+    parser_asm.add_argument('--spades_tmpdir',type=str,required=False,help="Spades temporary dir")
     parser_asm.add_argument('-p','--prefix',type=str,
                         required=False,
                         help="Input/Output Prefix for fileset")
