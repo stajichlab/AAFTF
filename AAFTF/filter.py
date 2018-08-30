@@ -230,6 +230,9 @@ def run(parser,args):
                             '-1', clean_reads+'_1.fastq.gz',
                             alignBAM]
         subprocess.run(samtools_cmd, stderr=DEVNULL)
+        if not args.debug:
+            os.remove(alignBAM)
+            os.remove(alignBAM + ".bai")
         if revReads:
             logger.info(' Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
                         clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
