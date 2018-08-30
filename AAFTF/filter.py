@@ -142,9 +142,14 @@ def run(parser,args):
     if args.aligner == 'bowtie2':  
         if not os.path.isfile(alignBAM):
             logger.info(' Aligning reads to contamination database using bowtie2')
-            bowtie_index = ['bowtie2-build', contamdb, contamdb]
-            logger.info('CMD: {:}'.format(' '.join(bowtie_index)))
-            subprocess.run(bowtie_index, stderr=DEVNULL, stdout=DEVNULL)
+            if ( not os.path.exists(contamdb + ".1.bt2") or
+                 os.path.getctime(contamdb + ".1.bt2") < 
+                 os.path.getctime(contamdb)):
+                # (re)build index if no index or index is older than 
+                # the db
+                bowtie_index = ['bowtie2-build', contamdb, contamdb]
+                logger.info('CMD: {:}'.format(' '.join(bowtie_index)))
+                subprocess.run(bowtie_index, stderr=DEVNULL, stdout=DEVNULL)
 
             bowtie_cmd = ['bowtie2','-x', os.path.basename(contamdb),
                           '-p', str(args.cpus), '--very-sensitive']
@@ -166,9 +171,12 @@ def run(parser,args):
     elif args.aligner == 'bwa':
         if not os.path.isfile(alignBAM):
             logger.info(' Aligning reads to contamination database using BWA')
-            bwa_index = ['bwa','index', contamdb]
-            logger.info('CMD: {:}'.format(' '.join(bwa_index)))
-            subprocess.run(bwa_index, stderr=DEVNULL, stdout=DEVNULL)
+            if ( not os.path.exists(contamdb + ".amb") or
+                 os.path.getctime(contamdb + ".amb") < 
+                 os.path.getctime(contamdb)):
+                bwa_index = ['bwa','index', contamdb]
+                logger.info('CMD: {:}'.format(' '.join(bwa_index)))
+                subprocess.run(bwa_index, stderr=DEVNULL, stdout=DEVNULL)
             
             bwa_cmd = ['bwa', 'mem', '-t', str(args.cpus), os.path.basename(contamdb), forReads]
             if revReads:
