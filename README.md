@@ -8,6 +8,7 @@ Requirements
 - bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
 - Pilon - https://github.com/broadinstitute/pilon/wiki
 - BlobTools - https://blobtools.readme.io/ or https://github.com/DRL/blobtools
+- sourmash - https://sourmash.readthedocs.io/ (install via conda/pip)
 - NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/
 - bwa - https://github.com/lh3/bwa
 - BUSCO - https://busco.ezlab.org/
@@ -30,8 +31,8 @@ Steps / Procedures
 2. purge - Contaminant read purging - Bowtie2 matches to common contaminant (or user defined) datasets
 3. assemble - Assembly (SPAdes)
 4. vecscreen - Vector cleaning (BLAST vectorscreening against UniVec database)
-5. blobpurge - BlobTools removal of contaminanted contigs/scaffolds
-6. busco - BUSCO runs for summary statistics of gene content
+5. sourpurge - SourMash removal of contaminanted contigs/scaffolds / (an alternative step is to use blobtools but is much slower)
 7. rmdup - Funannotate clean for duplicated contig removal
 8. pilon - Pilon for read-based assembly polishing
-
+9. sort - sort and rename scaffolds by size
+10. busco - BUSCO runs for summary statistics of gene content (code in progress)
