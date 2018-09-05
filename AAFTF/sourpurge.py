@@ -228,7 +228,7 @@ def run(parser,args):
                 format(numSeqs, assemblySize))
     if '_' in args.outfile:
         nextOut = args.outfile.split('_')[0]+'.rmdup.fasta'
-    elif '.' in args.out:
+    elif '.' in args.outfile:
         nextOut = args.outfile.split('.')[0]+'.rmdup.fasta'
     else:
         nextOut = args.outfile+'.rmdup.fasta'
