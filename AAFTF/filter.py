@@ -76,6 +76,8 @@ def run(parser,args):
         for acc in args.screen_accessions:
             if DB:
                 acc_file = os.path.join(DB, acc+".fna")
+                if not os.path.exists(acc_file):
+                    acc_file = os.path.join(args.workdir,acc+".fna")
             else:
                 acc_file = os.path.join(args.workdir,acc+".fna")
             contam_filenames.append(acc_file)
@@ -88,7 +90,7 @@ def run(parser,args):
 
     if args.screen_urls:
         for url in args.screen_urls:
-            url_file = os.path.join(args.workdir,os.basename(url))
+            url_file = os.path.join(args.workdir,os.path.basename(url))
             contam_filenames.append(url_file)
             if not os.path.exists(url_file):
                 urllib.request.urlretrieve(url,url_file)
