@@ -524,38 +524,18 @@ def main():
     # arguments
     # -i / --input: input assembly file
     # -r / --report: report file (otherwise stdout)
-    # --stats: only present the summary stats
-    # --method: busco or FGMP (eventually)
-    # --clade: for busco - path to odb9 folder 
     # --tmpdir
 
     parser_assess = subparsers.add_parser('assess',
-                                         description="Assess completeness of genome assembly",
-                                         help='Assess completeness of genome assembly')
+                                          description="Assess completeness of genome assembly",
+                                          help='Assess completeness of genome assembly')
 
     parser_assess.add_argument('-i','--input','--infile',required=True,
                                help='Input genome assembly to test completeness and provide summary statistics')
 
     parser_assess.add_argument('-r','--report',type=str,
                                help='Filename to save report information otherwise will print to stdout')
-
-    parser_assess.add_argument('-s','--stats',action='store_true',
-                               help='Only print the summary stats (L50,N50) and do not run completeness assay')
-
-    parser_assess.add_argument('-m','--method',default="busco",choices=["busco"], # later FGMP
-                               help='Method for assess completeness - BUSCO is default')
     
-    parser_assess.add_argument('--clade',default='fungi_odb9',
-                               help='BUSCO clade to use in completeness assessment')
-
-    parser_assess.add_argument('--AAFTF_DB',type=str,
-                               required=False,
-                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
-    
-    parser_assess.add_argument('--tmpdir',type=str,
-                               required=False,default="working_AAFTF",
-                               help="Temporary directory to store datafiles and processes in")
-
     parser.set_defaults(func=run_subtool)
 
     ### process args now ###

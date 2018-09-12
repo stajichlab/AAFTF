@@ -51,12 +51,6 @@ def genome_asm_stats(fasta_file,output_handle):
 
 def run(parser,args):
 
-    if not args.tmpdir:
-        args.tmpdir = 'working_AAFTF'
-
-    if not os.path.exists(args.tmpdir):
-        os.mkdir(args.tmpdir)
-
     if not os.path.exists(args.input):
         logger.info("Inputfile %s was not readable, check parameters" % (args.input))
 
@@ -67,7 +61,3 @@ def run(parser,args):
 
     genome_asm_stats(args.input, output_handle)
     
-    if args.stats:
-        # actually this means end the process
-        # since we will always print the stats
-        return
