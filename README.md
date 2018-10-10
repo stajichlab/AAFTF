@@ -6,13 +6,10 @@ Requirements
 - SPAdes - http://cab.spbu.ru/software/spades/
 - Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic
 - bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
+- bwa - https://github.com/lh3/bwa
 - Pilon - https://github.com/broadinstitute/pilon/wiki
-- BlobTools - https://blobtools.readme.io/ or https://github.com/DRL/blobtools
 - sourmash - https://sourmash.readthedocs.io/ (install via conda/pip)
 - NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/
-- bwa - https://github.com/lh3/bwa
-- BUSCO - https://busco.ezlab.org/
-- funannotate - https://github.com/nextgenusfs/funannotate 
 - minimap2 - https://github.com/lh3/minimap2
 
 Contributors

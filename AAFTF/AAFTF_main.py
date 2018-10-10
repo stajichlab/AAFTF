@@ -22,8 +22,6 @@ def run_subtool(parser, args):
         import AAFTF.assemble as submodule
     elif args.command == 'vecscreen':
         import AAFTF.vecscreen as submodule
-    elif args.command == 'blobpurge':
-        import AAFTF.blobpurge as submodule
     elif args.command == 'sourpurge':
         import AAFTF.sourpurge as submodule
     elif args.command == 'rmdup':
@@ -293,58 +291,6 @@ def main():
 
 
     ##########
-    # blobpurge
-    ##########
-    # arguments
-    # -a / --assembly: input assembly file
-    # -o / --out: output cleaned assembly file
-    # -p / --prefix: sequence reads prefix
-    # -i / --indir: directory where sequence reads are located
-    # -c / --cpus: number of cpus
-    # --tmpdir
-    # --phylum: phylum to keep
-    parser_blob = subparsers.add_parser('blobpurge',
-                                        description="Purge contigs based on BlobPlot results",
-                                        help='Purge contigs based on BlobPlot results')
-
-    parser_blob.add_argument('-i','--input',type=str,
-                             required=True,
-                             help="Input contigs or scaffold assembly")
-
-    parser_blob.add_argument('-o','--out',type=str,
-                             required=True, # think about sensible replacement in future
-                             help="Output blobplot cleaned assembly")
-
-    parser_blob.add_argument('-p','--prefix',required=False,
-                             help="Prefix of the sequence reads files")
-
-    parser_blob.add_argument('--left',required=False,
-                             help="Left (Forward) reads")
-
-    parser_blob.add_argument('--right',required=False,
-                             help="Right (Reverse) reads")
-
-    parser_blob.add_argument('--phylum',required=True,nargs="+",
-                             help="Phylum or Phyla to keep matches from megablast")
-    
-    parser_blob.add_argument('--blastdb',required=True,
-                             help="NCBI nt blast db for classifying contigs/scaffolds by taxa")
-
-    parser_blob.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
-                                  help="Number of CPUs/threads to use.")
-
-    parser_blob.add_argument('-e','--evalue',type=str,default="1e-25",
-                             help="Megablast e-value cutoff")
-
-    parser_blob.add_argument('--tmpdir',type=str,
-                        required=False,default="working_AAFTF",
-                        help="Temporary directory to store datafiles and processes in")
-
-    parser_blob.add_argument('-v','--debug',action='store_true',
-                             help="Provide debugging messages")
-    # remote or local megablast?
-
-    ##########
     # sourpurge
     ##########
     # arguments
@@ -524,38 +470,18 @@ def main():
     # arguments
     # -i / --input: input assembly file
     # -r / --report: report file (otherwise stdout)
-    # --stats: only present the summary stats
-    # --method: busco or FGMP (eventually)
-    # --clade: for busco - path to odb9 folder 
     # --tmpdir
 
     parser_assess = subparsers.add_parser('assess',
-                                         description="Assess completeness of genome assembly",
-                                         help='Assess completeness of genome assembly')
+                                          description="Assess completeness of genome assembly",
+                                          help='Assess completeness of genome assembly')
 
     parser_assess.add_argument('-i','--input','--infile',required=True,
                                help='Input genome assembly to test completeness and provide summary statistics')
 
     parser_assess.add_argument('-r','--report',type=str,
                                help='Filename to save report information otherwise will print to stdout')
-
-    parser_assess.add_argument('-s','--stats',action='store_true',
-                               help='Only print the summary stats (L50,N50) and do not run completeness assay')
-
-    parser_assess.add_argument('-m','--method',default="busco",choices=["busco"], # later FGMP
-                               help='Method for assess completeness - BUSCO is default')
     
-    parser_assess.add_argument('--clade',default='fungi_odb9',
-                               help='BUSCO clade to use in completeness assessment')
-
-    parser_assess.add_argument('--AAFTF_DB',type=str,
-                               required=False,
-                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
-    
-    parser_assess.add_argument('--tmpdir',type=str,
-                               required=False,default="working_AAFTF",
-                               help="Temporary directory to store datafiles and processes in")
-
     parser.set_defaults(func=run_subtool)
 
     ### process args now ###
