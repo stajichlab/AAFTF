@@ -53,6 +53,5 @@ fi
 if [ ! -f $OUTDIR/$PREFIX.cleaned_sorted.fasta ]; then
 	./scripts/AAFTF sort -i $OUTDIR/$PREFIX.cleaned.fasta -o $OUTDIR/$PREFIX.cleaned_sorted.fasta
 fi
-./scripts/AAFTF assess -i $OUTDIR/$PREFIX.vecscreen.fasta -r $OUTDIR/$PREFIX.vecscreen.stats.txt  --stats
-#./scripts/AAFTF assess -i $OUTDIR/$PREFIX.vecscreen.fasta -r $OUTDIR/$PREFIX.vecscreen.stats_busco.txt  
+./scripts/AAFTF assess -i $OUTDIR/$PREFIX.vecscreen.fasta -r $OUTDIR/$PREFIX.vecscreen.stats.txt  
 
