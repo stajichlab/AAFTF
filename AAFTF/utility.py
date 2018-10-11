@@ -1,7 +1,9 @@
 import os
 import subprocess
 from Bio.SeqIO.FastaIO import SimpleFastaParser
-
+import shutil
+import textwrap
+import datetime
 
 def which_path(file_name):
     for path in os.environ["PATH"].split(os.pathsep):
@@ -67,8 +69,14 @@ def calcN50(lengths):
             n50 = n
     return n50
 
-def printCMD(cmd, num):
-	return " \\\n\t\t".join([" ".join(cmd[i:i+num]) for i in range(0,len(cmd),num)])
+def printCMD(cmd):
+	stringcmd = '{:}'.format(' '.join(cmd))
+	prefix = '\033[96mCMD:\033[00m '
+	wrapper = textwrap.TextWrapper(initial_indent=prefix, width=80, subsequent_indent=' '*8, break_long_words=False)
+	print(wrapper.fill(stringcmd))
+
+def status(string):
+	print('\033[92m[{:}]\033[00m {:}'.format(datetime.datetime.now().strftime('%b %d %I:%M %p'), string))
 
 #from https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
 def execute(cmd, dir):
@@ -80,3 +88,24 @@ def execute(cmd, dir):
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
+
+def Fzip_inplace(input, cpus):
+    '''
+    function to zip as fast as it can, pigz -> gzip
+    '''
+    if which_path('pigz'):
+        cmd = ['pigz', '-f', '-p', str(cpus), input]
+    else:
+        cmd = ['gzip', '-f', input]
+    try:
+        runSubprocess(cmd, '.', log)
+    except NameError:
+        subprocess.call(cmd)
+
+def SafeRemove(input):
+    if os.path.isdir(input):
+        shutil.rmtree(input)
+    elif os.path.isfile(input):
+        os.remove(input)
+    else:
+        return

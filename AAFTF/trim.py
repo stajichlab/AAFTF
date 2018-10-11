@@ -3,14 +3,12 @@
 # attemps to remove vector and primer sequences
 
 import sys, os, subprocess
-
 from os.path import dirname
-#logging
-import logging
-logger = logging.getLogger('AAFTF')
-
 from AAFTF.utility import which_path
+from AAFTF.utility import status
 from AAFTF.utility import printCMD
+from AAFTF.utility import Fzip_inplace
+from AAFTF.utility import SafeRemove
 
 # process trimming reads with trimmomatic
 # Homebrew install of trimmomatic uses a shell script
@@ -40,26 +38,15 @@ def find_trimmomatic():
         return False
     
 def run(parser,args):    
-
-    if not args.outdir:
-        args.outdir = dirname(args.left)
-    os.makedirs(args.outdir,exist_ok=True)
     
-    if not args.prefix:
+    if not args.basename:
         if '_' in os.path.basename(args.left):
-            args.prefix = os.path.basename(args.left).split('_')[0]
+            args.basename = os.path.basename(args.left).split('_')[0]
         elif '.' in os.path.basename(args.left):
-            args.prefix = os.path.basename(args.left).split('.')[0]
+            args.basename = os.path.basename(args.left).split('.')[0]
         else:
-            args.prefix = os.path.basename(args.left)
+            args.basename = os.path.basename(args.left)
 
-    left_expected = os.path.join(args.outdir,args.prefix)+"_1P.fastq"
-    if ( os.path.exists(left_expected) and
-         os.path.getctime(left_expected) >
-         os.path.getctime(args.left) ):
-        logger.info("Already ran trimming on %s %s" % (args.left,args.right))
-        return
-    
     #find path    
     trimmomatic_path = find_trimmomatic()
     if trimmomatic_path:
@@ -67,7 +54,7 @@ def run(parser,args):
     elif args.trimmomatic:
         jarfile = args.trimmomatic
     else:
-        logger.error('Trimmomatic cannot be found - please provide location of trimmomatic.jar file.')
+        status('Trimmomatic cannot be found - please provide location of trimmomatic.jar file.')
         sys.exit(1)
         
     if jarfile:
@@ -98,8 +85,8 @@ def run(parser,args):
                     findpath=dirname(findpath)
 
             if not os.path.exists(path_to_adaptors):
-                print("Cannot find adaptors file, please specify manually")
-                logger.info("Cannot find adaptors file, please specify manually")
+                status("Cannot find adaptors file, please specify manually")
+                status("Cannot find adaptors file, please specify manually")
                 return
         
         clipstr = args.trimmomatic_clip % (path_to_adaptors)
@@ -110,36 +97,46 @@ def run(parser,args):
             cmd = ['java', '-jar', jarfile, 'PE',
                    '-threads',str(args.cpus),quality,
                    args.left,args.right,
-                   os.path.join(args.outdir,args.prefix+'_1P.fastq'),
-                   os.path.join(args.outdir,args.prefix+'_1U.fastq'),
-                   os.path.join(args.outdir,args.prefix+'_2P.fastq'),
-                   os.path.join(args.outdir,args.prefix+'_2U.fastq'),
+                   args.basename+'_1P.fastq',
+                   args.basename+'_1U.fastq',
+                   args.basename+'_2P.fastq',
+                   args.basename+'_2U.fastq',
                    clipstr, leadingwindow, trailingwindow,slidingwindow,
                    "MINLEN:%d" %(args.minlength) ]
         elif args.left and not args.right:
             cmd = ['java', '-jar', jarfile, 'SE',
                    '-threads',str(args.cpus),
                    quality,  args.left,
-                   os.path.join(args.outdir,args.prefix+'_1U.fastq'),
+                   args.basename+'_1U.fastq',
                    clipstr, leadingwindow, trailingwindow,slidingwindow,
                    "MINLEN:%d" %(args.minlength) ]
         else:
-            logger.error("Must provide left and right pairs or single read set")
+            status("Must provide left and right pairs or single read set")
             return
         
         DEVNULL = open(os.devnull, 'w')
-        logger.info(' Running trimmomatic adapter and quality trimming')
-        logger.info("CMD: {:}".format(printCMD(cmd, 4)))
+        status('Running trimmomatic adapter and quality trimming')
+        printCMD(cmd)
         if args.debug:
             subprocess.run(cmd)
         else:
             subprocess.run(cmd, stderr=DEVNULL)
         if args.right:
-            logger.info('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
-                        os.path.join(args.outdir,args.prefix+'_1P.fastq'),
-                        os.path.join(args.outdir,args.prefix+'_2P.fastq')))
+            status('Compressing trimmed PE FASTQ files')
+            Fzip_inplace(args.basename+'_1P.fastq', args.cpus)
+            Fzip_inplace(args.basename+'_2P.fastq', args.cpus)
+            SafeRemove(args.basename+'_1U.fastq')
+            SafeRemove(args.basename+'_2U.fastq')
+            status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
+                        args.basename+'_1P.fastq.gz',
+                        args.basename+'_2P.fastq.gz'))
+            status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                        args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus)) 
         else:
-            logger.info('Trimming finished:\n\tSingle: {:}'.format(
-                        os.path.join(args.outdir,args.prefix+'_1P.fastq')))
-        logger.info('Your next command might be:\n\tAAFTF filter -w {:} -c {:}\n'.format(args.outdir, args.cpus))    
+            status('Compressing trimmed SE FASTQ file')
+            Fzip_inplace(args.basename+'_1U.fastq', args.cpus)
+            status('Trimming finished:\n\tSingle: {:}'.format(
+                        args.basename+'_1U.fastq.gz'))
+            status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                        args.basename+'_1U.fastq.gz', args.basename, args.cpus))    
 

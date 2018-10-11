@@ -6,12 +6,10 @@ import os.path
 import sys
 import argparse
 
-import logging
-logger = logging.getLogger('AAFTF')
-
 # AAFTF imports
 from AAFTF.version import __version__
 myversion = __version__
+from AAFTF.utility import status
 
 def run_subtool(parser, args):
     if args.command == 'trim':
@@ -32,6 +30,8 @@ def run_subtool(parser, args):
         import AAFTF.assess as submodule
     elif args.command == 'sort':
         import AAFTF.sort as submodule
+    elif args.command == 'pipeline':
+        import AAFTF.pipeline as submodule
     else:
         parser.parse_args('')
         return
@@ -50,7 +50,6 @@ class ArgumentParserWithDefaults(argparse.ArgumentParser):
         sys.exit(2)
 
 def main():
-    logging.basicConfig()
 
     #########################################
     # create the top-level parser
@@ -87,16 +86,12 @@ def main():
        description="This comamnd trims reads in FASTQ format to remove low quality reads and trim adaptor sequences",
        help='Trim FASTQ input reads')
     
-    parser_trim.add_argument('-p','--prefix',type=str,
-                             required=False,
-                             help="Output Prefix, default to base name of --left reads")
+    parser_trim.add_argument('-o','--out',type=str,
+                             required=False, dest='basename',
+                             help="Output basename, default to base name of --left reads")
 
     parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                               help="Number of CPUs/threads to use.")
-    
-    parser_trim.add_argument('-o','--outdir', '-w', '--workdir',type=str,
-                             default='working_AAFTF', dest='outdir',
-                             help="Output directory for trimmed reads")
 
     parser_trim.add_argument('-ml','--minlength',type=int,
                              default=75,
@@ -166,15 +161,14 @@ def main():
     help='Filter contaminanting reads')
 
     parser_filter.add_argument('-w', '--workdir',type=str,
-                        default="working_AAFTF",
-                        help="Working directory to store datafiles and processes in")
+                        help="temp directory")
 
     parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
     
-    parser_filter.add_argument('-p','--prefix',type=str,
+    parser_filter.add_argument('-o','--out',dest='basename', type=str,
                         required=False,
-                        help="Input/Output Prefix for fileset")
+                        help="Output basename")
 
     parser_filter.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages and do not remove contamdb matching BAM")
@@ -187,10 +181,10 @@ def main():
                                nargs="*",
                                help="URLs to download and screen out initial reads.")
 
-    parser_filter.add_argument('--left',required=False,
+    parser_filter.add_argument('-l', '--left',required=True,
                              help="Left (Forward) reads")
 
-    parser_filter.add_argument('--right',required=False,
+    parser_filter.add_argument('-r', '--right',required=False,
                              help="Right (Reverse) reads")
     
     parser_filter.add_argument('--AAFTF_DB',type=str,
@@ -218,32 +212,30 @@ def main():
                                        help='Assemble reads')
     
     parser_asm.add_argument('-o','--out',type=str,
-                             required=False, # think about sensible replacement in future
+                             required=True, # think about sensible replacement in future
                              help="Output spades assembly")
 
     parser_asm.add_argument('-w', '--workdir', '--tmpdir',type=str,
-                        dest='workdir' ,default="working_AAFTF",
-                        help="Temporary directory to store datafiles and processes in")
+                        dest='workdir',
+                        help="Spades output directory")
 
     parser_asm.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
-    parser_asm.add_argument('--spades_tmpdir',type=str,required=False,help="Spades temporary dir")
-    parser_asm.add_argument('-p','--prefix',type=str,
-                        required=False,
-                        help="Input/Output Prefix for fileset")
 
     parser_asm.add_argument('-m','--memory',type=str,
                             dest='memory',required=False,default='32',
                             help="Memory (in GB) setting for SPAdes. Default is 32")
 
-    parser_asm.add_argument('--left',required=False,
+    parser_asm.add_argument('-l', '--left',required=False,
                              help="Left (Forward) reads")
 
-    parser_asm.add_argument('--right',required=False,
+    parser_asm.add_argument('-r', '--right',required=False,
                              help="Right (Reverse) reads")
 
     parser_asm.add_argument('-v','--debug',action='store_true',
                              help="Print Spades stdout to terminal")
+
+    parser_asm.add_argument('--spades_tmpdir',type=str,required=False,help="Spades temporary dir")
 
     ##########
     # vecscreen
@@ -267,19 +259,14 @@ def main():
                                   help="Input contigs or scaffold assembly")
 
     parser_vecscreen.add_argument('-o','--outfile',type=str,
-                                  required=False,
-                                  help="Output vector screened and cleaned assembly (defaults to infile.clean.fasta)")
-
-    parser_vecscreen.add_argument('-p','--prefix',type=str,
-                                  required=False,
-                                  help="Input/Output Prefix for fileset and tempfiles")
+                                  required=True,
+                                  help="Output vector screened and cleaned assembly")
 
     parser_vecscreen.add_argument('-pid','--percent_id',type=int,
                                   required=False,
                                   help="Percent Identity cutoff for vecscreen adaptor matches")
 
     parser_vecscreen.add_argument('-w', '--workdir', '--tmpdir',type=str,
-                        default="working_AAFTF",
                         help="Working directory to store datafiles and processes in")
 
     parser_vecscreen.add_argument('--AAFTF_DB',type=str,
@@ -313,16 +300,13 @@ def main():
                              required=True, # think about sensible replacement in future
                              help="Output sourmash cleaned assembly")
 
-    parser_sour.add_argument('-p','--prefix',required=False,
-                             help="Prefix of the sequence reads files")
-
-    parser_sour.add_argument('--left',required=False,
+    parser_sour.add_argument('-l', '--left',required=False,
                              help="Left (Forward) reads")
 
-    parser_sour.add_argument('--right',required=False,
+    parser_sour.add_argument('-r', '--right',required=False,
                              help="Right (Reverse) reads")
 
-    parser_sour.add_argument('--phylum',required=True, nargs="+",
+    parser_sour.add_argument('-p', '--phylum',required=True, nargs="+",
                              help="Phylum or Phyla to keep matches, i.e. Ascomycota")
     
     parser_sour.add_argument('--sourdb',required=False,
@@ -335,7 +319,7 @@ def main():
                                   help="Number of CPUs/threads to use.")
 
     parser_sour.add_argument('-w', '--workdir', '--tmpdir',type=str, dest='workdir',
-                        required=False,default="working_AAFTF",
+                        required=False,
                         help="Temporary directory to store datafiles and processes in")
 
     parser_sour.add_argument('-v','--debug',action='store_true',
@@ -373,14 +357,11 @@ def main():
                                required=True,
                                help="Output new version of assembly with duplicated contigs/scaffolds removed")
 
-    parser_rmdup.add_argument('-p','--prefix',type=str,
-                               required=False,
-                               help="Prefix of output file names or temp files")
     parser_rmdup.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
     
     parser_rmdup.add_argument('-w', '--workdir', '--tmpdir', dest='workdir',type=str,
-                               required=False,default="working_AAFTF",
+                               required=False,
                                help="Temporary directory to store datafiles and processes in")
 
     parser_rmdup.add_argument('-pid','--percent_id',type=int, dest='percent_id', 
@@ -414,8 +395,8 @@ def main():
                                          help='Polish contig sequences with Pilon')
 
     parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile', 
-                             required=False,
-                             help="Output Pilon polished assembly (defaults to infile.pilon.fasta)")
+                             required=True,
+                             help="Output Pilon polished assembly")
 
     parser_pilon.add_argument('-i','--infile','--input', type=str, dest='infile',
                               required=True,
@@ -424,23 +405,20 @@ def main():
     parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
 
-    parser_pilon.add_argument('-p','--prefix',required=False,
-                              help="Prefix of the read pairs ")
-
     parser_pilon.add_argument('-it','--iterations', type=int, default=5,
                               help="Number of Polishing iterations to run")
 
-    parser_pilon.add_argument('--left',type=str,
-                              required=False,
+    parser_pilon.add_argument('-l', '--left',type=str,
+                              required=True,
             help='The name of the left/forward reads of paired-end FASTQ formatted reads.')
 
-    parser_pilon.add_argument('--right',type=str,
-                              required=False,
+    parser_pilon.add_argument('-r', '--right',type=str,
+                              required=True,
             help='The name of the right/reverse reads of paired-end FASTQ formatted reads.')
 
     parser_pilon.add_argument('-w', '--workdir', '--tmpdir',
                               type=str, dest='workdir',
-                              required=False,default="working_AAFTF",
+                              required=False,
                               help="Temporary directory to store datafiles and processes in")
 
     ##########
@@ -481,7 +459,18 @@ def main():
 
     parser_assess.add_argument('-r','--report',type=str,
                                help='Filename to save report information otherwise will print to stdout')
-    
+                               
+                               
+    ##########
+    # pipeline run it all
+    ##########
+    # arguments
+    # -i / --input: input assembly file
+    # -r / --report: report file (otherwise stdout)
+    # --tmpdir
+
+                        
+    #set defaults
     parser.set_defaults(func=run_subtool)
 
     ### process args now ###
@@ -491,17 +480,10 @@ def main():
         sys.exit(1)
         
     args = parser.parse_args()
-    fh = logging.FileHandler('AAFTF.log')
-    fh.setLevel(logging.INFO)
-    
-    logger.addHandler(fh)
-    logger.setLevel(logging.INFO)
-    
-    if args.quiet:
-        logger.setLevel(logging.ERROR)
-    try:
-        args.func(parser, args)
 
+    try:
+        status('Running AAFTF v{:}'.format(myversion))
+        args.func(parser, args)
     except IOError as e:
          if e.errno != 32:  # ignore SIGPIPE
              raise

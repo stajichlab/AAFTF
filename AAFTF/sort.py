@@ -4,15 +4,12 @@ import os
 import operator
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio import SeqIO
-
-#logging
-import logging
-logger = logging.getLogger('AAFTF')
-
 from AAFTF.utility import softwrap
+from AAFTF.utility import status
+
 
 def run(parser, args):
-    logger.info('Sorting sequences by length longest --> shortest')
+    status('Sorting sequences by length longest --> shortest')
     AllSeqs = {}
     with open(args.input, 'rU') as fasta_in:
         for Header, Seq in SimpleFastaParser(fasta_in):
@@ -24,7 +21,7 @@ def run(parser, args):
     with open(args.out, 'w') as fasta_out:
         for i,x in enumerate(orderedSeqs):
             fasta_out.write('>{:}_{:}\n{:}\n'.format(args.name, i+1, softwrap(str(SeqRecords[x].seq))))
-    logger.info('Output written to: {:}'.format(args.out))
+    status('Output written to: {:}'.format(args.out))
             
 
 

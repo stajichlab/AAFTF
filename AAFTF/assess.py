@@ -3,9 +3,8 @@
 
 import sys, os
 from Bio import SeqIO
-#logging
-import logging
-logger = logging.getLogger('AAFTF')
+from AAFTF.utility import status
+
 
 def genome_asm_stats(fasta_file,output_handle):
 
@@ -45,14 +44,14 @@ def genome_asm_stats(fasta_file,output_handle):
     report += "%15s  =  %d\n" % ('L90',  l90)
     report += "%15s  =  %d\n" % ('N90',  n90)
     
-    logger.info(report)
+    print(report)
     if output_handle:
         output_handle.write(report)
 
 def run(parser,args):
 
     if not os.path.exists(args.input):
-        logger.info("Inputfile %s was not readable, check parameters" % (args.input))
+        status("Inputfile %s was not readable, check parameters" % (args.input))
 
     output_handle=None
     
