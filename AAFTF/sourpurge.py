@@ -21,6 +21,10 @@ def run(parser,args):
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
+    bamthreads = 4
+    if args.cpus < 4:
+        bamthreads = 1
+
     #find reads
     forReads, revReads = (None,)*2
     if args.left:
@@ -137,7 +141,7 @@ def run(parser,args):
                 p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
                                       stdout=subprocess.PIPE, stderr=DEVNULL)
                 p2 = subprocess.Popen(['samtools', 'sort', 
-                                       '--threads', str(args.cpus),
+                                       '--threads', str(bamthreads),
                                        '-o', blobBAM, '-'], cwd=args.workdir,
                                       stdout=subprocess.PIPE, stderr=DEVNULL,
                                       stdin=p1.stdout)

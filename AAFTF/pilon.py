@@ -24,6 +24,10 @@ def run(parser,args):
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
+    bamthreads = 4
+    if args.cpus < 4:
+        bamthreads = args.cpus
+
     DEVNULL = open(os.devnull, 'w')
     for i in range(1, args.iterations+1):
         status('Starting Pilon polishing iteration {:}'.format(i))
@@ -50,7 +54,7 @@ def run(parser,args):
             p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, 
                                   stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', 
-                                   '-@', str(args.cpus),'-o', pilonBAM, '-'], 
+                                   '-@', str(bamthreads),'-o', pilonBAM, '-'], 
                                   cwd=args.workdir, stdout=subprocess.PIPE, 
                                   stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()

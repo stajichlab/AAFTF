@@ -38,6 +38,10 @@ def run(parser,args):
                 pass
     else:
         DB = args.AAFTF_DB
+        
+    bamthreads = 4
+    if args.cpus < 4:
+        bamthreads = args.cpus
             
     earliest_file_age = -1
     contam_filenames = []
@@ -151,7 +155,7 @@ def run(parser,args):
             #now run and write to BAM sorted
             printCMD(bowtie_cmd)
             p1 = subprocess.Popen(bowtie_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
                                    '-o', os.path.basename(alignBAM), '-'],
                                    cwd=args.workdir, stdout=subprocess.PIPE, 
                                    stderr=DEVNULL, stdin=p1.stdout)
@@ -175,7 +179,7 @@ def run(parser,args):
             #now run and write to BAM sorted
             printCMD(bwa_cmd)
             p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
                                    '-o', os.path.basename(alignBAM), '-'],
                                    cwd=args.workdir, stdout=subprocess.PIPE, 
                                    stderr=DEVNULL, stdin=p1.stdout)
@@ -193,7 +197,7 @@ def run(parser,args):
             #now run and write to BAM sorted
             printCMD(minimap2_cmd)
             p1 = subprocess.Popen(minimap2_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(args.cpus),
+            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
                                    '-o', os.path.basename(alignBAM), '-'],
                                    cwd=args.workdir, stdout=subprocess.PIPE, 
                                    stderr=DEVNULL, stdin=p1.stdout)
@@ -206,7 +210,7 @@ def run(parser,args):
         #display mapping stats in terminal
         subprocess.run(['samtools', 'index', alignBAM])
         mapped, unmapped = bam_read_count(alignBAM)
-        status(' {:,} reads mapped to contamintation database'.format(mapped))
+        status(' {:,} reads mapped to contamination database'.format(mapped))
         status(' {:,} reads unmapped and writing to file'.format(unmapped))
         #now output unmapped reads from bamfile
         #this needs to be -f 5 so unmapped-pairs

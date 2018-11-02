@@ -20,6 +20,7 @@ from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import softwrap
 from AAFTF.utility import countfasta
+from AAFTF.utility import SafeRemove
 
 # biopython needed
 from Bio import SeqIO
@@ -250,7 +251,9 @@ def run(parser,args):
     
     global contigs_to_remove
     contigs_to_remove = {}
+    regions_to_trim = {}
     
+    #qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
     for contam in ["CONTAM_EUKS","CONTAM_PROKS" ]:                       
         status("%s Contamination Screen" % (contam))
         blastreport = os.path.join(args.workdir,
@@ -274,8 +277,40 @@ def run(parser,args):
                       int(row[3]) >= 100) or
                     ( float(row[2]) >= 90.0 and
                       int(row[3]) >= 200) ):
-                    contigs_to_remove[row[0]] = (contam, row[1], float(row[2]))
+                    if not row[0] in regions_to_trim:
+                    	if int(row[6]) < int(row[7]):
+                    		start = int(row[6])
+                    		end = int(row[7])
+                    	else:
+                    		start = int(row[7])
+                    		end = int(row[6])
+                    	regions_to_trim[row[0]] = [(start, end, contam, row[1], float(row[2]))]
+                    else:
+                    	regions_to_trim[row[0]].append((start, end, contam, row[1], float(row[2])))
         status('{:} screening finished'.format(contam))
+
+    eukCleaned = os.path.join(args.workdir, "%s.euk-prot_cleaned.fasta" % (prefix))
+    if len(regions_to_trim) > 0:
+    	with open(eukCleaned, 'w') as cleanout:
+    		with open(infile, 'rU') as fastain:
+    			for record in SeqIO.parse(fastain, 'fasta'):
+    				if not record.id in regions_to_trim:
+    					cleanout.write('>{:}\n{:}\n'.format(record.id, softwrap(str(record.seq))))
+    				else:
+    					Seq = str(record.seq)
+    					regions = regions_to_trim[record.id]
+    					status('Splitting {:} due to contamination: {:}'.format(record.id, regions))
+    					lastpos = 0
+    					newSeq = ''
+    					for i,x in enumerate(regions):
+    						newSeq = Seq[lastpos:x[0]]
+    						lastpos = x[1]
+    						cleanout.write('>split{:}_{:}\n{:}\n'.format(i, record.id, softwrap(newSeq)))
+    						if i == len(regions)-1:
+    							newSeq = Seq[x[1]:]
+    							cleanout.write('>split{:}_{:}\n{:}\n'.format(i+1, record.id, softwrap(newSeq)))
+    else:
+    	eukCleaned = infile
             
     # MITO screen
     status('Mitochondria Contamination Screen')
@@ -283,7 +318,7 @@ def run(parser,args):
     blastreport = os.path.join(args.workdir,
                                "%s.%s.blastn" % ('MITO',prefix))
     blastnargs = ['blastn',
-                  '-query', infile,
+                  '-query', eukCleaned,
                   '-db', os.path.join(args.workdir,'MITO'),
                   '-num_threads', str(args.cpus),
                   '-dust', 'yes', '-soft_masking', 'true',
@@ -315,19 +350,19 @@ def run(parser,args):
                   '-db', os.path.join(args.workdir,'UniVec'),
                   '-outfmt', '6 qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore score qlen', 
                   '-num_threads',str(args.cpus),
-                  '-query', infile, '-out', report]
+                  '-query', eukCleaned, '-out', report]
             #logger.info('CMD: {:}'.format(printCMD(cmd,7)))
             call(cmd)
         # this needs to know/return the new fasta file?
         status("Parsing VecScreen round {:}: {:} for {:}".format(rnd+1, filepref,report))
-        (count,cleanfile) = parse_clean_blastn(infile, os.path.join(args.workdir,filepref),report, args.stringency)
-        status("count is %d cleanfile is %s"%(count,cleanfile))
+        (count, cleanfile) = parse_clean_blastn(eukCleaned, os.path.join(args.workdir,filepref),report, args.stringency)
+        status("count is %d cleanfile is %s"%(count, cleanfile))
         if count == 0: # if there are no vector matches < than the pid cutoff
-            status("copying %s to %s"%(infile,outfile_vec))
-            shutil.copy(infile,outfile_vec)
+            status("copying %s to %s"%(eukCleaned, outfile_vec))
+            shutil.copy(eukCleaned, outfile_vec)
         else:
             rnd += 1
-            infile = cleanfile
+            eukCleaned = cleanfile
 
     status("{:,} contigs will be removed:".format(len(contigs_to_remove)))
     for k,v in sorted(contigs_to_remove.items()):

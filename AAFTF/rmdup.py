@@ -14,6 +14,7 @@ from AAFTF.utility import fastastats
 from AAFTF.utility import execute
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
+from AAFTF.utility import SafeRemove
 
 def run(parser,args):
 

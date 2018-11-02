@@ -276,6 +276,9 @@ def main():
     parser_vecscreen.add_argument('-s', '--stringency', default='high', choices=['high','low'],
                                   help="Stringency to filter VecScreen hits")
 
+    parser_vecscreen.add_argument('-v','--debug', action='store_true', dest='debug',
+                             help="Provide debugging messages")
+
 
     ##########
     # sourpurge
@@ -322,7 +325,7 @@ def main():
                         required=False,
                         help="Temporary directory to store datafiles and processes in")
 
-    parser_sour.add_argument('-v','--debug',action='store_true',
+    parser_sour.add_argument('-v','--debug', action='store_true', dest='debug',
                              help="Provide debugging messages")
 
     parser_sour.add_argument('--AAFTF_DB',type=str,
