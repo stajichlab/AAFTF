@@ -207,10 +207,11 @@ def run(parser,args):
         percentid_cutoff = args.percent_id
 
     infile = args.infile
-    outfile = args.outfile
-    outdir = os.path.dirname(outfile)
+    outfile = os.path.basename(args.outfile)
+    outdir = os.path.dirname(args.outfile)
     if '.f' in outfile:
         prefix = outfile.rsplit('.f', 1)[0]
+        print("prefix is ",prefix)
     else:
         prefix = str(os.getpid())
     if not outfile:
@@ -372,24 +373,24 @@ def run(parser,args):
     # a bit about the naming structure
 
     mitochondria = os.path.join(outdir,prefix+'.mitochondria.fasta')
-    with open(outfile, "w") as output_handle, open(mitochondria, 'w') as mito_handle:
+    with open(args.outfile, "w") as output_handle, open(mitochondria, 'w') as mito_handle:
         for record in SeqIO.parse(outfile_vec, "fasta"):
             if not record.id in contigs_to_remove:
                 SeqIO.write(record, output_handle, "fasta")
             elif record.id in mitoHits:
                 SeqIO.write(record, mito_handle, "fasta")
-    status('Writing {:,} cleaned contigs to: {:}'.format(countfasta(outfile), outfile))
+    status('Writing {:,} cleaned contigs to: {:}'.format(countfasta(args.outfile), args.outfile))
     status('Writing {:,} mitochondrial contigs to: {:}'.format(countfasta(mitochondria), mitochondria))
-    if '_' in outfile:
-        nextOut = outfile.split('_')[0]+'.sourpurge.fasta'
-    elif '.' in outfile:
-        nextOut = outfile.split('.')[0]+'.sourpurge.fasta'
+    if '_' in args.outfile:
+        nextOut = args.outfile.split('_')[0]+'.sourpurge.fasta'
+    elif '.' in args.outfile:
+        nextOut = args.outfile.split('.')[0]+'.sourpurge.fasta'
     else:
-        nextOut = outfile+'.sourpurge.fasta'
+        nextOut = args.outfile+'.sourpurge.fasta'
 
     
     status('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:} --phylum Ascomycota\n'.format(
-            outfile, nextOut, args.cpus))
+            args.outfile, nextOut, args.cpus))
     
     if not args.debug:
         SafeRemove(args.workdir)
