@@ -12,7 +12,9 @@ myversion = __version__
 from AAFTF.utility import status
 
 def run_subtool(parser, args):
-    if args.command == 'trim':
+    if args.command == 'runall':
+        print("runall")
+    elif args.command == 'trim':
         import AAFTF.trim as submodule
     elif args.command == 'filter':
         import AAFTF.filter as submodule
@@ -63,6 +65,17 @@ def main():
                         version="%(prog)s " + str(myversion))
     
     subparsers = parser.add_subparsers(title='[sub-commands]', dest='command', parser_class=ArgumentParserWithDefaults)
+
+    ###
+    # setup the run-all steps
+    ### 
+    # requires these
+    # --left 
+    # --right
+    # or --single
+
+    
+    
     #########################################
     # create the individual tool parsers
     #########################################
@@ -154,7 +167,7 @@ def main():
     # --left: left or forward reads
     # --right: right or reverse reads
     # or value from --prefix 
-    # --aligner: bwa, bowtie2, minimap for read alignment to contamdb
+    # --aligner: bbduk bwa, bowtie2, minimap for read alignment to contamdb
 
     parser_filter = subparsers.add_parser('filter',
         description="Filter reads which match contaminant databases such as phiX",
@@ -192,7 +205,7 @@ def main():
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
     
     parser_filter.add_argument('--aligner', default='bwa', 
-                               choices=['bowtie2', 'bwa', 'minimap2'],
+                               choices=['bbduk','bowtie2', 'bwa', 'minimap2'],
                                help='Aligner to use to map reads to contamination database')
     
 

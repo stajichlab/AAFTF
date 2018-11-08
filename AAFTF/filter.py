@@ -101,7 +101,7 @@ def run(parser,args):
 
     # concat vector db
     status('Generating combined contamination database:\n{:}'.format('\n'.join(contam_filenames)))
-    contamdb = os.path.join(args.workdir,'contamdb')
+    contamdb = os.path.join(args.workdir,'contamdb.fa')
     if ( not os.path.exists(contamdb) or
          ( os.path.getctime(contamdb) < earliest_file_age)):
          with open(contamdb, 'wb') as wfd:
@@ -132,8 +132,33 @@ def run(parser,args):
     DEVNULL = open(os.devnull, 'w')
     alignBAM = os.path.join(args.workdir, args.basename+'_contam_db.bam')
     clean_reads = args.basename + "_filtered"
-    
-    if args.aligner == 'bowtie2':  
+    refmatch_bbduk = [contamdb,'adapters','artifacts', 'phix', 'lambda']
+    if args.aligner == "bbduk":
+        
+        cmd = ['bbduk.sh', 'in=%s'%(forReads), 
+               'out=%s_1.fastq.gz'%(clean_reads) ]
+        if revReads:
+            cmd.extend(['in2=%s'%(revReads),'out2=%s_2.fastq.gz'%(clean_reads)])
+            
+        cmd.extend(['tbo','tpe',
+                    'ftm=5', # this is suggested for Illumina data...
+                    'ref=%s'%(",".join(refmatch_bbduk))])
+        
+        if args.debug:
+            print("cmd is ",cmd)
+        subprocess.run(cmd)
+
+        if not args.debug:
+            SafeRemove(args.workdir)
+
+        status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
+            clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
+        status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
+            clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
+        return
+
+    elif args.aligner == 'bowtie2':  
+        # likely not used and less accurate than bbmap?
         if not os.path.isfile(alignBAM):
             status('Aligning reads to contamination database using bowtie2')
             if ( not os.path.exists(contamdb + ".1.bt2") or
@@ -163,6 +188,7 @@ def run(parser,args):
             p2.communicate()        
                 
     elif args.aligner == 'bwa':
+        # likely less accurate than bbduk so may not be used
         if not os.path.isfile(alignBAM):
             status('Aligning reads to contamination database using BWA')
             if ( not os.path.exists(contamdb + ".amb") or
@@ -187,6 +213,7 @@ def run(parser,args):
             p2.communicate()                
       
     elif args.aligner == 'minimap2':
+         # likely not used but may be useful for pacbio/nanopore?
         if not os.path.isfile(alignBAM):
             status('Aligning reads to contamination database using minimap2')
             
