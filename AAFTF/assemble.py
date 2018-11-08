@@ -13,12 +13,12 @@ def run(parser,args):
     if not args.workdir:
         args.workdir = 'spades_'+str(os.getpid())
         
-    spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff', 'auto',
+    spadescmd = ['spades.py','--threads', str(args.cpus), 
+                 '--cov-cutoff', 'auto',
                  '--mem', args.memory, '--careful', '-o', args.workdir]
 
     if args.spades_tmpdir:
-        spadescmd.append('--tmp-dir')
-        spadescmd.append(args.spades_tmpdir)
+        spadescmd.extend(['--tmp-dir',args.spades_tmpdir])
         
     #find reads -- use --left/right or look for cleaned in tmpdir
     forReads, revReads = (None,)*2
