@@ -18,6 +18,7 @@ from AAFTF.utility import countfastq
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import SafeRemove
+from AAFTF.utility import getRAM
 
 def run(parser,args):
     
@@ -118,6 +119,10 @@ def run(parser,args):
     if not forReads:
         status("Must provide --left, unable to locate FASTQ reads")
         sys.exit(1)
+    total = countfastq(forReads)
+    if revReads:
+    	total = total*2
+    status('Loading {:,} total reads'.format(total))
     
     # seems like this needs to be stripping trailing extension?
     if not args.basename:
@@ -132,24 +137,35 @@ def run(parser,args):
     DEVNULL = open(os.devnull, 'w')
     alignBAM = os.path.join(args.workdir, args.basename+'_contam_db.bam')
     clean_reads = args.basename + "_filtered"
-    refmatch_bbduk = [contamdb,'adapters','artifacts', 'phix', 'lambda']
+    refmatch_bbduk = [contamdb,'phix','artifacts','lambda']
     if args.aligner == "bbduk":
-        
-        cmd = ['bbduk.sh', 'in=%s'%(forReads), 
+        status('Kmer filtering reads using BBDuk')
+        if args.memory:
+        	MEM='-Xmx{:}g'.format(args.memory)
+        else:
+        	MEM='-Xmx{:}g'.format(round(0.6*getRAM()))
+        cmd = ['bbduk.sh', MEM, 't={:}'.format(args.cpus), 'k=31', 'hdist=1',
+        	   'overwrite=true', 'in=%s'%(forReads), 
                'out=%s_1.fastq.gz'%(clean_reads) ]
         if revReads:
             cmd.extend(['in2=%s'%(revReads),'out2=%s_2.fastq.gz'%(clean_reads)])
             
-        cmd.extend(['tbo','tpe',
-                    'ftm=5', # this is suggested for Illumina data...
-                    'ref=%s'%(",".join(refmatch_bbduk))])
+        cmd.extend(['ref=%s'%(",".join(refmatch_bbduk))])
         
+        printCMD(cmd)
         if args.debug:
-            print("cmd is ",cmd)
-        subprocess.run(cmd)
+            subprocess.run(cmd)
+        else:
+            subprocess.run(cmd, stderr=DEVNULL)
 
         if not args.debug:
             SafeRemove(args.workdir)
+        
+        clean = countfastq('{:}_1.fastq.gz'.format(clean_reads))
+        if revReads:
+        	clean = clean*2
+        status('{:,} reads mapped to contamination database'.format((total-clean)))
+        status('{:,} reads unmapped and writing to file'.format(clean))
 
         status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
             clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
@@ -237,8 +253,8 @@ def run(parser,args):
         #display mapping stats in terminal
         subprocess.run(['samtools', 'index', alignBAM])
         mapped, unmapped = bam_read_count(alignBAM)
-        status(' {:,} reads mapped to contamination database'.format(mapped))
-        status(' {:,} reads unmapped and writing to file'.format(unmapped))
+        status('{:,} reads mapped to contamination database'.format(mapped))
+        status('{:,} reads unmapped and writing to file'.format(unmapped))
         #now output unmapped reads from bamfile
         #this needs to be -f 5 so unmapped-pairs
         if forReads and revReads:

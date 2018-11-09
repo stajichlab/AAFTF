@@ -111,16 +111,24 @@ def main():
                              required=False,
                              help="Minimum read length after trimming, default: 75")
     
-    parser_trim.add_argument('--left',type=str,
+    parser_trim.add_argument('-l', '--left',type=str,
                               required=True,
             help='left/forward reads of paired-end FASTQ or single-end FASTQ.')
 
-    parser_trim.add_argument('--right',type=str,
+    parser_trim.add_argument('-r', '--right',type=str,
                               required=False,
             help='right/reverse reads of paired-end FASTQ.')
 
     parser_trim.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
+    
+    parser_trim.add_argument('--method', default='bbduk', 
+    						choices=['bbduk', 'trimmomatic'], 
+    						help='Program to use for adapter trimming')
+
+    parser_trim.add_argument('-m','--memory',type=int,
+                            dest='memory',required=False,
+                            help="Max Memory (in GB)")
 
     tool_group = parser_trim.add_mutually_exclusive_group(required=False)
 
@@ -204,9 +212,13 @@ def main():
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
     
-    parser_filter.add_argument('--aligner', default='bwa', 
-                               choices=['bbduk','bowtie2', 'bwa', 'minimap2'],
+    parser_filter.add_argument('--aligner', default='bbduk', 
+                               choices=['bbduk', 'bowtie2', 'bwa', 'minimap2'],
                                help='Aligner to use to map reads to contamination database')
+
+    parser_filter.add_argument('-m','--memory',type=int,
+                            dest='memory',required=False,
+                            help="Max Memory (in GB)")
     
 
     ##########
