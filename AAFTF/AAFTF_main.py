@@ -405,7 +405,7 @@ def main():
                                help="Minimum contig length to keep, shorter ones are dropped")
 
     parser_rmdup.add_argument('--exhaustive',action='store_true',
-                               help="Compute overlaps for every contig, otherwise only process contigs for L50 and below")
+                               help="Compute overlaps for every contig, otherwise only process contigs for L75 and below")
 
     parser_rmdup.add_argument('--debug',action='store_true', help='Run rmdup in debugging mode for more output')
 

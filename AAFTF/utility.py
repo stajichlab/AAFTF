@@ -67,7 +67,7 @@ def bam_read_count(bamfile):
         unmapped += int(nu)
     return (mapped, unmapped)
 
-def calcN50(lengths):
+def calcN50(lengths, num=0.5):
     lengths.sort()
     total_len = sum(lengths)
     n50 = 0
@@ -75,9 +75,10 @@ def calcN50(lengths):
     i = 1
     for n in reversed(lengths):
         cumulsum += n
-        if n50 == 0 and cumulsum >= total_len * 0.5:
+        if n50 == 0 and cumulsum >= total_len * num:
             n50 = n
     return n50
+
 
 def printCMD(cmd):
 	stringcmd = '{:}'.format(' '.join(cmd))

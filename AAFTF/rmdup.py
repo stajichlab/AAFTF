@@ -50,7 +50,7 @@ def run(parser,args):
 
     #start here -- functions nested so they can inherit the arguments
     if not args.workdir:
-    	args.workdir = 'aaftf-rmdup_'+str(os.getpid())
+        args.workdir = 'aaftf-rmdup_'+str(os.getpid())
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
         
@@ -62,8 +62,8 @@ def run(parser,args):
     with open(args.input, 'rU') as infile:
         for Header, Seq in SimpleFastaParser(infile):
             fasta_lengths.append(len(Seq))
-    n50 = calcN50(fasta_lengths)
-    status('Assembly is {:,} contigs; {:,} bp; and N50 is {:,} bp'.format(numSeqs, assemblySize, n50))
+    n50 = calcN50(fasta_lengths, num=0.75)
+    status('Assembly is {:,} contigs; {:,} bp; and N75 is {:,} bp'.format(numSeqs, assemblySize, n50))
     
     #get list of tuples of sequences sorted by size (shortest --> longest)
     AllSeqs = {}
@@ -74,16 +74,24 @@ def run(parser,args):
     sortSeqs = sorted(AllSeqs.items(), key=operator.itemgetter(1),reverse=False)
     if args.exhaustive:
         n50 = sortSeqs[-1][1]
+    those2check = [x for x in sortSeqs if x[1] < n50]
+    status('Will check {:,} contigs for duplication --> those that are < {:,} && > {:,}'.format(len(those2check), n50, args.minlen))
     #loop through sorted list of tuples
     ignore = []
     for i,x in enumerate(sortSeqs):
-        if args.debug:
-            status('Working on {:} len={:} remove_tally={:}'.format(x[0], x[1], len(ignore)))
+        sys.stdout.flush()
         if x[1] < args.minlen:
             ignore.append(x[0])
             continue
         if x[1] > n50:
+            sys.stdout.flush()
+            sys.stdout.write('\n')
             break
+        if args.debug:
+            status('Working on {:} len={:} remove_tally={:}'.format(x[0], x[1], len(ignore)))
+        else:
+            text = "\rProgress: {:} of {:}; remove tally={:,}; current={:}; length={:}".format(i, len(those2check), len(ignore), x[0], x[1])
+            sys.stdout.write(text)
         #generate input files for minimap2
         theRest = [i[0] for i in sortSeqs[i+1:]]
         pid = str(os.getpid())
