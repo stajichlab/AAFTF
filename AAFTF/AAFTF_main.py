@@ -418,6 +418,8 @@ def main():
     # -rp / --reads-prefix: input/outfile reads prefix
     # --iterations: default 5
     # --tmpdir
+    # --debug
+
     parser_pilon = subparsers.add_parser('pilon',
                                          description="Polish contig sequences with Pilon",
                                          help='Polish contig sequences with Pilon')
@@ -432,6 +434,9 @@ def main():
 
     parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
+
+    parser_pilon.add_argument('-v','--debug',action='store_true',
+                              help="Provide debugging messages")
 
     parser_pilon.add_argument('-it','--iterations', type=int, default=5,
                               help="Number of Polishing iterations to run")
