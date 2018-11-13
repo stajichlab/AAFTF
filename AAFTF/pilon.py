@@ -19,7 +19,9 @@ def run(parser,args):
         status('Unable to located FASTQ raw reads, pass via -l,--left and/or -r,--right')
         sys.exit(1)
 
+    custom_workdir = 1
     if not args.workdir:
+        custom_workdir = 0
         args.workdir = 'aaftf-pilon_'+str(os.getpid())
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
@@ -105,5 +107,9 @@ def run(parser,args):
         nextOut = polishedFasta.split('.')[0]+'.final.fasta'
     else:
         nextOut = polishedFasta+'.final.fasta'
+
+    if not args.debug and not custom_workdir:
+        SafeRemove(args.workdir)
+
     status('Your next command might be:\n\tAAFTF sort -i {:} -o {:}\n'.format(polishedFasta, nextOut))      
         

@@ -49,8 +49,10 @@ def run(parser,args):
 
 
     #start here -- functions nested so they can inherit the arguments
+    custom_workdir = 1
     if not args.workdir:
-        args.workdir = 'aaftf-rmdup_'+str(os.getpid())
+        custom_workdir = 0
+    	args.workdir = 'aaftf-rmdup_'+str(os.getpid())
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
         
@@ -117,5 +119,5 @@ def run(parser,args):
         nextOut = args.out+'.pilon.fasta'
     status('Your next command might be:\n\tAAFTF pilon -i {:} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {:}\n'.format(args.out, nextOut))
 
-    if not args.debug:
+    if not args.debug and not custom_workdir:
         SafeRemove(args.workdir)        

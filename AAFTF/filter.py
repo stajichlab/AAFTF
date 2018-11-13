@@ -21,8 +21,9 @@ from AAFTF.utility import SafeRemove
 from AAFTF.utility import getRAM
 
 def run(parser,args):
-    
+    custom_workdir = 1
     if not args.workdir:
+        custom_workdir = 0
         args.workdir = 'aaftf-filter_'+str(os.getpid())
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
@@ -158,7 +159,7 @@ def run(parser,args):
         else:
             subprocess.run(cmd, stderr=DEVNULL)
 
-        if not args.debug:
+        if not args.debug and not custom_workdir:
             SafeRemove(args.workdir)
         
         clean = countfastq('{:}_1.fastq.gz'.format(clean_reads))
