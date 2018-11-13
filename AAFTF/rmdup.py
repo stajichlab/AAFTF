@@ -52,7 +52,7 @@ def run(parser,args):
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
-    	args.workdir = 'aaftf-rmdup_'+str(os.getpid())
+        args.workdir = 'aaftf-rmdup_'+str(os.getpid())
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
         
