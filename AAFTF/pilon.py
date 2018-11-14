@@ -5,6 +5,7 @@ import subprocess
 from AAFTF.utility import line_count
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
+from AAFTF.utility import SafeRemove
 
 def run(parser,args):
     
