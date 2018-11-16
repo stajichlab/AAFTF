@@ -10,7 +10,7 @@ PREFIX = 'v'
 tag_re = re.compile(r'\btag: %s([0-9][^,]*)\b' % PREFIX)
 version_re = re.compile('^Version: (.+)$', re.M)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 def get_version():
     # Return the version if it has been injected into the file by git-archive
