@@ -4,8 +4,9 @@
 Requirements
 ===================
 - SPAdes - http://cab.spbu.ru/software/spades/
-- Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic
-- bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
+- BBTools - https://jgi.doe.gov/data-and-tools/bbtools/
+- Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic (Optional)
+- bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
 - bwa - https://github.com/lh3/bwa
 - Pilon - https://github.com/broadinstitute/pilon/wiki
 - sourmash - https://sourmash.readthedocs.io/ (install via conda/pip)
