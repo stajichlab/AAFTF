@@ -122,7 +122,7 @@ def run(parser,args):
         sys.exit(1)
     total = countfastq(forReads)
     if revReads:
-    	total = total*2
+        total = total*2
     status('Loading {:,} total reads'.format(total))
     
     # seems like this needs to be stripping trailing extension?
@@ -142,11 +142,11 @@ def run(parser,args):
     if args.aligner == "bbduk":
         status('Kmer filtering reads using BBDuk')
         if args.memory:
-        	MEM='-Xmx{:}g'.format(args.memory)
+            MEM='-Xmx{:}g'.format(args.memory)
         else:
-        	MEM='-Xmx{:}g'.format(round(0.6*getRAM()))
+            MEM='-Xmx{:}g'.format(round(0.6*getRAM()))
         cmd = ['bbduk.sh', MEM, 't={:}'.format(args.cpus), 'k=31', 'hdist=1',
-        	   'overwrite=true', 'in=%s'%(forReads), 
+               'overwrite=true', 'in=%s'%(forReads), 
                'out=%s_1.fastq.gz'%(clean_reads) ]
         if revReads:
             cmd.extend(['in2=%s'%(revReads),'out2=%s_2.fastq.gz'%(clean_reads)])
@@ -164,14 +164,15 @@ def run(parser,args):
         
         clean = countfastq('{:}_1.fastq.gz'.format(clean_reads))
         if revReads:
-        	clean = clean*2
+            clean = clean*2
         status('{:,} reads mapped to contamination database'.format((total-clean)))
         status('{:,} reads unmapped and writing to file'.format(clean))
 
         status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
             clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
-        status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
-            clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
+        if not args.pipe:
+            status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
+                clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
         return
 
     elif args.aligner == 'bowtie2':  
@@ -273,10 +274,12 @@ def run(parser,args):
         if revReads:
             status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
                         clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
-            status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
                     clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
         else:
             status('Filtering complete:\n\tSingle: {:}'.format(clean_reads+'.fastq.gz'))
-            status('Your next command might be:\n\tAAFTF assemble -l {:} -c {:} -o {:}\n'.format(
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF assemble -l {:} -c {:} -o {:}\n'.format(
                     clean_reads+'.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
             

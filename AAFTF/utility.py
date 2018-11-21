@@ -79,7 +79,6 @@ def calcN50(lengths, num=0.5):
             n50 = n
     return n50
 
-
 def printCMD(cmd):
 	stringcmd = '{:}'.format(' '.join(cmd))
 	prefix = '\033[96mCMD:\033[00m '

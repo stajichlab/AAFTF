@@ -218,7 +218,11 @@ def run(parser,args):
     else:
         nextOut = args.outfile+'.rmdup.fasta'
     
+    if os.path.isfile(sourmashTSV):
+        os.rename(sourmashTSV, os.path.basename(sourmashTSV))
+    
     if not args.debug:
         SafeRemove(args.workdir)
     
-    status('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))

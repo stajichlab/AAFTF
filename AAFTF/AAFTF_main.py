@@ -66,15 +66,6 @@ def main():
     
     subparsers = parser.add_subparsers(title='[sub-commands]', dest='command', parser_class=ArgumentParserWithDefaults)
 
-    ###
-    # setup the run-all steps
-    ### 
-    # requires these
-    # --left 
-    # --right
-    # or --single
-
-    
     
     #########################################
     # create the individual tool parsers
@@ -121,10 +112,13 @@ def main():
 
     parser_trim.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
+                             
+    parser_trim.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
     
     parser_trim.add_argument('--method', default='bbduk', 
-    						choices=['bbduk', 'trimmomatic'], 
-    						help='Program to use for adapter trimming')
+                            choices=['bbduk', 'trimmomatic'], 
+                            help='Program to use for adapter trimming')
 
     parser_trim.add_argument('-m','--memory',type=int,
                             dest='memory',required=False,
@@ -219,6 +213,9 @@ def main():
     parser_filter.add_argument('-m','--memory',type=int,
                             dest='memory',required=False,
                             help="Max Memory (in GB)")
+
+    parser_filter.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
     
 
     ##########
@@ -262,6 +259,9 @@ def main():
 
     parser_asm.add_argument('--spades_tmpdir',type=str,required=False,help="Spades temporary dir")
 
+    parser_asm.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
+
     ##########
     # vecscreen
     ##########
@@ -303,6 +303,9 @@ def main():
 
     parser_vecscreen.add_argument('-v','--debug', action='store_true', dest='debug',
                              help="Provide debugging messages")
+                             
+    parser_vecscreen.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
 
 
     ##########
@@ -359,6 +362,9 @@ def main():
 
     parser_sour.add_argument('--just-show-taxonomy',dest='taxonomy', action='store_true',
                                help="Show taxonomy information and exit")
+                               
+    parser_sour.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
 
         
     ##########
@@ -409,6 +415,9 @@ def main():
 
     parser_rmdup.add_argument('--debug',action='store_true', help='Run rmdup in debugging mode for more output')
 
+    parser_rmdup.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
+
     ##########
     # pilon
     ##########
@@ -453,6 +462,9 @@ def main():
                               type=str, dest='workdir',
                               required=False,
                               help="Temporary directory to store datafiles and processes in")
+
+    parser_pilon.add_argument('--pipe',action='store_true',
+                             help="AAFTF is running in pipeline mode")
 
     ##########
     # sort/rename FASTA headers
@@ -501,6 +513,69 @@ def main():
     # -i / --input: input assembly file
     # -r / --report: report file (otherwise stdout)
     # --tmpdir
+
+    parser_pipeline = subparsers.add_parser('pipeline',
+                            description="Run entire AAFTF pipeline automagically",
+                            help='Run AAFTF pipeline')
+                            
+    parser_pipeline.add_argument('-l', '--left',type=str,
+                              required=True,
+            help='left/forward reads of paired-end FASTQ or single-end FASTQ.')
+
+    parser_pipeline.add_argument('-r', '--right',type=str,
+                              required=False,
+            help='right/reverse reads of paired-end FASTQ.')
+            
+    parser_pipeline.add_argument('-o','--out',type=str,
+                             required=True, dest='basename',
+                             help="Output basename, default to base name of --left reads")
+
+    parser_pipeline.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
+                              help="Number of CPUs/threads to use.")
+                              
+    parser_pipeline.add_argument('-m','--memory',type=str,
+                            dest='memory',required=False,
+                            help="Memory (in GB) setting for SPAdes. Default is Auto")
+
+    parser_pipeline.add_argument('-ml','--minlength',type=int,
+                             default=75,
+                             required=False,
+                             help="Minimum read length after trimming, default: 75")
+                              
+    parser_pipeline.add_argument('-a','--screen_accessions',type = str,
+                               nargs="*",
+                               help="Genbank accession number(s) to screen out from initial reads.")
+                               
+    parser_pipeline.add_argument('-u','--screen_urls',type = str,
+                               nargs="*",
+                               help="URLs to download and screen out initial reads.")
+                               
+    parser_pipeline.add_argument('-it','--iterations', type=int, default=5,
+                              help="Number of Pilon Polishing iterations to run")
+                              
+    parser_pipeline.add_argument('-mc','--mincontiglen',type=int,
+                             default=500,
+                             required=False,
+                             help="Minimum length of contigs to keep")
+
+    parser_pipeline.add_argument('--AAFTF_DB',type=str,
+                               required=False,
+                               help="Path to AAFTF resources, defaults to $AAFTF_DB")
+
+    parser_pipeline.add_argument('-w', '--workdir',type=str,
+                        help="temp directory")
+    
+    parser_pipeline.add_argument('-v','--debug',action='store_true',
+                             help="Provide debugging messages")
+
+    parser_pipeline.add_argument('-p', '--phylum',required=True, nargs="+",
+                             help="Phylum or Phyla to keep matches, i.e. Ascomycota")
+
+    parser_pipeline.add_argument('--sourdb',required=False,
+                             help="SourMash LCA k-31 taxonomy database")
+
+    parser_pipeline.add_argument('--mincovpct',default=5,type=int,
+                             help="Minimum percent of N50 coverage to remove")
 
                         
     #set defaults

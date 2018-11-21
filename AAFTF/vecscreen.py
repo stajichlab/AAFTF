@@ -279,39 +279,39 @@ def run(parser,args):
                     ( float(row[2]) >= 90.0 and
                       int(row[3]) >= 200) ):
                     if not row[0] in regions_to_trim:
-                    	if int(row[6]) < int(row[7]):
-                    		start = int(row[6])
-                    		end = int(row[7])
-                    	else:
-                    		start = int(row[7])
-                    		end = int(row[6])
-                    	regions_to_trim[row[0]] = [(start, end, contam, row[1], float(row[2]))]
+                        if int(row[6]) < int(row[7]):
+                            start = int(row[6])
+                            end = int(row[7])
+                        else:
+                            start = int(row[7])
+                            end = int(row[6])
+                        regions_to_trim[row[0]] = [(start, end, contam, row[1], float(row[2]))]
                     else:
-                    	regions_to_trim[row[0]].append((start, end, contam, row[1], float(row[2])))
+                        regions_to_trim[row[0]].append((start, end, contam, row[1], float(row[2])))
         status('{:} screening finished'.format(contam))
 
     eukCleaned = os.path.join(args.workdir, "%s.euk-prot_cleaned.fasta" % (prefix))
     if len(regions_to_trim) > 0:
-    	with open(eukCleaned, 'w') as cleanout:
-    		with open(infile, 'rU') as fastain:
-    			for record in SeqIO.parse(fastain, 'fasta'):
-    				if not record.id in regions_to_trim:
-    					cleanout.write('>{:}\n{:}\n'.format(record.id, softwrap(str(record.seq))))
-    				else:
-    					Seq = str(record.seq)
-    					regions = regions_to_trim[record.id]
-    					status('Splitting {:} due to contamination: {:}'.format(record.id, regions))
-    					lastpos = 0
-    					newSeq = ''
-    					for i,x in enumerate(regions):
-    						newSeq = Seq[lastpos:x[0]]
-    						lastpos = x[1]
-    						cleanout.write('>split{:}_{:}\n{:}\n'.format(i, record.id, softwrap(newSeq)))
-    						if i == len(regions)-1:
-    							newSeq = Seq[x[1]:]
-    							cleanout.write('>split{:}_{:}\n{:}\n'.format(i+1, record.id, softwrap(newSeq)))
+        with open(eukCleaned, 'w') as cleanout:
+            with open(infile, 'rU') as fastain:
+                for record in SeqIO.parse(fastain, 'fasta'):
+                    if not record.id in regions_to_trim:
+                        cleanout.write('>{:}\n{:}\n'.format(record.id, softwrap(str(record.seq))))
+                    else:
+                        Seq = str(record.seq)
+                        regions = regions_to_trim[record.id]
+                        status('Splitting {:} due to contamination: {:}'.format(record.id, regions))
+                        lastpos = 0
+                        newSeq = ''
+                        for i,x in enumerate(regions):
+                            newSeq = Seq[lastpos:x[0]]
+                            lastpos = x[1]
+                            cleanout.write('>split{:}_{:}\n{:}\n'.format(i, record.id, softwrap(newSeq)))
+                            if i == len(regions)-1:
+                                newSeq = Seq[x[1]:]
+                                cleanout.write('>split{:}_{:}\n{:}\n'.format(i+1, record.id, softwrap(newSeq)))
     else:
-    	eukCleaned = infile
+        eukCleaned = infile
             
     # MITO screen
     status('Mitochondria Contamination Screen')
@@ -388,8 +388,8 @@ def run(parser,args):
     else:
         nextOut = args.outfile+'.sourpurge.fasta'
 
-    
-    status('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:} --phylum Ascomycota\n'.format(
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:} --phylum Ascomycota\n'.format(
             args.outfile, nextOut, args.cpus))
     
     if not args.debug:

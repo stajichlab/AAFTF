@@ -39,7 +39,7 @@ def find_trimmomatic():
     else:
         return False
     
-def run(parser,args):    
+def run(parser,args):
     
     if not args.basename:
         if '_' in os.path.basename(args.left):
@@ -84,14 +84,16 @@ def run(parser,args):
             status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
                         args.basename+'_1P.fastq.gz',
                         args.basename+'_2P.fastq.gz'))
-            status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
                         args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
         else:
             clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
             status('{:,} reads remaining and writing to file'.format(clean))
             status('Trimming finished:\n\tSingle: {:}'.format(
                         args.basename+'_1U.fastq.gz'))
-            status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
                         args.basename+'_1U.fastq.gz', args.basename, args.cpus))                 
 
     elif args.method == 'trimmomatic':
@@ -177,13 +179,15 @@ def run(parser,args):
                 status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
                             args.basename+'_1P.fastq.gz',
                             args.basename+'_2P.fastq.gz'))
-                status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                if not args.pipe:
+                    status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
                             args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus)) 
             else:
                 status('Compressing trimmed SE FASTQ file')
                 Fzip_inplace(args.basename+'_1U.fastq', args.cpus)
                 status('Trimming finished:\n\tSingle: {:}'.format(
                             args.basename+'_1U.fastq.gz'))
-                status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                if not args.pipe:
+                    status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
                             args.basename+'_1U.fastq.gz', args.basename, args.cpus))    
 

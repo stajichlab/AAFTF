@@ -59,5 +59,7 @@ def run(parser,args):
         status('Assembly is {:,} scaffolds and {:,} bp'.format(numSeqs, assemblySize))
     else:
         status('Spades assembly output missing -- check Spades logfile.')
-    status('Your next command might be:\n\tAAFTF vecscreen -i {:} -c {:}\n'.format(finalOut, args.cpus))
+        
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF vecscreen -i {:} -c {:}\n'.format(finalOut, args.cpus))
     

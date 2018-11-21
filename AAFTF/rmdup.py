@@ -92,7 +92,7 @@ def run(parser,args):
         if args.debug:
             status('Working on {:} len={:} remove_tally={:}'.format(x[0], x[1], len(ignore)))
         else:
-            text = "\rProgress: {:} of {:}; remove tally={:,}; current={:}; length={:}".format(i, len(those2check), len(ignore), x[0], x[1])
+            text = "\rProgress: {:} of {:}; remove tally={:,}; current={:}; length={:}     ".format(i, len(those2check), len(ignore), x[0], x[1])
             sys.stdout.write(text)
         #generate input files for minimap2
         theRest = [i[0] for i in sortSeqs[i+1:]]
@@ -117,7 +117,9 @@ def run(parser,args):
         nextOut = args.out.split('.')[0]+'.pilon.fasta'
     else:
         nextOut = args.out+'.pilon.fasta'
-    status('Your next command might be:\n\tAAFTF pilon -i {:} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {:}\n'.format(args.out, nextOut))
+    
+    if not args.pipe:
+    	status('Your next command might be:\n\tAAFTF pilon -i {:} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {:}\n'.format(args.out, nextOut))
 
     if not args.debug and not custom_workdir:
         SafeRemove(args.workdir)        

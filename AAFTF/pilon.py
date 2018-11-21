@@ -111,6 +111,7 @@ def run(parser,args):
 
     if not args.debug and not custom_workdir:
         SafeRemove(args.workdir)
-
-    status('Your next command might be:\n\tAAFTF sort -i {:} -o {:}\n'.format(polishedFasta, nextOut))      
+        
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF sort -i {:} -o {:}\n'.format(polishedFasta, nextOut))      
         
