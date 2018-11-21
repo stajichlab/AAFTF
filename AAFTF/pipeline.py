@@ -118,7 +118,7 @@ def run(parser,args):
     	sort.run(parser, sortargs)
     
     #assess the assembly
-    assessDict = {'input': basename+'.final.fasta'}
+    assessDict = {'input': basename+'.final.fasta', 'report': False}
     assessargs = Namespace(**assessDict)
     assess.run(parser, assessargs)
     	
