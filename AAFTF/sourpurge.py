@@ -11,6 +11,7 @@ from AAFTF.resources import DB_Links
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import SafeRemove
+from AAFTF.utility import checkfile
 
 # logging - we may need to think about whether this has 
 # separate name for the different runfolder
@@ -78,7 +79,7 @@ def run(parser,args):
     # output csv: ID,status,superkingdom,phylum,class,order,family,genus,species,strain
     Taxonomy = {}
     UniqueTax = []
-    sourmashTSV = os.path.join(args.workdir, 'sourmash.tsv')
+    sourmashTSV = os.path.join(args.workdir, 'sourmash.csv')
     with open(sourmashTSV, 'w') as sour_out:
         for line in execute(sour_classify, args.workdir):
             sour_out.write(line)
@@ -218,8 +219,8 @@ def run(parser,args):
     else:
         nextOut = args.outfile+'.rmdup.fasta'
     
-    if os.path.isfile(sourmashTSV):
-        os.rename(sourmashTSV, os.path.basename(sourmashTSV))
+    if checkfile(sourmashTSV):
+        os.rename(sourmashTSV, nextOut+'.sourmash-taxonomy.csv')
     
     if not args.debug:
         SafeRemove(args.workdir)
