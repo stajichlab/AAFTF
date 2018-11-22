@@ -5,6 +5,22 @@ import shutil
 import textwrap
 import datetime
 
+def checkfile(input):
+    def _getSize(filename):
+        st = os.stat(filename)
+        return st.st_size
+        
+    if os.path.isfile(input):
+        filesize = _getSize(input)
+        if int(filesize) < 1:
+            return False
+        else:
+            return True
+    elif os.path.islink(input):
+        return True
+    else:
+        return False
+
 def getRAM():
     import resource
     import sys
@@ -41,9 +57,9 @@ def fastastats(input):
     count = 0
     length = 0
     with open(input, 'rU') as f:
-    	for Header, Seq in SimpleFastaParser(f):
-    		count += 1
-    		length += len(Seq)
+        for Header, Seq in SimpleFastaParser(f):
+            count += 1
+            length += len(Seq)
     return count,length
 
 def countfastq(input):
@@ -80,13 +96,13 @@ def calcN50(lengths, num=0.5):
     return n50
 
 def printCMD(cmd):
-	stringcmd = '{:}'.format(' '.join(cmd))
-	prefix = '\033[96mCMD:\033[00m '
-	wrapper = textwrap.TextWrapper(initial_indent=prefix, width=80, subsequent_indent=' '*8, break_long_words=False)
-	print(wrapper.fill(stringcmd))
+    stringcmd = '{:}'.format(' '.join(cmd))
+    prefix = '\033[96mCMD:\033[00m '
+    wrapper = textwrap.TextWrapper(initial_indent=prefix, width=80, subsequent_indent=' '*8, break_long_words=False)
+    print(wrapper.fill(stringcmd))
 
 def status(string):
-	print('\033[92m[{:}]\033[00m {:}'.format(datetime.datetime.now().strftime('%b %d %I:%M %p'), string))
+    print('\033[92m[{:}]\033[00m {:}'.format(datetime.datetime.now().strftime('%b %d %I:%M %p'), string))
 
 #from https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
 def execute(cmd, dir):
