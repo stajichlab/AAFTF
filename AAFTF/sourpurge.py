@@ -222,7 +222,7 @@ def run(parser,args):
     if checkfile(sourmashTSV):
     	baseinput = os.path.basename(args.input)
     	if '.' in baseinput:
-    		baseinput = baseinput.rsplit('.',1)[0]
+            baseinput = baseinput.rsplit('.',1)[0]
         os.rename(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
     
     if not args.debug:
