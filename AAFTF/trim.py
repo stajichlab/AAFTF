@@ -3,14 +3,14 @@
 # attemps to remove vector and primer sequences
 
 import sys, os, subprocess
-
 from os.path import dirname
-#logging
-import logging
-logger = logging.getLogger('AAFTF')
-
 from AAFTF.utility import which_path
+from AAFTF.utility import status
 from AAFTF.utility import printCMD
+from AAFTF.utility import Fzip_inplace
+from AAFTF.utility import SafeRemove
+from AAFTF.utility import getRAM
+from AAFTF.utility import countfastq
 
 # process trimming reads with trimmomatic
 # Homebrew install of trimmomatic uses a shell script
@@ -39,107 +39,155 @@ def find_trimmomatic():
     else:
         return False
     
-def run(parser,args):    
-
-    if not args.outdir:
-        args.outdir = dirname(args.left)
-    os.makedirs(args.outdir,exist_ok=True)
+def run(parser,args):
     
-    if not args.prefix:
+    if not args.basename:
         if '_' in os.path.basename(args.left):
-            args.prefix = os.path.basename(args.left).split('_')[0]
+            args.basename = os.path.basename(args.left).split('_')[0]
         elif '.' in os.path.basename(args.left):
-            args.prefix = os.path.basename(args.left).split('.')[0]
+            args.basename = os.path.basename(args.left).split('.')[0]
         else:
-            args.prefix = os.path.basename(args.left)
-
-    left_expected = os.path.join(args.outdir,args.prefix)+"_1P.fastq"
-    if ( os.path.exists(left_expected) and
-         os.path.getctime(left_expected) >
-         os.path.getctime(args.left) ):
-        logger.info("Already ran trimming on %s %s" % (args.left,args.right))
-        return
+            args.basename = os.path.basename(args.left)
     
-    #find path    
-    trimmomatic_path = find_trimmomatic()
-    if trimmomatic_path:
-        jarfile = trimmomatic_path
-    elif args.trimmomatic:
-        jarfile = args.trimmomatic
-    else:
-        logger.error('Trimmomatic cannot be found - please provide location of trimmomatic.jar file.')
-        sys.exit(1)
-        
-    if jarfile:
-        path_to_adaptors = args.trimmomatic_adaptors
-        leadingwindow    = "LEADING:%d"%(args.trimmomatic_leadingwindow)
-        trailingwindow   = "TRAILING:%d"%(args.trimmomatic_trailingwindow)
-        slidingwindow    = "SLIDINGWINDOW:%s"%(args.trimmomatic_slidingwindow)
-
-        quality = args.trimmomatic_quality
-        quality = "-%s" % (quality) # add leading dash
-
-        if not os.path.exists(path_to_adaptors):
-            if args.right:
-                path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-PE.fa"
-            else:
-                path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-SE.fa"
+    total = countfastq(args.left)
+    if args.right:
+        total = total*2
+    status('Loading {:,} total reads'.format(total))
             
-            if not os.path.exists(path_to_adaptors):
-                findpath=dirname(jarfile)
-                path_to_adaptors=""
-                while findpath:
-                    if os.path.exists(findpath + "/share"):
-                        if args.right:
-                            path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
-                        else:
-                            path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-SE.fa"
-                        break
-                    findpath=dirname(findpath)
-
-            if not os.path.exists(path_to_adaptors):
-                print("Cannot find adaptors file, please specify manually")
-                logger.info("Cannot find adaptors file, please specify manually")
-                return
-        
-        clipstr = args.trimmomatic_clip % (path_to_adaptors)
-        
-        cmd = []
-        
+    DEVNULL = open(os.devnull, 'w')
+    if args.method == 'bbduk':
+        if args.memory:
+            MEM='-Xmx{:}g'.format(args.memory)
+        else:       
+            MEM='-Xmx{:}g'.format(round(0.6*getRAM()))
+            
+        status('Adapter trimming using BBDuk')
+        cmd = ['bbduk.sh', MEM, 'ref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
+           'k=23', 'mink=11', 'minlen={:}'.format(args.minlength), 'hdist=1',
+           'ftm=5', 'tpe', 'tbo', 'overwrite=true']
         if args.left and args.right:
-            cmd = ['java', '-jar', jarfile, 'PE',
-                   '-threads',str(args.cpus),quality,
-                   args.left,args.right,
-                   os.path.join(args.outdir,args.prefix+'_1P.fastq'),
-                   os.path.join(args.outdir,args.prefix+'_1U.fastq'),
-                   os.path.join(args.outdir,args.prefix+'_2P.fastq'),
-                   os.path.join(args.outdir,args.prefix+'_2U.fastq'),
-                   clipstr, leadingwindow, trailingwindow,slidingwindow,
-                   "MINLEN:%d" %(args.minlength) ]
-        elif args.left and not args.right:
-            cmd = ['java', '-jar', jarfile, 'SE',
-                   '-threads',str(args.cpus),
-                   quality,  args.left,
-                   os.path.join(args.outdir,args.prefix+'_1U.fastq'),
-                   clipstr, leadingwindow, trailingwindow,slidingwindow,
-                   "MINLEN:%d" %(args.minlength) ]
-        else:
-            logger.error("Must provide left and right pairs or single read set")
-            return
+            cmd += ['in1={:}'.format(args.left), 'in2={:}'.format(args.right), 
+                    'out1={:}_1P.fastq.gz'.format(args.basename), 'out2={:}_2P.fastq.gz'.format(args.basename)]
+        elif args.left:
+            cmd += ['in={:}'.format(args.left), 'out={:}_1U.fastq.gz'.format(args.basename)]
         
-        DEVNULL = open(os.devnull, 'w')
-        logger.info(' Running trimmomatic adapter and quality trimming')
-        logger.info("CMD: {:}".format(printCMD(cmd, 4)))
+        printCMD(cmd)
         if args.debug:
             subprocess.run(cmd)
         else:
             subprocess.run(cmd, stderr=DEVNULL)
+
         if args.right:
-            logger.info('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
-                        os.path.join(args.outdir,args.prefix+'_1P.fastq'),
-                        os.path.join(args.outdir,args.prefix+'_2P.fastq')))
+            clean = countfastq('{:}_1P.fastq.gz'.format(args.basename))
+            clean = clean*2
+            status('{:,} reads remaining and writing to file'.format(clean))
+            status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
+                        args.basename+'_1P.fastq.gz',
+                        args.basename+'_2P.fastq.gz'))
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                        args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
         else:
-            logger.info('Trimming finished:\n\tSingle: {:}'.format(
-                        os.path.join(args.outdir,args.prefix+'_1P.fastq')))
-        logger.info('Your next command might be:\n\tAAFTF filter -w {:} -c {:}\n'.format(args.outdir, args.cpus))    
+            clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
+            status('{:,} reads remaining and writing to file'.format(clean))
+            status('Trimming finished:\n\tSingle: {:}'.format(
+                        args.basename+'_1U.fastq.gz'))
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                        args.basename+'_1U.fastq.gz', args.basename, args.cpus))                 
+
+    elif args.method == 'trimmomatic':
+        #find path    
+        trimmomatic_path = find_trimmomatic()
+        if trimmomatic_path:
+            jarfile = trimmomatic_path
+        elif args.trimmomatic:
+            jarfile = args.trimmomatic
+        else:
+            status('Trimmomatic cannot be found - please provide location of trimmomatic.jar file.')
+            sys.exit(1)
+        
+        if jarfile:
+            path_to_adaptors = args.trimmomatic_adaptors
+            leadingwindow    = "LEADING:%d"%(args.trimmomatic_leadingwindow)
+            trailingwindow   = "TRAILING:%d"%(args.trimmomatic_trailingwindow)
+            slidingwindow    = "SLIDINGWINDOW:%s"%(args.trimmomatic_slidingwindow)
+
+            quality = args.trimmomatic_quality
+            quality = "-%s" % (quality) # add leading dash
+
+            if not os.path.exists(path_to_adaptors):
+                if args.right:
+                    path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-PE.fa"
+                else:
+                    path_to_adaptors = dirname(jarfile)+"/adapters/TruSeq3-SE.fa"
+            
+                if not os.path.exists(path_to_adaptors):
+                    findpath=dirname(jarfile)
+                    path_to_adaptors=""
+                    while findpath:
+                        if os.path.exists(findpath + "/share"):
+                            if args.right:
+                                path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+                            else:
+                                path_to_adaptors=findpath+"/share/trimmomatic/adapters/TruSeq3-SE.fa"
+                            break
+                        findpath=dirname(findpath)
+
+                if not os.path.exists(path_to_adaptors):
+                    status("Cannot find adaptors file, please specify manually")
+                    status("Cannot find adaptors file, please specify manually")
+                    return
+        
+            clipstr = args.trimmomatic_clip % (path_to_adaptors)
+        
+            cmd = []
+        
+            if args.left and args.right:
+                cmd = ['java', '-jar', jarfile, 'PE',
+                       '-threads',str(args.cpus),quality,
+                       args.left,args.right,
+                       args.basename+'_1P.fastq',
+                       args.basename+'_1U.fastq',
+                       args.basename+'_2P.fastq',
+                       args.basename+'_2U.fastq',
+                       clipstr, leadingwindow, trailingwindow,slidingwindow,
+                       "MINLEN:%d" %(args.minlength) ]
+            elif args.left and not args.right:
+                cmd = ['java', '-jar', jarfile, 'SE',
+                       '-threads',str(args.cpus),
+                       quality,  args.left,
+                       args.basename+'_1U.fastq',
+                       clipstr, leadingwindow, trailingwindow,slidingwindow,
+                       "MINLEN:%d" %(args.minlength) ]
+            else:
+                status("Must provide left and right pairs or single read set")
+                return
+        
+            status('Running trimmomatic adapter and quality trimming')
+            printCMD(cmd)
+            if args.debug:
+                subprocess.run(cmd)
+            else:
+                subprocess.run(cmd, stderr=DEVNULL)
+            if args.right:
+                status('Compressing trimmed PE FASTQ files')
+                Fzip_inplace(args.basename+'_1P.fastq', args.cpus)
+                Fzip_inplace(args.basename+'_2P.fastq', args.cpus)
+                SafeRemove(args.basename+'_1U.fastq')
+                SafeRemove(args.basename+'_2U.fastq')
+                status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
+                            args.basename+'_1P.fastq.gz',
+                            args.basename+'_2P.fastq.gz'))
+                if not args.pipe:
+                    status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                            args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus)) 
+            else:
+                status('Compressing trimmed SE FASTQ file')
+                Fzip_inplace(args.basename+'_1U.fastq', args.cpus)
+                status('Trimming finished:\n\tSingle: {:}'.format(
+                            args.basename+'_1U.fastq.gz'))
+                if not args.pipe:
+                    status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                            args.basename+'_1U.fastq.gz', args.basename, args.cpus))    
 

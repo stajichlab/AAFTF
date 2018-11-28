@@ -8,27 +8,23 @@ from AAFTF.utility import execute
 from AAFTF.utility import calcN50
 from AAFTF.utility import fastastats
 from AAFTF.resources import DB_Links
+from AAFTF.utility import status
+from AAFTF.utility import printCMD
+from AAFTF.utility import SafeRemove
+from AAFTF.utility import checkfile
 
 # logging - we may need to think about whether this has 
 # separate name for the different runfolder
-
-import logging
-logger = logging.getLogger('AAFTF')
-
 def run(parser,args):
 
+    if not args.workdir:
+        args.workdir = 'aaftf-sourpurge_'+str(os.getpid())    
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
-    if args.prefix:
-        prefix = args.prefix
-    elif args.left:
-        prefix = os.path.basename(os.path.splitext(args.left)[0])
-    elif args.outfile:
-        prefix = os.path.basename(os.path.splitext(args.outfile)[0])
-
-    if not prefix.endswith('_'):
-        prefix += "_"
+    bamthreads = 4
+    if args.cpus < 4:
+        bamthreads = 1
 
     #find reads
     forReads, revReads = (None,)*2
@@ -37,14 +33,7 @@ def run(parser,args):
     if args.right:
         revReads = os.path.abspath(args.right)
     if not forReads:
-        for file in os.listdir(args.workdir):
-            if '_cleaned' in file and file.endswith('q.gz') and file.startswith(prefix):
-                if '_1.fastq' in file:
-                    forReads = os.path.abspath(os.path.join(args.workdir, file))
-                if '_2.fastq' in file:
-                    revReads = os.path.abspath(os.path.join(args.workdir, file))
-    if not forReads:
-        print('Unable to located FASTQ raw reads, so low coverage will not be used to remove contigs')
+        status('Unable to located FASTQ raw reads, low coverage will be skipped. Provide -l,--left or -r,--right to enable low coverage filtering.')
 #        sys.exit(1)
     
     #parse database locations
@@ -55,42 +44,42 @@ def run(parser,args):
             if args.AAFTF_DB:
                 SOUR = os.path.join(args.AAFTF_DB, 'genbank-k31.lca.json.gz')
             else:
-                logger.error("$AAFTF_DB/genbank-k31.lca.json.gz not found, pass --sourdb")
+                status("$AAFTF_DB/genbank-k31.lca.json.gz not found, pass --sourdb")
                 sys.exit(1)
         SOUR = os.path.join(DB, 'genbank-k31.lca.json.gz')
         if not os.path.isfile(SOUR):
-            logger.error("{:} sourmash database not found".format(SOUR))
+            status("{:} sourmash database not found".format(SOUR))
             # should we prompt it to download 
-            exit
+            sys.exit(1)
     else:
         SOUR = os.path.abspath(args.sourdb)
                     
     # hard coded tmpfile
-    assembly_working  = prefix + 'assembly.fasta'
-    megablast_working = prefix + 'megablast.out'
-    blobBAM           = prefix + 'remapped.bam'
+    assembly_working  = 'assembly.fasta'
+    megablast_working = 'megablast.out'
+    blobBAM           = 'remapped.bam'
     shutil.copyfile(args.input, os.path.join(args.workdir,assembly_working))
     numSeqs, assemblySize = fastastats(os.path.join(args.workdir,
                                                     assembly_working))
-    logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, 
+    status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, 
                                                               assemblySize))
     DEVNULL = open(os.devnull, 'w')
 
     #now filter for taxonomy with sourmash lca classify
-    logger.info('Running SourMash to get taxonomy classification for each contig')
+    status('Running SourMash to get taxonomy classification for each contig')
     sour_sketch = os.path.basename(assembly_working)+'.sig'
     sour_compute = ['sourmash', 'compute', '-k', '31', '--scaled=1000',
                    '--singleton', assembly_working]
-    logger.info('CMD: {:}'.format(' '.join(sour_compute)))
+    printCMD(sour_compute)
     subprocess.run(sour_compute, cwd=args.workdir, stderr=DEVNULL)
     
     sour_classify = ['sourmash', 'lca', 'classify', '--db', SOUR,
                      '--query', sour_sketch]
-    logger.info('CMD: {:}'.format(' '.join(sour_classify)))
+    printCMD(sour_classify)
     # output csv: ID,status,superkingdom,phylum,class,order,family,genus,species,strain
     Taxonomy = {}
     UniqueTax = []
-    sourmashTSV = os.path.join(args.workdir, prefix + 'sourmash.tsv')
+    sourmashTSV = os.path.join(args.workdir, 'sourmash.csv')
     with open(sourmashTSV, 'w') as sour_out:
         for line in execute(sour_classify, args.workdir):
             sour_out.write(line)
@@ -107,7 +96,7 @@ def run(parser,args):
                 idx = cols.index('nomatch')
                 Taxonomy[cols[0]] = cols[idx+1:]
     UniqueTax = set(UniqueTax)
-    logger.info('Found {:} taxonomic classifications for contigs:\n{:}'.
+    status('Found {:} taxonomic classifications for contigs:\n{:}'.
                 format(len(UniqueTax), '\n'.join(UniqueTax)))
     if args.taxonomy:
         sys.exit(1)
@@ -121,8 +110,8 @@ def run(parser,args):
                 Tax2Drop.append(k)
     
     #drop contigs from taxonomy before calculating coverage
-    logger.info('Dropping {:} contigs from taxonomy screen'.format(len(Tax2Drop)))
-    sourTax = os.path.join(args.workdir, prefix+'sourmashed-tax-screen.fasta')
+    status('Dropping {:} contigs from taxonomy screen'.format(len(Tax2Drop)))
+    sourTax = os.path.join(args.workdir, 'sourmashed-tax-screen.fasta')
     with open(sourTax, 'w') as outfile:
         with open(os.path.join(args.workdir,assembly_working), 'rU') as infile:
             for record in SeqIO.parse(infile, 'fasta'):
@@ -136,8 +125,8 @@ def run(parser,args):
         if not os.path.isfile(os.path.join(args.workdir, blobBAM)):  
             # index
             bwa_index  = ['bwa','index', os.path.basename(sourTax)]     
-            logger.info('Building BWA index')
-            logger.info('CMD: {:}'.format(' '.join(bwa_index)))
+            status('Building BWA index')
+            printCMD(bwa_index)
             subprocess.run(bwa_index, cwd=args.workdir, stderr=DEVNULL)
             #mapped reads to assembly using BWA
             bwa_cmd = ['bwa','mem',
@@ -148,12 +137,12 @@ def run(parser,args):
                 bwa_cmd.append(revReads)
 
                 #run BWA and pipe to samtools sort
-                logger.info('Aligning reads to assembly with BWA')
-                logger.info('CMD: {:}'.format(' '.join(bwa_cmd)))
+                status('Aligning reads to assembly with BWA')
+                printCMD(bwa_cmd)
                 p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
                                       stdout=subprocess.PIPE, stderr=DEVNULL)
                 p2 = subprocess.Popen(['samtools', 'sort', 
-                                       '--threads', str(args.cpus),
+                                       '--threads', str(bamthreads),
                                        '-o', blobBAM, '-'], cwd=args.workdir,
                                       stdout=subprocess.PIPE, stderr=DEVNULL,
                                       stdin=p1.stdout)
@@ -162,8 +151,8 @@ def run(parser,args):
                 subprocess.run(['samtools', 'index', blobBAM], cwd=args.workdir)
 
         #now calculate coverage from BAM file
-        logger.info('Calculating read coverage per contig')
-        FastaBed = os.path.join(args.workdir, prefix+'assembly.bed')
+        status('Calculating read coverage per contig')
+        FastaBed = os.path.join(args.workdir, 'assembly.bed')
         lengths = []
         with open(FastaBed, 'w') as bedout:
             with open(sourTax, 'rU') as SeqIn:
@@ -173,9 +162,9 @@ def run(parser,args):
     
         N50 = calcN50(lengths)
         Coverage = {}
-        coverageBed = os.path.join(args.workdir, prefix+'coverage.bed')
+        coverageBed = os.path.join(args.workdir, 'coverage.bed')
         cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM] 
-        logger.info('CMD: {:}'.format(' '.join(cov_cmd)))
+        printCMD(cov_cmd)
         with open(coverageBed, 'w') as bed_out:
             for line in execute(cov_cmd, args.workdir):
                 bed_out.write(line)
@@ -199,32 +188,29 @@ def run(parser,args):
         minpct = args.mincovpct / 100
         # should we make this a variable? 5% was something arbitrary
         min_coverage = float(n50AvgCov * minpct)  
-        logger.info('Average coverage for N50 contigs is {:}X'.format(int(n50AvgCov)))
-        #Start list of contigs to drop
+        status('Average coverage for N50 contigs is {:}X'.format(int(n50AvgCov)))
         
+        #Start list of contigs to drop  
         for k,v in Coverage.items():
             if v[1] <= min_coverage:
                 Contigs2Drop.append(k)
-                logger.info('Found {:,} contigs with coverage less than {:.2f}X ({:}%)'.
+        status('Found {:,} contigs with coverage less than {:.2f}X ({:}%)'.
                             format(len(Contigs2Drop), min_coverage, args.mincovpct))
             
     if args.debug:
-        print('Contigs dropped due to coverage: {:}'.format(','.join(Contigs2Drop)))
-        print('Contigs dropped due to taxonomy: {:}'.format(','.join(Tax2Drop)))
-
-        logger.debug('Contigs dropped due to coverage: {:}'.format(','.join(Contigs2Drop)))
-        logger.debug('Contigs dropped due to taxonomy: {:}'.format(','.join(Tax2Drop)))
+        print('Contigs dropped due to coverage: {:,}'.format(','.join(Contigs2Drop)))
+        print('Contigs dropped due to taxonomy: {:,}'.format(','.join(Tax2Drop)))
         
     DropFinal = Contigs2Drop + Tax2Drop
     DropFinal = set(DropFinal)
-    logger.info('Dropping {:} total contigs based on taxonomy and coverage'.format(len(DropFinal)))
+    status('Dropping {:,} total contigs based on taxonomy and coverage'.format(len(DropFinal)))
     with open(args.outfile, 'w') as outfile, open(sourTax, 'rU') as seqin:
         for record in SeqIO.parse(seqin, 'fasta'):
             if not record.id in DropFinal:
                 SeqIO.write(record, outfile, 'fasta')
                     
     numSeqs, assemblySize = fastastats(args.outfile)
-    logger.info('Cleaned assembly is {:,} contigs and {:,} bp'.
+    status('Sourpurged assembly is {:,} contigs and {:,} bp'.
                 format(numSeqs, assemblySize))
     if '_' in args.outfile:
         nextOut = args.outfile.split('_')[0]+'.rmdup.fasta'
@@ -233,4 +219,14 @@ def run(parser,args):
     else:
         nextOut = args.outfile+'.rmdup.fasta'
     
-    logger.info('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))
+    if checkfile(sourmashTSV):
+    	baseinput = os.path.basename(args.input)
+    	if '.' in baseinput:
+    		baseinput = baseinput.rsplit('.',1)[0]
+        os.rename(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
+    
+    if not args.debug:
+        SafeRemove(args.workdir)
+    
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))

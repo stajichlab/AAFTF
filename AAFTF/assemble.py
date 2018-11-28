@@ -4,57 +4,30 @@
 
 
 import sys, os, subprocess, shutil
-
-#logging
-import logging
-logger = logging.getLogger('AAFTF')
-
+from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import fastastats
 
 def run(parser,args):
 
-    if args.workdir == 'working_AAFTF' and not args.prefix and not args.left: 
-        logger.error(' Please provide either -w,--workdir, -p,--prefix, or --left reads.')
-        sys.exit(1)
+    if not args.workdir:
+        args.workdir = 'spades_'+str(os.getpid())
+        
+    spadescmd = ['spades.py','--threads', str(args.cpus), 
+                 '--cov-cutoff', 'auto',
+                 '--mem', args.memory, '--careful', '-o', args.workdir]
 
-    if not os.path.exists(args.workdir):
-        os.mkdir(args.workdir)
-
-    prefix = args.prefix
-    if not prefix:
-        prefix = os.path.basename(args.left)
-
-    spadesdir = os.path.join(args.workdir,'spades_'+prefix)
-    logger.debug("spadesdir is %s"%(spadesdir))
-    spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
-                 '--mem',args.memory,'--careful',
-                 '-o', spadesdir]
     if args.spades_tmpdir:
-        spadescmd.append('--tmp-dir')
-        spadescmd.append(args.spades_tmpdir)
-
-#    spadescmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff','auto',
-#                 '-k', '21,33,55,77,99,127','--mem',args.memory,'--careful',
-#                 '-o', spadesdir]
-                
+        spadescmd.extend(['--tmp-dir',args.spades_tmpdir])
+        
     #find reads -- use --left/right or look for cleaned in tmpdir
     forReads, revReads = (None,)*2
     if args.left:
         forReads = os.path.abspath(args.left)
     if args.right:
         revReads = os.path.abspath(args.right)
-
-
     if not forReads:
-        for file in os.listdir(args.workdir):
-            if '_cleaned' in file and file.endswith('q.gz') and file.startswith(prefix):
-                if '_1.fastq' in file:
-                    forReads = os.path.abspath(os.path.join(args.workdir, file))
-                if '_2.fastq' in file:
-                    revReads = os.path.abspath(os.path.join(args.workdir, file))
-    if not forReads:
-        logger.error('Unable to located FASTQ raw reads, provide correct combination of --prefix, --workdir, or --left')
+        status('Unable to located FASTQ raw reads, provide --left')
         sys.exit(1)
     
     if not revReads:
@@ -62,12 +35,12 @@ def run(parser,args):
     else:
         spadescmd = spadescmd + ['--pe1-1', forReads, '--pe1-2', revReads]
 
-    if os.path.isdir(spadesdir):
-        spadescmd = ['spades.py','-o',spadesdir,'--continue']
+    if os.path.isdir(args.workdir):
+        spadescmd.append('--continue')
 
     # now run the spades job
-    logger.info('Assembling FASTQ data using Spades')
-    logger.info('CMD: {:}'.format(printCMD(spadescmd, 10)))
+    status('Assembling FASTQ data using Spades')
+    printCMD(spadescmd)
     DEVNULL = open(os.devnull, 'w')
     if args.debug:
         subprocess.run(spadescmd)
@@ -79,12 +52,14 @@ def run(parser,args):
     else:
         finalOut = prefix+'.spades.fasta'
 
-    if os.path.isfile(os.path.join(spadesdir, 'scaffolds.fasta')):
-        shutil.copyfile(os.path.join(spadesdir,'scaffolds.fasta'), finalOut)
-        logger.info(' Spades assembly finished: {:}'.format(finalOut))
+    if os.path.isfile(os.path.join(args.workdir, 'scaffolds.fasta')):
+        shutil.copyfile(os.path.join(args.workdir,'scaffolds.fasta'), finalOut)
+        status('Spades assembly finished: {:}'.format(finalOut))
         numSeqs, assemblySize = fastastats(finalOut)
-        logger.info('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
+        status('Assembly is {:,} scaffolds and {:,} bp'.format(numSeqs, assemblySize))
     else:
-        logger.error(' Spades assembly output missing -- check Spades logfile.')
-    logger.info('Your next command might be:\n\tAAFTF vecscreen -i {:} -c {:}\n'.format(finalOut, args.cpus))
+        status('Spades assembly output missing -- check Spades logfile.')
+        
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF vecscreen -i {:} -c {:}\n'.format(finalOut, args.cpus))
     

@@ -16,16 +16,15 @@ from subprocess import call, Popen, PIPE, STDOUT
 import urllib.request
 from AAFTF.resources import SeqDBs
 from AAFTF.resources import DB_Links
+from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import softwrap
 from AAFTF.utility import countfasta
+from AAFTF.utility import SafeRemove
 
 # biopython needed
 from Bio import SeqIO
 
-#logging
-import logging
-logger = logging.getLogger('AAFTF')
 
 BlastPercent_ID_ContamMatch = "90.0"
 BlastPercent_ID_MitoMatch   = "98.6"
@@ -159,12 +158,12 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
                     slicer.append(ThreeEnd)
                 paired_slicer = list(group(slicer, 2))
                 if len(paired_slicer) < 2:
-                    logger.info('Terminal trimming {:} to {:}'.format(record.id, paired_slicer))
+                    status('Terminal trimming {:} to {:}'.format(record.id, paired_slicer))
                     newSeq = Seq[paired_slicer[0][0]:paired_slicer[0][1]]
                     if len(newSeq) >= 200:
                         output_handle.write('>{:}\n{:}\n'.format(record.id, softwrap(newSeq)))
                 else:
-                    logger.info('Spliting contig {:} into {:}'.format(record.id, paired_slicer))
+                    status('Spliting contig {:} into {:}'.format(record.id, paired_slicer))
                     for num,y in enumerate(paired_slicer):
                         newSeq = Seq[y[0]:y[1]]
                         if len(newSeq) >= 200:
@@ -181,12 +180,13 @@ def make_blastdb(type,file,name):
     
     if not os.path.exists(indexfile) or os.path.getctime(indexfile) < os.path.getctime(file):
         cmd = ['makeblastdb','-dbtype',type,'-in',file,'-out',name]
-        logger.info('CMD: {:}'.format(' '.join(cmd)))
+        printCMD(cmd)
         call(cmd, stdout=DEVNULL, stderr=DEVNULL)
 
         
 def run(parser,args):
-
+    if not args.workdir:
+        args.workdir = 'aaftf-vecscreen_'+str(os.getpid())
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
     
@@ -206,20 +206,14 @@ def run(parser,args):
     if args.percent_id:
         percentid_cutoff = args.percent_id
 
-    if args.prefix:
-        prefix = args.prefix
-    else:
-        prefix = os.path.basename(args.infile)
-        if '_' in prefix:
-            # not sure I like this - we may want to do this at a terminal
-            # _ ?
-            prefix = prefix.split('_')[0]
-        else:
-            prefix = os.path.splitext(prefix)[0]
-
     infile = args.infile
-    outfile = args.outfile
-    outdir = os.path.dirname(outfile)
+    outfile = os.path.basename(args.outfile)
+    outdir = os.path.dirname(args.outfile)
+    if '.f' in outfile:
+        prefix = outfile.rsplit('.f', 1)[0]
+        print("prefix is ",prefix)
+    else:
+        prefix = str(os.getpid())
     if not outfile:
         outfile = "%s.vecscreen.fasta" % prefix
 
@@ -227,14 +221,14 @@ def run(parser,args):
                                "%s.tmp_vecscreen.fasta" % (prefix))
 
     # Common Euk/Prot contaminats for blastable DB later on
-    logger.info('Building blast databases for contamination screen.')
+    status('Building BLAST databases for contamination screen.')
     makeblastdblist = []
     for d in DB_Links:
         if d == 'sourmash':
             continue
         url = DB_Links[d]
         dbname = os.path.basename(str(url))
-        logger.debug("testing for url=%s dbname=%s"%(url,dbname))
+        #logger.debug("testing for url=%s dbname=%s"%(url,dbname))
         if DB:
             file = os.path.join(DB, dbname)
         else:
@@ -258,9 +252,11 @@ def run(parser,args):
     
     global contigs_to_remove
     contigs_to_remove = {}
+    regions_to_trim = {}
     
+    #qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
     for contam in ["CONTAM_EUKS","CONTAM_PROKS" ]:                       
-        logger.info("%s Contamination Screen" % (contam))
+        status("%s Contamination Screen" % (contam))
         blastreport = os.path.join(args.workdir,
                                    "%s.%s.blastn" % (contam, prefix))
         blastnargs = ['blastn',
@@ -270,7 +266,7 @@ def run(parser,args):
                       '-dust', 'yes', '-soft_masking', 'true',
                       '-perc_identity',BlastPercent_ID_ContamMatch,
                       '-lcase_masking', '-outfmt', '6', '-out',blastreport]
-        logger.info('CMD: {:}'.format(printCMD(blastnargs, 7)))
+        printCMD(blastnargs)
         call(blastnargs)
         hits = 0
         with open(blastreport) as report:
@@ -282,23 +278,55 @@ def run(parser,args):
                       int(row[3]) >= 100) or
                     ( float(row[2]) >= 90.0 and
                       int(row[3]) >= 200) ):
-                    contigs_to_remove[row[0]] = (contam, row[1], float(row[2]))
-        logger.info('{:} screening finished'.format(contam))
+                    if not row[0] in regions_to_trim:
+                        if int(row[6]) < int(row[7]):
+                            start = int(row[6])
+                            end = int(row[7])
+                        else:
+                            start = int(row[7])
+                            end = int(row[6])
+                        regions_to_trim[row[0]] = [(start, end, contam, row[1], float(row[2]))]
+                    else:
+                        regions_to_trim[row[0]].append((start, end, contam, row[1], float(row[2])))
+        status('{:} screening finished'.format(contam))
+
+    eukCleaned = os.path.join(args.workdir, "%s.euk-prot_cleaned.fasta" % (prefix))
+    if len(regions_to_trim) > 0:
+        with open(eukCleaned, 'w') as cleanout:
+            with open(infile, 'rU') as fastain:
+                for record in SeqIO.parse(fastain, 'fasta'):
+                    if not record.id in regions_to_trim:
+                        cleanout.write('>{:}\n{:}\n'.format(record.id, softwrap(str(record.seq))))
+                    else:
+                        Seq = str(record.seq)
+                        regions = regions_to_trim[record.id]
+                        status('Splitting {:} due to contamination: {:}'.format(record.id, regions))
+                        lastpos = 0
+                        newSeq = ''
+                        for i,x in enumerate(regions):
+                            newSeq = Seq[lastpos:x[0]]
+                            lastpos = x[1]
+                            cleanout.write('>split{:}_{:}\n{:}\n'.format(i, record.id, softwrap(newSeq)))
+                            if i == len(regions)-1:
+                                newSeq = Seq[x[1]:]
+                                cleanout.write('>split{:}_{:}\n{:}\n'.format(i+1, record.id, softwrap(newSeq)))
+    else:
+        eukCleaned = infile
             
     # MITO screen
-    logger.info('Mitochondria Contamination Screen')
+    status('Mitochondria Contamination Screen')
     mitoHits = []
     blastreport = os.path.join(args.workdir,
                                "%s.%s.blastn" % ('MITO',prefix))
     blastnargs = ['blastn',
-                  '-query', infile,
+                  '-query', eukCleaned,
                   '-db', os.path.join(args.workdir,'MITO'),
                   '-num_threads', str(args.cpus),
                   '-dust', 'yes', '-soft_masking', 'true',
                   '-perc_identity',BlastPercent_ID_MitoMatch,
                   '-lcase_masking', '-outfmt','6',
                   '-out', blastreport]
-    logger.info('CMD: {:}'.format(printCMD(blastnargs, 7)))
+    printCMD(blastnargs)
     call(blastnargs)
     with open(blastreport) as report:
         colparser = csv.reader(report, delimiter="\t")
@@ -306,10 +334,10 @@ def run(parser,args):
             if int(row[3]) >= 120:
                 contigs_to_remove[row[0]] = ('MitoScreen', row[1], float(row[2]))
                 mitoHits.append(row[0])
-    logger.info('Mito screening finished.')
+    status('Mito screening finished.')
 
     #vecscreen starts here
-    logger.info('Starting VecScreen, will remove terminal matches and split internal matches')
+    status('Starting VecScreen, will remove terminal matches and split internal matches')
     rnd = 0
     count = 1
     while (count > 0):
@@ -323,21 +351,21 @@ def run(parser,args):
                   '-db', os.path.join(args.workdir,'UniVec'),
                   '-outfmt', '6 qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore score qlen', 
                   '-num_threads',str(args.cpus),
-                  '-query', infile, '-out', report]
+                  '-query', eukCleaned, '-out', report]
             #logger.info('CMD: {:}'.format(printCMD(cmd,7)))
             call(cmd)
         # this needs to know/return the new fasta file?
-        logger.info("Parsing VecScreen round {:}: {:} for {:}".format(rnd+1, filepref,report))
-        (count,cleanfile) = parse_clean_blastn(infile, os.path.join(args.workdir,filepref),report, args.stringency)
-        logger.info("count is %d cleanfile is %s"%(count,cleanfile))
+        status("Parsing VecScreen round {:}: {:} for {:}".format(rnd+1, filepref,report))
+        (count, cleanfile) = parse_clean_blastn(eukCleaned, os.path.join(args.workdir,filepref),report, args.stringency)
+        status("count is %d cleanfile is %s"%(count, cleanfile))
         if count == 0: # if there are no vector matches < than the pid cutoff
-            logger.info("copying %s to %s"%(infile,outfile_vec))
-            shutil.copy(infile,outfile_vec)
+            status("copying %s to %s"%(eukCleaned, outfile_vec))
+            shutil.copy(eukCleaned, outfile_vec)
         else:
             rnd += 1
-            infile = cleanfile
+            eukCleaned = cleanfile
 
-    logger.info("{:,} contigs will be removed:".format(len(contigs_to_remove)))
+    status("{:,} contigs will be removed:".format(len(contigs_to_remove)))
     for k,v in sorted(contigs_to_remove.items()):
         print('\t{:} --> dbhit={:}; hit={:}; pident={:}'.format(k,v[0], v[1], v[2]))
 
@@ -345,13 +373,24 @@ def run(parser,args):
     # a bit about the naming structure
 
     mitochondria = os.path.join(outdir,prefix+'.mitochondria.fasta')
-    with open(outfile, "w") as output_handle, open(mitochondria, 'w') as mito_handle:
+    with open(args.outfile, "w") as output_handle, open(mitochondria, 'w') as mito_handle:
         for record in SeqIO.parse(outfile_vec, "fasta"):
             if not record.id in contigs_to_remove:
                 SeqIO.write(record, output_handle, "fasta")
             elif record.id in mitoHits:
                 SeqIO.write(record, mito_handle, "fasta")
-    logger.info('Writing {:,} cleaned contigs to: {:}'.format(countfasta(outfile), outfile))
-    logger.info('Writing {:,} mitochondrial contigs to: {:}'.format(countfasta(mitochondria), mitochondria))
-    logger.info('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:}\n'.format(outfile, prefix+'.sourpurge.fasta', args.cpus))
+    status('Writing {:,} cleaned contigs to: {:}'.format(countfasta(args.outfile), args.outfile))
+    status('Writing {:,} mitochondrial contigs to: {:}'.format(countfasta(mitochondria), mitochondria))
+    if '_' in args.outfile:
+        nextOut = args.outfile.split('_')[0]+'.sourpurge.fasta'
+    elif '.' in args.outfile:
+        nextOut = args.outfile.split('.')[0]+'.sourpurge.fasta'
+    else:
+        nextOut = args.outfile+'.sourpurge.fasta'
+
+    if not args.pipe:
+        status('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:} --phylum Ascomycota\n'.format(
+            args.outfile, nextOut, args.cpus))
     
+    if not args.debug:
+        SafeRemove(args.workdir)
