@@ -220,9 +220,10 @@ def run(parser,args):
         nextOut = args.outfile+'.rmdup.fasta'
     
     if checkfile(sourmashTSV):
-    	baseinput = os.path.basename(args.input)
-    	if '.' in baseinput:
+        baseinput = os.path.basename(args.input)
+        if '.' in baseinput:
             baseinput = baseinput.rsplit('.',1)[0]
+
         os.rename(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
     
     if not args.debug:
