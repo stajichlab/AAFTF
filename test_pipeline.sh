@@ -1,18 +1,10 @@
 #!/bin/bash
 
-module load ncbi-blast/2.7.1+
-module load samtools/1.8
-module load bwa/0.7.17
-module load trimmomatic
-module load java
-module load bowtie2
-module load python/3
-module load SPAdes
-module load pilon
-module load blobtools
+module load AAFTF
 
 OUTDIR=test
 PREFIX=Rant
+PHYLUM=Ascomycota
 
 mkdir -p $OUTDIR
 pushd $OUTDIR
@@ -28,30 +20,43 @@ CPU=24
 if [ $SLURM_CPUS_ON_NODE ]; then
     CPU=$SLURM_CPUS_ON_NODE
 fi
+LEFTTRIM=$OUTDIR/${PREFIX}_1P.fastq.gz
+RIGHTTRIM=$OUTDIR/${PREFIX}_2P.fastq.gz
+LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
+RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 
-if [ ! -f $OUTDIR/${PREFIX}_1P.fastq ]; then
-	./scripts/AAFTF trim --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR --prefix $PREFIX \
-		-c $CPU --trimmomatic  $TRIMMOMATIC
+if [ ! -f $LEFTTRIM ]; then
+	./scripts/AAFTF trim --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR/${PREFIX} -c $CPU 
 fi
-if [ ! -f $OUTDIR/${PREFIX}_cleaned_1.fq.gz ]; then
- 	./scripts/AAFTF filter -i $OUTDIR --prefix $PREFIX --bowtie2 --paired -c $CPU 	
+if [ ! -f $LEFT ]; then
+ 	./scripts/AAFTF filter -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX} 
 fi
-if [ ! -f $OUTDIR/${PREFIX}/scaffolds.fasta ]; then
-	./scripts/AAFTF assemble -i $OUTDIR --prefix $PREFIX --paired -c $CPU
-fi
-if [ ! -f $OUTDIR/${PREFIX}.vecscreen.fasta ]; then
-	./scripts/AAFTF vecscreen -i $OUTDIR/$PREFIX/scaffolds.fasta -o $OUTDIR/$PREFIX.vecscreen.fasta
-fi
-if [ ! -f $OUTDIR/${PREFIX}.vecscreen_purge.fasta ]; then
-	./scripts/AAFTF blobpurge -i $OUTDIR/$PREFIX.vecscreen.fasta \
-	-o $OUTDIR/$PREFIX.vescreen_purge.fasta --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz \
-	--phylum Ascomycota 
-fi
-if [ ! -f $OUTDIR/${PREFIX}.cleaned.fasta ]; then
-	./scripts/AAFTF rmdup -i $OUTDIR/$PREFIX.vescreen_purge.fasta -o $OUTDIR/$PREFIX.cleaned.fasta
-fi
-if [ ! -f $OUTDIR/$PREFIX.cleaned_sorted.fasta ]; then
-	./scripts/AAFTF sort -i $OUTDIR/$PREFIX.cleaned.fasta -o $OUTDIR/$PREFIX.cleaned_sorted.fasta
-fi
-./scripts/AAFTF assess -i $OUTDIR/$PREFIX.vecscreen.fasta -r $OUTDIR/$PREFIX.vecscreen.stats.txt  
+unlink $LEFTTRIM
+unlink $RIGHTTRIM
 
+ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
+VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
+PURGE=$OUTDIR/${PREFIX}.sourpurge.fasta
+CLEANDUP=$OUTDIR/${PREFIX}.rmdup.fasta
+PILON=$OUTDIR/${PREFIX}.pilon.fasta
+SORTED=$OUTDIR/${PREFIX}.sorted.fasta
+STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
+if [ ! -f $ASMFILE ]; then
+	./scripts/AAFTF assemble --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU
+fi
+if [ ! -f $VECCLEAN ]; then
+	./scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU
+fi
+if [ ! -f $PURGE ]; then
+	./scripts/AAFTF sourpurge -i  $VECCLEAN -o $PURGE -c $CPU --phylum $PHYLUM --left $LEFT  --right $RIGHT
+fi
+if [ ! -f $CLEANDUP ]; then
+	./scripts/AAFTF rmdup -i $PURGE -o $CLEANDUP -c $CPU -m 1000
+fi
+if [ ! -f $SORTED ]; then
+	./scripts/AAFTF sort -i $CLEANDUP -o $SORTED
+fi
+
+if [ ! -f $STATS ] ; then
+	./scripts/AAFTF assess -i $SORTED -r $STATS
+fi
