@@ -20,7 +20,7 @@ Authors
 
 Notes
 ===========
-This is partially a python re-write of JAAWS - https://github.com/nextgenusfs/jaaws which was a unix shell based cleanup and assembly tool written by Jon.
+This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.
 
 
 Steps / Procedures
