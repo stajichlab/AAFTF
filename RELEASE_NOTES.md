@@ -3,6 +3,9 @@ Release notes for AAFTF
 
 Automatic Assembly For The Fungi
 
+* v0.2.1
+  1. Fix some README docs 
+  2. Sync zenodo with this release
 
 * v0.2.0
   1. rework temporary file, prefix use throughout, not relying on a set working directory so that multiple runs can be completed in a single folder
