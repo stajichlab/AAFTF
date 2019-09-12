@@ -34,9 +34,9 @@ def run(parser,args):
         spadescmd = spadescmd + ['-s', forReads]
     else:
         spadescmd = spadescmd + ['--pe1-1', forReads, '--pe1-2', revReads]
-
+# this basically overrides everything above and only runs --continue option
     if os.path.isdir(args.workdir):
-        spadescmd.append('--continue')
+        spadescmd = [ 'spades.py', '-o', args.workdir, '--continue' ]
 
     # now run the spades job
     status('Assembling FASTQ data using Spades')
