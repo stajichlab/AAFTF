@@ -72,9 +72,7 @@ def run(parser,args):
                    '--singleton', assembly_working]
     printCMD(sour_compute)
     subprocess.run(sour_compute, cwd=args.workdir, stderr=DEVNULL)
-    
-    sour_classify = ['sourmash', 'lca', 'classify', '--db', SOUR,
-                     '--query', sour_sketch]
+    sour_classify = ['sourmash', 'lca', 'classify', '--db', SOUR,'--query', sour_sketch]
     printCMD(sour_classify)
     # output csv: ID,status,superkingdom,phylum,class,order,family,genus,species,strain
     Taxonomy = {}

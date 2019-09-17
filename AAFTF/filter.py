@@ -152,7 +152,7 @@ def run(parser,args):
             cmd.extend(['in2=%s'%(revReads),'out2=%s_2.fastq.gz'%(clean_reads)])
             
         cmd.extend(['ref=%s'%(",".join(refmatch_bbduk))])
-        
+        cmd.extend(['prealloc','qhdist=1'])
         printCMD(cmd)
         if args.debug:
             subprocess.run(cmd)
