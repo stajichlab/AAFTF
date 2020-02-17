@@ -5,7 +5,7 @@ Contaminant_Accessions = {"phiX": 'ftp://ftp.ncbi.nlm.nih.gov/genomes/Viruses/en
 DB_Links = {'UniVec': 'ftp://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec',
             'CONTAM_EUKS': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_euks.fa.gz',
             'CONTAM_PROKS': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_prok.fa',
-            'MITO': 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/mito.nt.gz',
+            'MITO': 'ftp://ftp.ncbi.nlm.nih.gov/refseq/release/mitochondrion/mitochondrion.1.1.genomic.fna.gz',
             'sourmash': 'https://osf.io/zskb9/download?version=1'
         }
 
