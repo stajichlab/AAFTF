@@ -22,16 +22,15 @@ Notes
 ===========
 This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.
 
-
 Steps / Procedures
 ==================
-1. trim                Trim FASTQ input reads
-2. filter              Filter contaminanting reads
-3. assemble            Assemble reads
-4. vecscreen           Vector and Contaminant Screening of assembled contigs
-5. sourpurge           Purge contigs based on sourmash results
-6. rmdup               Remove duplicate contigs
-7. pilon               Polish contig sequences with Pilon
+1. trim                Trim FASTQ input reads - with BBMap
+2. filter              Filter contaminanting reads - with BBMap
+3. assemble            Assemble reads - with SPAdes
+4. vecscreen           Vector and Contaminant Screening of assembled contigs - with BlastN based method to replicate NCBI screening
+5. sourpurge           Purge contigs based on sourmash results - with sourmash 
+6. rmdup               Remove duplicate contigs - using minimap2 to find duplicates
+7. pilon               Polish contig sequences with Pilon - uses Pilon
 8. sort                Sort contigs by length and rename FASTA headers
 9. assess              Assess completeness of genome assembly
-10. pipeline            Run AAFTF pipelinetrim - Read Trimmimg (Trimmomatic)
+10. pipeline           Run AAFTF pipeline all in one go.
