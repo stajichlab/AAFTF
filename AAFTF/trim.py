@@ -63,7 +63,7 @@ def run(parser,args):
             
         status('Adapter trimming using BBDuk')
         cmd = ['bbduk.sh', MEM, 'ref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
-           'k=23', 'mink=11', 'minlen={:}'.format(args.minlength), 'hdist=1',
+           'k=23', 'mink=11', 'minlen={:}'.format(args.minlen), 'hdist=1',
            'ftm=5', 'tpe', 'tbo', 'overwrite=true']
         if args.left and args.right:
             cmd += ['in1={:}'.format(args.left), 'in2={:}'.format(args.right), 
@@ -152,14 +152,14 @@ def run(parser,args):
                        args.basename+'_2P.fastq',
                        args.basename+'_2U.fastq',
                        clipstr, leadingwindow, trailingwindow,slidingwindow,
-                       "MINLEN:%d" %(args.minlength) ]
+                       "MINLEN:%d" %(args.minlen) ]
             elif args.left and not args.right:
                 cmd = ['java', '-jar', jarfile, 'SE',
                        '-threads',str(args.cpus),
                        quality,  args.left,
                        args.basename+'_1U.fastq',
                        clipstr, leadingwindow, trailingwindow,slidingwindow,
-                       "MINLEN:%d" %(args.minlength) ]
+                       "MINLEN:%d" %(args.minlen) ]
             else:
                 status("Must provide left and right pairs or single read set")
                 return

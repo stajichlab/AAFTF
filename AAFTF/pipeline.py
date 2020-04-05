@@ -27,7 +27,7 @@ def run(parser,args):
     
     #run trimming with bbduk
     if not checkfile(basename+'_1P.fastq.gz'):
-        trimOpts = ['memory', 'left', 'right', 'basename', 'cpus', 'debug', 'minlength']
+        trimOpts = ['memory', 'left', 'right', 'basename', 'cpus', 'debug', 'minlen']
         trimDict = {k:v for (k,v) in args_dict.items() if k in trimOpts}
         trimDict['method'] = 'bbduk'
         trimDict['pipe'] = True

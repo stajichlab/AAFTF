@@ -97,7 +97,7 @@ def main():
     parser_trim.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                               help="Number of CPUs/threads to use.")
 
-    parser_trim.add_argument('-ml','--minlength',type=int,
+    parser_trim.add_argument('-ml','--minlen',type=int,
                              default=75,
                              required=False,
                              help="Minimum read length after trimming, default: 75")
