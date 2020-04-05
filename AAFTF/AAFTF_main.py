@@ -79,7 +79,7 @@ def main():
     # assume java is PATH already for trimmomatic
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
-    # -ml / --minlength: min read length
+    # -ml / --minlen: min read length
 
     # read info, either paired data are required or singleton
     # --left: left or forward reads
@@ -227,7 +227,7 @@ def main():
     # -p / --prefix: input/outfile prefix
     # --paired or --unpaired
     # --spades
-    # --spades_tmpdir: tempdir for spades
+    # --tmpdir: tempdir for spades
 
     parser_asm = subparsers.add_parser('assemble',
                                        description="Run assembler on cleaned reads",
@@ -241,7 +241,7 @@ def main():
                              required=True, # think about sensible replacement in future
                              help="Output assembly FASTA")
 
-    parser_asm.add_argument('-w', '--workdir', '--tmpdir',type=str,
+    parser_asm.add_argument('-w', '--workdir',type=str,
                         dest='workdir',
                         help="assembly output directory")
 
@@ -261,7 +261,8 @@ def main():
     parser_asm.add_argument('-v','--debug',action='store_true',
                              help="Print Spades stdout to terminal")
 
-    parser_asm.add_argument('--spades_tmpdir',type=str,required=False,help="Spades temporary dir")
+    parser_asm.add_argument('--tmpdir',type=str,required=False,help="Assembler temporary dir")
+    parser_asm.add_argument('--assembler_args',type=str,required=False,help="Additional SPAdes/Megahit arguments")
 
     parser_asm.add_argument('--pipe',action='store_true',
                              help="AAFTF is running in pipeline mode")
@@ -545,7 +546,7 @@ def main():
                             dest='memory',required=False,
                             help="Memory (in GB) setting for SPAdes. Default is Auto")
 
-    parser_pipeline.add_argument('-ml','--minlength',type=int,
+    parser_pipeline.add_argument('-ml','--minlen',type=int,
                              default=75,
                              required=False,
                              help="Minimum read length after trimming, default: 75")
