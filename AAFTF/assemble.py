@@ -8,18 +8,18 @@ from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import fastastats
 
-def run(parser,args):
+def run_spades(parser,args):
 
     if not args.workdir:
         args.workdir = 'spades_'+str(os.getpid())
-        
-    spadescmd = ['spades.py','--threads', str(args.cpus), 
+
+    spadescmd = ['spades.py','--threads', str(args.cpus),
                  '--cov-cutoff', 'auto',
                  '--mem', args.memory, '--careful', '-o', args.workdir]
 
     if args.spades_tmpdir:
         spadescmd.extend(['--tmp-dir',args.spades_tmpdir])
-        
+
     #find reads -- use --left/right or look for cleaned in tmpdir
     forReads, revReads = (None,)*2
     if args.left:
@@ -29,14 +29,17 @@ def run(parser,args):
     if not forReads:
         status('Unable to located FASTQ raw reads, provide --left')
         sys.exit(1)
-    
+
     if not revReads:
         spadescmd = spadescmd + ['-s', forReads]
     else:
         spadescmd = spadescmd + ['--pe1-1', forReads, '--pe1-2', revReads]
-# this basically overrides everything above and only runs --continue option
+        # this basically overrides everything above and only runs --restart-from option
     if os.path.isdir(args.workdir):
-        spadescmd = [ 'spades.py', '-o', args.workdir, '--continue' ]
+        spadescmd = [ 'spades.py', '-o', args.workdir,
+                      '--threads', str(args.cpus),
+                      '--mem', args.memory,
+                      '--restart-from last' ]
 
     # now run the spades job
     status('Assembling FASTQ data using Spades')
@@ -59,7 +62,16 @@ def run(parser,args):
         status('Assembly is {:,} scaffolds and {:,} bp'.format(numSeqs, assemblySize))
     else:
         status('Spades assembly output missing -- check Spades logfile.')
-        
+
     if not args.pipe:
         status('Your next command might be:\n\tAAFTF vecscreen -i {:} -c {:}\n'.format(finalOut, args.cpus))
-    
+
+def run(parser,args):
+    if args.method  == "spades":
+        run_spades(parser,args)
+    elif args.method == "dipspades":
+        run_dipspades(parser,args)
+    elif args.method  == "megahit":
+        run_megahit(parser,args)
+    else:
+        status("Unknow assembler method {}".format(args.method))

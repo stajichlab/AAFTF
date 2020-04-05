@@ -63,10 +63,10 @@ def main():
     parser.add_argument("-v", "--version", help="Installed AAFTF version",
                         action="version",
                         version="%(prog)s " + str(myversion))
-    
+
     subparsers = parser.add_subparsers(title='[sub-commands]', dest='command', parser_class=ArgumentParserWithDefaults)
 
-    
+
     #########################################
     # create the individual tool parsers
     #########################################
@@ -80,16 +80,16 @@ def main():
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
     # -ml / --minlength: min read length
-    
+
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
     # currently singleton / unpaired reads not supported?
-    
+
     parser_trim = subparsers.add_parser('trim',
        description="This comamnd trims reads in FASTQ format to remove low quality reads and trim adaptor sequences",
        help='Trim FASTQ input reads')
-    
+
     parser_trim.add_argument('-o','--out',type=str,
                              required=False, dest='basename',
                              help="Output basename, default to base name of --left reads")
@@ -101,7 +101,7 @@ def main():
                              default=75,
                              required=False,
                              help="Minimum read length after trimming, default: 75")
-    
+
     parser_trim.add_argument('-l', '--left',type=str,
                               required=True,
             help='left/forward reads of paired-end FASTQ or single-end FASTQ.')
@@ -112,12 +112,12 @@ def main():
 
     parser_trim.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
-                             
+
     parser_trim.add_argument('--pipe',action='store_true',
                              help="AAFTF is running in pipeline mode")
-    
-    parser_trim.add_argument('--method', default='bbduk', 
-                            choices=['bbduk', 'trimmomatic'], 
+
+    parser_trim.add_argument('--method', default='bbduk',
+                            choices=['bbduk', 'trimmomatic'],
                             help='Program to use for adapter trimming')
 
     parser_trim.add_argument('-m','--memory',type=int,
@@ -150,7 +150,7 @@ def main():
 
     trimmomatic_group.add_argument('--trimmomatic_slidingwindow',
                                    default="4:15",type=str,
-                                   help="Trimmomatic window processing arguments, default: SLIDINGWINDOW:4:15")    
+                                   help="Trimmomatic window processing arguments, default: SLIDINGWINDOW:4:15")
     trimmomatic_group.add_argument('--trimmomatic_quality',
                                    default="phred33",
                                    help="Trimmomatic quality encoding -phred33 or phred64")
@@ -168,7 +168,7 @@ def main():
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
-    # or value from --prefix 
+    # or value from --prefix
     # --aligner: bbduk bwa, bowtie2, minimap for read alignment to contamdb
 
     parser_filter = subparsers.add_parser('filter',
@@ -180,7 +180,7 @@ def main():
 
     parser_filter.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
-    
+
     parser_filter.add_argument('-o','--out',dest='basename', type=str,
                         required=False,
                         help="Output basename")
@@ -191,7 +191,7 @@ def main():
     parser_filter.add_argument('-a','--screen_accessions',type = str,
                                nargs="*",
                                help="Genbank accession number(s) to screen out from initial reads.")
-                               
+
     parser_filter.add_argument('-u','--screen_urls',type = str,
                                nargs="*",
                                help="URLs to download and screen out initial reads.")
@@ -201,12 +201,12 @@ def main():
 
     parser_filter.add_argument('-r', '--right',required=False,
                              help="Right (Reverse) reads")
-    
+
     parser_filter.add_argument('--AAFTF_DB',type=str,
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
-    
-    parser_filter.add_argument('--aligner', default='bbduk', 
+
+    parser_filter.add_argument('--aligner', default='bbduk',
                                choices=['bbduk', 'bowtie2', 'bwa', 'minimap2'],
                                help='Aligner to use to map reads to contamination database')
 
@@ -216,7 +216,7 @@ def main():
 
     parser_filter.add_argument('--pipe',action='store_true',
                              help="AAFTF is running in pipeline mode")
-    
+
 
     ##########
     # assemble
@@ -232,14 +232,18 @@ def main():
     parser_asm = subparsers.add_parser('assemble',
                                        description="Run assembler on cleaned reads",
                                        help='Assemble reads')
-    
+
+    parser_asm.add_argument('-m','--method',type=str,
+                             required=False, default="spades",
+                             help="Assembly method: spades, dipspades, megahit")
+
     parser_asm.add_argument('-o','--out',type=str,
                              required=True, # think about sensible replacement in future
-                             help="Output spades assembly")
+                             help="Output assembly FASTA")
 
     parser_asm.add_argument('-w', '--workdir', '--tmpdir',type=str,
                         dest='workdir',
-                        help="Spades output directory")
+                        help="assembly output directory")
 
     parser_asm.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
@@ -278,9 +282,9 @@ def main():
 
     parser_vecscreen.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
-    
+
     parser_vecscreen.add_argument('-i','--input','--infile',type=str,
-                                  required=True, dest='infile', 
+                                  required=True, dest='infile',
                                   help="Input contigs or scaffold assembly")
 
     parser_vecscreen.add_argument('-o','--outfile',type=str,
@@ -303,7 +307,7 @@ def main():
 
     parser_vecscreen.add_argument('-v','--debug', action='store_true', dest='debug',
                              help="Provide debugging messages")
-                             
+
     parser_vecscreen.add_argument('--pipe',action='store_true',
                              help="AAFTF is running in pipeline mode")
 
@@ -339,7 +343,7 @@ def main():
 
     parser_sour.add_argument('-p', '--phylum',required=True, nargs="+",
                              help="Phylum or Phyla to keep matches, i.e. Ascomycota")
-    
+
     parser_sour.add_argument('--sourdb',required=False,
                              help="SourMash LCA k-31 taxonomy database")
 
@@ -362,11 +366,11 @@ def main():
 
     parser_sour.add_argument('--just-show-taxonomy',dest='taxonomy', action='store_true',
                                help="Show taxonomy information and exit")
-                               
+
     parser_sour.add_argument('--pipe',action='store_true',
                              help="AAFTF is running in pipeline mode")
 
-        
+
     ##########
     # rmdup
     ##########
@@ -393,12 +397,12 @@ def main():
 
     parser_rmdup.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                         help="Number of CPUs/threads to use.")
-    
+
     parser_rmdup.add_argument('-w', '--workdir', '--tmpdir', dest='workdir',type=str,
                                required=False,
                                help="Temporary directory to store datafiles and processes in")
 
-    parser_rmdup.add_argument('-pid','--percent_id',type=int, dest='percent_id', 
+    parser_rmdup.add_argument('-pid','--percent_id',type=int, dest='percent_id',
                                required=False,default=95,
                                help="Percent Identity used in matching contigs for redundancy")
 
@@ -433,7 +437,7 @@ def main():
                                          description="Polish contig sequences with Pilon",
                                          help='Polish contig sequences with Pilon')
 
-    parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile', 
+    parser_pilon.add_argument('-o','--out','--outfile', type=str, dest='outfile',
                              required=True,
                              help="Output Pilon polished assembly")
 
@@ -486,7 +490,7 @@ def main():
 
     parser_sort.add_argument('-n','--name','--basename',default='scaffold', dest='name',
                                help='Basename to rename FASTA headers')
-  
+
     ##########
     # assess completeness
     ##########
@@ -504,8 +508,8 @@ def main():
 
     parser_assess.add_argument('-r','--report',type=str,
                                help='Filename to save report information otherwise will print to stdout')
-                               
-                               
+
+
     ##########
     # pipeline run it all
     ##########
@@ -517,7 +521,7 @@ def main():
     parser_pipeline = subparsers.add_parser('pipeline',
                             description="Run entire AAFTF pipeline automagically",
                             help='Run AAFTF pipeline')
-                            
+
     parser_pipeline.add_argument('-l', '--left',type=str,
                               required=True,
             help='left/forward reads of paired-end FASTQ or single-end FASTQ.')
@@ -525,14 +529,14 @@ def main():
     parser_pipeline.add_argument('-r', '--right',type=str,
                               required=False,
             help='right/reverse reads of paired-end FASTQ.')
-            
+
     parser_pipeline.add_argument('-o','--out',type=str,
                              required=True, dest='basename',
                              help="Output basename, default to base name of --left reads")
 
     parser_pipeline.add_argument('-c','--cpus',type=int,metavar="cpus",required=False,default=1,
                               help="Number of CPUs/threads to use.")
-                              
+
     parser_pipeline.add_argument('-m','--memory',type=str,
                             dest='memory',required=False,
                             help="Memory (in GB) setting for SPAdes. Default is Auto")
@@ -541,18 +545,18 @@ def main():
                              default=75,
                              required=False,
                              help="Minimum read length after trimming, default: 75")
-                              
+
     parser_pipeline.add_argument('-a','--screen_accessions',type = str,
                                nargs="*",
                                help="Genbank accession number(s) to screen out from initial reads.")
-                               
+
     parser_pipeline.add_argument('-u','--screen_urls',type = str,
                                nargs="*",
                                help="URLs to download and screen out initial reads.")
-                               
+
     parser_pipeline.add_argument('-it','--iterations', type=int, default=5,
                               help="Number of Pilon Polishing iterations to run")
-                              
+
     parser_pipeline.add_argument('-mc','--mincontiglen',type=int,
                              default=500,
                              required=False,
@@ -564,7 +568,7 @@ def main():
 
     parser_pipeline.add_argument('-w', '--workdir',type=str,
                         help="temp directory")
-    
+
     parser_pipeline.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
 
@@ -577,7 +581,7 @@ def main():
     parser_pipeline.add_argument('--mincovpct',default=5,type=int,
                              help="Minimum percent of N50 coverage to remove")
 
-                        
+
     #set defaults
     parser.set_defaults(func=run_subtool)
 
@@ -586,7 +590,7 @@ def main():
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
         sys.exit(1)
-        
+
     args = parser.parse_args()
 
     try:
