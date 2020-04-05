@@ -233,7 +233,7 @@ def main():
                                        description="Run assembler on cleaned reads",
                                        help='Assemble reads')
 
-    parser_asm.add_argument('-m','--method',type=str,
+    parser_asm.add_argument('--method',type=str,
                              required=False, default="spades",
                              help="Assembly method: spades, dipspades, megahit")
 
@@ -347,7 +347,7 @@ def main():
     parser_sour.add_argument('--sourdb',required=False,
                              help="SourMash LCA k-31 taxonomy database")
 
-    parser_sour.add_argument('-m', '--mincovpct',default=5,type=int,
+    parser_sour.add_argument('-mc', '--mincovpct',default=5,type=int,
                              help="Minimum percent of N50 coverage to remove")
 
     parser_sour.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
@@ -379,8 +379,8 @@ def main():
     # -o / --out
     # --tmpdir
     # --percent_id
-    # -c / --coverage
-    # -m / --minlen
+    # ---mincovpct
+    # -ml / --minlen
     # --exhaustive
     # --debug
 
@@ -410,7 +410,7 @@ def main():
                                required=False,default=95,
                                help="Coverage of contig used to decide if it is redundant")
 
-    parser_rmdup.add_argument('-m','--minlen',type=int,
+    parser_rmdup.add_argument('-ml','--minlen',type=int,
                                required=False,default=500,
                                help="Minimum contig length to keep, shorter ones are dropped")
 
@@ -488,7 +488,7 @@ def main():
     parser_sort.add_argument('-o','--out','--output',required=True, dest='out',
                                help='Output genome assembly FASTA')
 
-    parser_sort.add_argument('-m','--minlen',type=int,
+    parser_sort.add_argument('-ml','--minlen',type=int,
                              required=False,default=0,
                              help="Minimum contig length to keep, shorter ones are dropped")
 
