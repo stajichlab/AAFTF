@@ -20,9 +20,8 @@ def run(parser, args):
     SeqRecords = SeqIO.to_dict(SeqIO.parse(args.input, 'fasta'))
     with open(args.out, 'w') as fasta_out:
         for i,x in enumerate(orderedSeqs):
-            fasta_out.write('>{:}_{:}\n{:}\n'.format(args.name, i+1, softwrap(str(SeqRecords[x].seq))))
+            if x[1] >= args.minlen:
+                fasta_out.write('>{:}_{:}\n{:}\n'.
+                                format(args.name, i+1,
+                                       softwrap(str(SeqRecords[x].seq))))
     status('Output written to: {:}'.format(args.out))
-            
-
-
-

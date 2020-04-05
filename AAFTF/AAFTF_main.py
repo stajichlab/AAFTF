@@ -488,6 +488,10 @@ def main():
     parser_sort.add_argument('-o','--out','--output',required=True, dest='out',
                                help='Output genome assembly FASTA')
 
+    parser_sort.add_argument('-m','--minlen',type=int,
+                             required=False,default=0,
+                             help="Minimum contig length to keep, shorter ones are dropped")
+
     parser_sort.add_argument('-n','--name','--basename',default='scaffold', dest='name',
                                help='Basename to rename FASTA headers')
 
