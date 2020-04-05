@@ -51,9 +51,9 @@ def run_spades(parser,args):
     printCMD(runcmd)
     DEVNULL = open(os.devnull, 'w')
     if args.debug:
-        subprocess.run(spadescmd)
+        subprocess.run(runcmd)
     else:
-        subprocess.run(spadescmd, stdout=DEVNULL, stderr=DEVNULL)
+        subprocess.run(runcmd, stdout=DEVNULL, stderr=DEVNULL)
     #pull out assembly
     if args.out:
         finalOut = args.out
@@ -148,10 +148,13 @@ def run_megahit(parser,args):
         args.workdir = 'megahit_'+str(os.getpid())
 
     runcmd = ['megahit','-t', str(args.cpus),
-              '--mem', args.memory, '-o', args.workdir]
+              '-o', args.workdir]
 
     if args.assembler_args:
         runcmd.extend(args.assembler_args)
+
+    if args.memory:
+        runcmd.extend(['--memory',args.memory])
 
     if args.tmpdir:
         runcmd.extend(['--tmp-dir',args.tmpdir])
