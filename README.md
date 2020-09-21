@@ -70,3 +70,18 @@ AAFTF assemble -c $CPU --mem $MEM \
 	  --left $LEFT --right $RIGHT  \
 	   -o $ASMFILE -w $WORKDIR/spades_$BASE
 ```
+
+## vectrim
+
+```
+CPU=16
+MEM=16
+LEFT=$TRIMREAD/${BASE}_filtered_1.fastq.gz
+RIGHT=$TRIMREAD/${BASE}_filtered_2.fastq.gz
+WORKDIR=working_AAFTF
+OUTDIR=genomes
+ASMFILE=$OUTDIR/${BASE}.spades.fasta
+VECTRIM=$OUTDIR/${BASE}.vecscreen.fasta
+mkdir -p $WORKDIR $OUTDIR
+AAFTF vecscreen -c $CPU -i $ASMFILE -o $VECTRIM
+```
