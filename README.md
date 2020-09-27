@@ -3,7 +3,6 @@
 
 Requirements
 ===================
-- SPAdes - http://cab.spbu.ru/software/spades/
 - BBTools - https://jgi.doe.gov/data-and-tools/bbtools/
 - Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic (Optional)
 - bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
@@ -12,6 +11,9 @@ Requirements
 - sourmash - https://sourmash.readthedocs.io/ (install via conda/pip)
 - NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST
 - minimap2 - https://github.com/lh3/minimap2
+Assemblers
+- SPAdes - http://cab.spbu.ru/software/spades/
+- megahit - https://github.com/voutcn/megahit
 
 Authors
 ============
