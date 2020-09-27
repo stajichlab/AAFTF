@@ -50,7 +50,6 @@ STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
 	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU --method dipspades
 fi
-exit
 if [ ! -f $VECCLEAN ]; then
 	../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU
 fi
