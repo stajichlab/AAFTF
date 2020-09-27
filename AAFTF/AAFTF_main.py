@@ -7,7 +7,7 @@ import sys
 import argparse
 
 # AAFTF imports
-from AAFTF.version import __version__
+from AAFTF.__version__ import __version__
 myversion = __version__
 from AAFTF.utility import status
 
