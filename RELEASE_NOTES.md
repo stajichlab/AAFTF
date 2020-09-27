@@ -1,7 +1,13 @@
 Release notes for AAFTF 
 =======================
 
-Automatic Assembly For The Fungi
+# Automatic Assembly For The Fungi
+
+* v0.2.4 
+  1. conda/pypi packages
+
+* v0.2.3
+  1. support a minimum length contig cutoff
 
 * v0.2.1
   1. Fix some README docs 
