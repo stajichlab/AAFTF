@@ -1,9 +1,9 @@
 #!/bin/bash
-
+#SBATCH -N 1 -n 24 --mem 96gb  --out test_spades.%A.log
 module load AAFTF
-
+MEM=96
 OUTDIR=test
-PREFIX=Rant
+PREFIX=Rant_spades
 PHYLUM=Ascomycota
 
 mkdir -p $OUTDIR
@@ -26,13 +26,14 @@ LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
 RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 
 if [ ! -f $LEFTTRIM ]; then
-	../scripts/AAFTF trim --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR/${PREFIX} -c $CPU 
+	../scripts/AAFTF trim --mem $MEM --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR/${PREFIX} -c $CPU 
 fi
 if [ ! -f $LEFT ]; then
- 	../scripts/AAFTF filter -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX} 
+ 	../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX} 
 fi
-unlink $LEFTTRIM
-unlink $RIGHTTRIM
+
+#unlink $LEFTTRIM
+#unlink $RIGHTTRIM
 
 ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
@@ -42,7 +43,7 @@ PILON=$OUTDIR/${PREFIX}.pilon.fasta
 SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
-	../scripts/AAFTF assemble --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU
+	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU
 fi
 if [ ! -f $VECCLEAN ]; then
 	../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU

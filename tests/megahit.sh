@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -p short -N 1 -n 24 --mem 32gb --out test_megahit.%A.log
+#SBATCH -N 1 -n 24 --mem 32gb --out test_megahit.%A.log
 
 module load AAFTF
 module load megahit
-
+MEM=32
 OUTDIR=test
-PREFIX=Rant
+PREFIX=Rant_megahit
 PHYLUM=Ascomycota
 
 mkdir -p $OUTDIR
@@ -29,15 +29,15 @@ RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 
 if [ ! -f $LEFT ]; then
 	if [ ! -f $LEFTTRIM ]; then
-		../scripts/AAFTF trim --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR/${PREFIX} -c $CPU
+		../scripts/AAFTF trim --mem $MEM --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR/${PREFIX} -c $CPU
 	fi
- 	../scripts/AAFTF filter -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
+ 	../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
 fi
 
-if [[ -s $LEFT && -f $LEFTTRIM ]]; then
-	unlink $LEFTTRIM
-	unlink $RIGHTTRIM
-fi
+#if [[ -s $LEFT && -s $LEFTTRIM ]]; then
+	#unlink $LEFTTRIM
+	#unlink $RIGHTTRIM
+#fi
 
 ASMFILE=$OUTDIR/${PREFIX}.megahit.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
@@ -47,7 +47,7 @@ PILON=$OUTDIR/${PREFIX}.pilon.fasta
 SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
-	../scripts/AAFTF assemble --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU --method megahit
+	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU --method megahit
 fi
 if [ ! -f $VECCLEAN ]; then
 	../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU

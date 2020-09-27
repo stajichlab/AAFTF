@@ -1,9 +1,14 @@
 #!/bin/bash
+#SBATCH -N 1 -n 24  --mem 96gb --out test_dipspades.%A.log
 
 module load AAFTF
+module switch SPAdes/3.12.0
+which dipspades.py
+which spades.py
 
+MEM=96
 OUTDIR=test
-PREFIX=Rant
+PREFIX=Rant_dipspades
 PHYLUM=Ascomycota
 
 mkdir -p $OUTDIR
@@ -24,17 +29,18 @@ LEFTTRIM=$OUTDIR/${PREFIX}_1P.fastq.gz
 RIGHTTRIM=$OUTDIR/${PREFIX}_2P.fastq.gz
 LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
 RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
-
 if [ ! -f $LEFTTRIM ]; then
 	../scripts/AAFTF trim --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz -o $OUTDIR/${PREFIX} -c $CPU 
 fi
 if [ ! -f $LEFT ]; then
- 	../scripts/AAFTF filter -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX} 
+ 	../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX} 
 fi
-unlink $LEFTTRIM
-unlink $RIGHTTRIM
+#if [[ -f $LEFT && -f $RIGHT ]]; then
+	#rm -f $LEFTTRIM
+	#rm -f $RIGHTTRIM
+#fi
 
-ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
+ASMFILE=$OUTDIR/${PREFIX}.dipspades.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
 PURGE=$OUTDIR/${PREFIX}.sourpurge.fasta
 CLEANDUP=$OUTDIR/${PREFIX}.rmdup.fasta
@@ -42,8 +48,9 @@ PILON=$OUTDIR/${PREFIX}.pilon.fasta
 SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
-	../scripts/AAFTF assemble --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU --method dipspades
+	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU --method dipspades
 fi
+exit
 if [ ! -f $VECCLEAN ]; then
 	../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU
 fi
