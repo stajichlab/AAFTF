@@ -191,8 +191,8 @@ def run_megahit(parser,args):
     else:
         finalOut = prefix+'.megahit.fasta'
 
-    if os.path.isfile(os.path.join(args.workdir, 'contigs.fa')):
-        shutil.copyfile(os.path.join(args.workdir,'contigs.fa'), finalOut)
+    if os.path.isfile(os.path.join(args.workdir, 'final.contigs.fa')):
+        shutil.copyfile(os.path.join(args.workdir,'final.contigs.fa'), finalOut)
         status('Megahit assembly finished: {:}'.format(finalOut))
         numSeqs, assemblySize = fastastats(finalOut)
         status('Assembly is {:,} scaffolds and {:,} bp'.format(numSeqs, assemblySize))
