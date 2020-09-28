@@ -263,6 +263,7 @@ def main():
 
     parser_asm.add_argument('--tmpdir',type=str,required=False,help="Assembler temporary dir")
     parser_asm.add_argument('--assembler_args',type=str,required=False,help="Additional SPAdes/Megahit arguments")
+    parser_asm.add_argument('--haplocontigs',dest='haplocontigs',default=False, action='store_true',help="For dipSPAdes take the haplocontigs file")
 
     parser_asm.add_argument('--pipe',action='store_true',
                              help="AAFTF is running in pipeline mode")
