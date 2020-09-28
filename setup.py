@@ -4,7 +4,7 @@ from setuptools import setup
 #version_py = os.path.join(os.path.dirname(__file__), 'AAFTF', 'version.py')
 #version = open(version_py).read().strip().split('=')[-1].replace('"','').strip()
 #print(version)
-from AAFTF.version import __version__
+from AAFTF.__version__ import __version__
 version = __version__
 
 long_description = """
