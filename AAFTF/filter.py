@@ -145,14 +145,14 @@ def run(parser,args):
             MEM='-Xmx{:}g'.format(args.memory)
         else:
             MEM='-Xmx{:}g'.format(round(0.6*getRAM()))
-        cmd = ['bbduk.sh', MEM, 't={:}'.format(args.cpus), 'k=31', 'hdist=1',
+        cmd = ['bbduk.sh', MEM, 't={:}'.format(args.cpus), 'hdist=1','k=27',
                'overwrite=true', 'in=%s'%(forReads), 
                'out=%s_1.fastq.gz'%(clean_reads) ]
         if revReads:
             cmd.extend(['in2=%s'%(revReads),'out2=%s_2.fastq.gz'%(clean_reads)])
-            
+                
         cmd.extend(['ref=%s'%(",".join(refmatch_bbduk))])
-        cmd.extend(['prealloc','qhdist=1'])
+        #cmd.extend(['prealloc','qhdist=1'])
         printCMD(cmd)
         if args.debug:
             subprocess.run(cmd)

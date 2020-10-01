@@ -127,7 +127,7 @@ def run_dipspades(parser,args):
         finalOut = args.out
     else:
         finalOut = prefix+'.dipspades.fasta'
-
+    dipspadesoutdir = os.path.join(args.workdir,'dipspades')
     if os.path.isfile(os.path.join(args.workdir, 'consensus_contigs.fasta')):
         shutil.copyfile(os.path.join(args.workdir,'consensus_contigs.fasta'), finalOut)
         shutil.copyfile(os.path.join(args.workdir,'dipspades','paired_consensus_contigs.fasta'), prefix+".dipspades_consensus_paired.fasta")
