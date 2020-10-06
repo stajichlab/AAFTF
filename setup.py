@@ -28,7 +28,7 @@ setup(
     long_description=long_description,
     url="http://github.com/stajichlab/AAFTF",
     package_dir={'AAFTF': "AAFTF"},
-    package_data={'AAFTF': []},
+    package_data={'AAFTF': ['test']},
     zip_safe=False,
     include_package_data=True,
     #scripts=['AAFTF/scripts/AAFTF'],
