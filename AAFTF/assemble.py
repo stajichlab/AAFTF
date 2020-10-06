@@ -14,12 +14,14 @@ def run_spades(parser,args):
     if not args.workdir:
         args.workdir = 'spades_'+str(os.getpid())
 
-    runcmd = ['spades.py','--threads', str(args.cpus), '--cov-cutoff',
-           'auto', '--mem', args.memory, '--careful', '-o',
-           args.workdir]
+    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory,
+              '-o',args.workdir]
 
     if args.assembler_args:
         runcmd.extend(args.assembler_args)
+
+    if '--meta' not in runcmd:
+        runcmd.extend(['--cov-cutoff','auto',  '--careful'])
 
     if args.tmpdir:
         runcmd.extend(['--tmp-dir',args.tmpdir])
