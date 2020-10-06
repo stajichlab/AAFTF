@@ -48,8 +48,9 @@ PILON=$OUTDIR/${PREFIX}.pilon.fasta
 SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
-	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU --method dipspades
+	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT --prefix $OUTDIR/${PREFIX} -c $CPU --method dipspades --workdir dipspades_run
 fi
+exit
 if [ ! -f $VECCLEAN ]; then
 	../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU
 fi
