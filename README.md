@@ -44,6 +44,64 @@ Steps / Procedures
 
 ## Trimming and Filtering
 
+Trimming options spelled out:
+```
+usage: AAFTF trim [-h] [-q] [-o BASENAME] [-c cpus] [-ml MINLEN] -l LEFT
+                  [-r RIGHT] [-v] [--pipe] [--method {bbduk,trimmomatic}]
+                  [-m MEMORY] [--trimmomatic trimmomatic_jar]
+                  [--trimmomatic_adaptors TRIMMOMATIC_ADAPTORS]
+                  [--trimmomatic_clip TRIMMOMATIC_CLIP]
+                  [--trimmomatic_leadingwindow TRIMMOMATIC_LEADINGWINDOW]
+                  [--trimmomatic_trailingwindow TRIMMOMATIC_TRAILINGWINDOW]
+                  [--trimmomatic_slidingwindow TRIMMOMATIC_SLIDINGWINDOW]
+                  [--trimmomatic_quality TRIMMOMATIC_QUALITY]
+
+This comamnd trims reads in FASTQ format to remove low quality reads and trim
+adaptor sequences
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -q, --quiet           Do not output warnings to stderr
+  -o BASENAME, --out BASENAME
+                        Output basename, default to base name of --left reads
+  -c cpus, --cpus cpus  Number of CPUs/threads to use.
+  -ml MINLEN, --minlen MINLEN
+                        Minimum read length after trimming, default: 75
+  -l LEFT, --left LEFT  left/forward reads of paired-end FASTQ or single-end
+                        FASTQ.
+  -r RIGHT, --right RIGHT
+                        right/reverse reads of paired-end FASTQ.
+  -v, --debug           Provide debugging messages
+  --pipe                AAFTF is running in pipeline mode
+  --method {bbduk,trimmomatic}
+                        Program to use for adapter trimming
+  -m MEMORY, --memory MEMORY
+                        Max Memory (in GB)
+  --trimmomatic trimmomatic_jar, --jar trimmomatic_jar
+                        Trimmomatic JAR path
+
+Trimmomatic options:
+  Trimmomatic trimming options
+
+  --trimmomatic_adaptors TRIMMOMATIC_ADAPTORS
+                        Trimmomatic adaptor file, default: TruSeq3-PE.fa
+  --trimmomatic_clip TRIMMOMATIC_CLIP
+                        Trimmomatic clipping, default:
+                        ILLUMINACLIP:TruSeq3-PE.fa:2:30:10
+  --trimmomatic_leadingwindow TRIMMOMATIC_LEADINGWINDOW
+                        Trimmomatic window processing arguments, default:
+                        LEADING:3
+  --trimmomatic_trailingwindow TRIMMOMATIC_TRAILINGWINDOW
+                        Trimmomatic window processing arguments, default:
+                        TRAILING:3
+  --trimmomatic_slidingwindow TRIMMOMATIC_SLIDINGWINDOW
+                        Trimmomatic window processing arguments, default:
+                        SLIDINGWINDOW:4:15
+  --trimmomatic_quality TRIMMOMATIC_QUALITY
+                        Trimmomatic quality encoding -phred33 or phred64
+```
+
+Example usage:
 ```
 MEM=128 # 128gb
 BASE=STRAINX
