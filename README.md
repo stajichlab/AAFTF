@@ -14,6 +14,7 @@ Requirements
 Assemblers
 - SPAdes - http://cab.spbu.ru/software/spades/
 - megahit - https://github.com/voutcn/megahit
+- dipspades - (SPAdes 3.11.1 - note it is not part of later SPAdes packages) http://cab.spbu.ru/files/release3.11.1/dipspades_manual.html
 
 Authors
 ============
