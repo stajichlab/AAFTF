@@ -60,6 +60,38 @@ AAFTF filter -c $CPU --memory $MEM --aligner bbduk \
 
 ## Assembly
 
+The specified assembler can be made through the `--method` option.
+The full set of options are below.
+
+```
+usage: AAFTF assemble [-h] [-q] [--method METHOD] -o OUT [-w WORKDIR]
+                      [-c cpus] [-m MEMORY] [-l LEFT] [-r RIGHT] [-v]
+                      [--tmpdir TMPDIR] [--assembler_args ASSEMBLER_ARGS]
+                      [--haplocontigs] [--pipe]
+
+Run assembler on cleaned reads
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -q, --quiet           Do not output warnings to stderr
+  --method METHOD       Assembly method: spades, dipspades, megahit
+  -o OUT, --out OUT     Output assembly FASTA
+  -w WORKDIR, --workdir WORKDIR
+                        assembly output directory
+  -c cpus, --cpus cpus  Number of CPUs/threads to use.
+  -m MEMORY, --memory MEMORY
+                        Memory (in GB) setting for SPAdes. Default is 32
+  -l LEFT, --left LEFT  Left (Forward) reads
+  -r RIGHT, --right RIGHT
+                        Right (Reverse) reads
+  -v, --debug           Print Spades stdout to terminal
+  --tmpdir TMPDIR       Assembler temporary dir
+  --assembler_args ASSEMBLER_ARGS
+                        Additional SPAdes/Megahit arguments
+  --haplocontigs        For dipSPAdes take the haplocontigs file
+  --pipe                AAFTF is running in pipeline mode
+```
+
 ```
 CPU=24
 MEM=96
