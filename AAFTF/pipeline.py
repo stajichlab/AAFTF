@@ -2,22 +2,17 @@ import sys
 import os
 import shutil
 import subprocess
-from argparse import Namespace 
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import getRAM
-from AAFTF.utility import checkfile
-import AAFTF.trim as trim
-import AAFTF.filter as aaftf_filter
-import AAFTF.assemble as assemble
-import AAFTF.vecscreen as vecscreen
-import AAFTF.sourpurge as sourpurge
-import AAFTF.rmdup as rmdup
-import AAFTF.pilon as pilon
-import AAFTF.sort as aaftf_sort
-import AAFTF.assess as assess
 
-def run(parser,args):
+from argparse import Namespace 
+
+from AAFTF.utility import status, printCMD, getRAM, checkfile
+from AAFTF import trim, assemble, vecscreen, sourcepurge, rmdup, pilon, assess
+
+import AAFTF.filter as aaftf_filter
+import AAFTF.sort as aaftf_sort
+
+
+def run(parser, args):
     #script to run entire AAFTF pipeline
     args_dict = vars(args)
     basename = args_dict['basename']
@@ -35,9 +30,9 @@ def run(parser,args):
         trim.run(parser, trimargs)
     else:
     	if args.right:
-    		status('AAFTF trim output found: {:} {:}'.format(basename+'_1P.fastq.gz', basename+'_2P.fastq.gz'))
+    	    status('AAFTF trim output found: {:} {:}'.format(basename+'_1P.fastq.gz', basename+'_2P.fastq.gz'))
     	else:
-    		status('AAFTF trim output found: {:}'.format(basename+'_1P.fastq.gz'))
+    	    status('AAFTF trim output found: {:}'.format(basename+'_1P.fastq.gz'))
     if not checkfile(basename+'_1P.fastq.gz'):
         status('AATFT trim failed')
         sys.exit(1)
@@ -55,16 +50,16 @@ def run(parser,args):
         aaftf_filter.run(parser, filterargs)
     else:
     	if args.right:
-    		status('AAFTF filter output found: {:} {:}'.format(basename+'_filtered_1.fastq.gz', basename+'_filtered_2.fastq.gz'))
+            status('AAFTF filter output found: {:} {:}'.format(basename+'_filtered_1.fastq.gz', basename+'_filtered_2.fastq.gz'))
     	else:
-    		status('AAFTF filter output found: {:}'.format(basename+'_filtered_1.fastq.gz'))
+            status('AAFTF filter output found: {:}'.format(basename+'_filtered_1.fastq.gz'))
     if not checkfile(basename+'_filtered_1.fastq.gz'):
         status('AATFT filter failed')
         sys.exit(1)
         
     #run assembly with spades
     if not checkfile(basename+'.spades.fasta'):
-        assembleOpts = ['memory', 'cpus', 'debug', 'workdir']
+        assembleOpts = ['memory', 'cpus', 'debug', 'workdir', 'method', 'assembler_args', 'tmpdir']
         assembleDict = {k:v for (k,v) in args_dict.items() if k in assembleOpts}
         assembleDict['left'] = basename+'_filtered_1.fastq.gz'
         if args.right:
