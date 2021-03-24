@@ -5,11 +5,19 @@ import subprocess
 
 from argparse import Namespace 
 
-from AAFTF.utility import status, printCMD, getRAM, checkfile
-from AAFTF import trim, assemble, vecscreen, sourcepurge, rmdup, pilon, assess
-
+from AAFTF.utility import status
+from AAFTF.utility import printCMD
+from AAFTF.utility import getRAM
+from AAFTF.utility import checkfile
+import AAFTF.trim as trim
 import AAFTF.filter as aaftf_filter
+import AAFTF.assemble as assemble
+import AAFTF.vecscreen as vecscreen
+import AAFTF.sourpurge as sourpurge
+import AAFTF.rmdup as rmdup
+import AAFTF.pilon as pilon
 import AAFTF.sort as aaftf_sort
+import AAFTF.assess as assess
 
 
 def run(parser, args):
@@ -74,7 +82,7 @@ def run(parser, args):
     if not checkfile(basename+'.spades.fasta'):
         status('AATFT assemble failed')
         sys.exit(1)
-        
+
     #run vecscreen
     if not checkfile(basename+'.vecscreen.fasta'):
         vecOpts = ['cpus', 'debug', 'workdir', 'AAFTF_DB']
@@ -91,7 +99,7 @@ def run(parser, args):
     if not checkfile(basename+'.vecscreen.fasta'):
         status('AATFT vecscreen failed')
         sys.exit(1)
-    
+
     #run sourmash purge
     if not checkfile(basename+'.sourpurge.fasta'):
         sourOpts = ['cpus', 'debug', 'workdir', 'AAFTF_DB', 'phylum', 'sourdb', 'mincovpct']
@@ -129,7 +137,7 @@ def run(parser, args):
     if not checkfile(basename+'.rmdup.fasta'):
         status('AATFT rmdup failed')
         sys.exit(1)
-            
+
     #run pilon to error-correct
     if not checkfile(basename+'.pilon.fasta'):
         pilonOpts = ['cpus', 'debug', 'workdir', 'iterations']
@@ -163,6 +171,3 @@ def run(parser, args):
     assessDict = {'input': basename+'.final.fasta', 'report': False}
     assessargs = Namespace(**assessDict)
     assess.run(parser, assessargs)
-        
-        
-    
