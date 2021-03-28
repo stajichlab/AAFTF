@@ -2,7 +2,9 @@ import sys
 import os
 import shutil
 import subprocess
+
 from argparse import Namespace 
+
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import getRAM
@@ -17,7 +19,8 @@ import AAFTF.pilon as pilon
 import AAFTF.sort as aaftf_sort
 import AAFTF.assess as assess
 
-def run(parser,args):
+
+def run(parser, args):
     #script to run entire AAFTF pipeline
     args_dict = vars(args)
     basename = args_dict['basename']
@@ -35,9 +38,9 @@ def run(parser,args):
         trim.run(parser, trimargs)
     else:
     	if args.right:
-    		status('AAFTF trim output found: {:} {:}'.format(basename+'_1P.fastq.gz', basename+'_2P.fastq.gz'))
+    	    status('AAFTF trim output found: {:} {:}'.format(basename+'_1P.fastq.gz', basename+'_2P.fastq.gz'))
     	else:
-    		status('AAFTF trim output found: {:}'.format(basename+'_1P.fastq.gz'))
+    	    status('AAFTF trim output found: {:}'.format(basename+'_1P.fastq.gz'))
     if not checkfile(basename+'_1P.fastq.gz'):
         status('AATFT trim failed')
         sys.exit(1)
@@ -55,16 +58,16 @@ def run(parser,args):
         aaftf_filter.run(parser, filterargs)
     else:
     	if args.right:
-    		status('AAFTF filter output found: {:} {:}'.format(basename+'_filtered_1.fastq.gz', basename+'_filtered_2.fastq.gz'))
+            status('AAFTF filter output found: {:} {:}'.format(basename+'_filtered_1.fastq.gz', basename+'_filtered_2.fastq.gz'))
     	else:
-    		status('AAFTF filter output found: {:}'.format(basename+'_filtered_1.fastq.gz'))
+            status('AAFTF filter output found: {:}'.format(basename+'_filtered_1.fastq.gz'))
     if not checkfile(basename+'_filtered_1.fastq.gz'):
         status('AATFT filter failed')
         sys.exit(1)
         
     #run assembly with spades
     if not checkfile(basename+'.spades.fasta'):
-        assembleOpts = ['memory', 'cpus', 'debug', 'workdir']
+        assembleOpts = ['memory', 'cpus', 'debug', 'workdir', 'method', 'assembler_args', 'tmpdir']
         assembleDict = {k:v for (k,v) in args_dict.items() if k in assembleOpts}
         assembleDict['left'] = basename+'_filtered_1.fastq.gz'
         if args.right:
@@ -79,7 +82,7 @@ def run(parser,args):
     if not checkfile(basename+'.spades.fasta'):
         status('AATFT assemble failed')
         sys.exit(1)
-        
+
     #run vecscreen
     if not checkfile(basename+'.vecscreen.fasta'):
         vecOpts = ['cpus', 'debug', 'workdir', 'AAFTF_DB']
@@ -96,7 +99,7 @@ def run(parser,args):
     if not checkfile(basename+'.vecscreen.fasta'):
         status('AATFT vecscreen failed')
         sys.exit(1)
-    
+
     #run sourmash purge
     if not checkfile(basename+'.sourpurge.fasta'):
         sourOpts = ['cpus', 'debug', 'workdir', 'AAFTF_DB', 'phylum', 'sourdb', 'mincovpct']
@@ -134,7 +137,7 @@ def run(parser,args):
     if not checkfile(basename+'.rmdup.fasta'):
         status('AATFT rmdup failed')
         sys.exit(1)
-            
+
     #run pilon to error-correct
     if not checkfile(basename+'.pilon.fasta'):
         pilonOpts = ['cpus', 'debug', 'workdir', 'iterations']
@@ -168,6 +171,3 @@ def run(parser,args):
     assessDict = {'input': basename+'.final.fasta', 'report': False}
     assessargs = Namespace(**assessDict)
     assess.run(parser, assessargs)
-        
-        
-    

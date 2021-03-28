@@ -532,6 +532,12 @@ def main():
                             description="Run entire AAFTF pipeline automagically",
                             help='Run AAFTF pipeline')
 
+    parser_pipeline.add_argument('--tmpdir',type=str,required=False,help="Assembler temporary dir")
+    parser_pipeline.add_argument('--assembler_args',action='append',required=False,help="Additional SPAdes/Megahit arguments")
+    parser_pipeline.add_argument('--method',type=str,
+                             required=False, default="spades",
+                             help="Assembly method: spades, dipspades, megahit")
+
     parser_pipeline.add_argument('-l', '--left',type=str,
                               required=True,
             help='left/forward reads of paired-end FASTQ or single-end FASTQ.')
