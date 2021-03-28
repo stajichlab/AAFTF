@@ -450,6 +450,10 @@ def main():
     parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
 
+    parser_pilon.add_argument('-m','--memory',type=int,default=4,
+                            dest='memory',required=False,
+                            help="Max Memory (in GB)")
+
     parser_pilon.add_argument('-v','--debug',action='store_true',
                               help="Provide debugging messages")
 
