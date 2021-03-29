@@ -69,7 +69,7 @@ def run(parser,args):
         #run Pilon
         pilon_cmd = ['pilon', '--genome', os.path.basename(initialFasta),
                      '--frags', pilonBAM,
-                     '-Xmx{}g'.format(args.mem),                     
+                     '-Xmx{}g'.format(args.memory),                     
                      '--output', correctedFasta.split('.fasta')[0],
                      '--threads', str(args.cpus),
                      '--changes']
