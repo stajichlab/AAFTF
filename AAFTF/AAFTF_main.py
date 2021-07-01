@@ -452,13 +452,13 @@ def main():
 
     parser_pilon.add_argument('-m','--memory',type=int,default=4,
                             dest='memory',required=False,
-                            help="Max Memory (in GB)")
+                            help="Max Memory (in GB) (default is 4gb)")
 
     parser_pilon.add_argument('-v','--debug',action='store_true',
                               help="Provide debugging messages")
 
     parser_pilon.add_argument('-it','--iterations', type=int, default=5,
-                              help="Number of Polishing iterations to run")
+                              help="Number of Polishing iterations to run (default is 5)")
 
     parser_pilon.add_argument('-l', '--left',type=str,
                               required=True,
