@@ -1,4 +1,4 @@
-import sys, os, shutil, gzip, subprocess
+import sys, os, shutil, gzip, subprocess, uuid
 import urllib.request
 
 # this runs rountines to remove sequence reads
@@ -24,7 +24,7 @@ def run(parser,args):
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
-        args.workdir = 'aaftf-filter_'+str(os.getpid())
+        args.workdir = 'aaftf-filter_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
@@ -40,11 +40,11 @@ def run(parser,args):
                 pass
     else:
         DB = args.AAFTF_DB
-        
+
     bamthreads = 4
     if args.cpus < 4:
         bamthreads = args.cpus
-            
+
     earliest_file_age = -1
     contam_filenames = []
     # db of contaminant (PhiX)
@@ -74,7 +74,7 @@ def run(parser,args):
         if ( earliest_file_age < 0 or
              earliest_file_age < os.path.getctime(acc_file) ):
             earliest_file_age = os.path.getctime(acc_file)
-    
+
     if args.screen_accessions:
         for acc in args.screen_accessions:
             if DB:
@@ -101,6 +101,10 @@ def run(parser,args):
                  earliest_file_age < os.path.getctime(url_file) ):
                 earliest_file_age = os.path.getctime(url_file)
 
+    if args.screen_local:
+        for f in args.screen_local:
+            contam_filenames.append(os.path.abspath(f))
+
     # concat vector db
     status('Generating combined contamination database:\n{:}'.format('\n'.join(contam_filenames)))
     contamdb = os.path.join(args.workdir,'contamdb.fa')
@@ -110,7 +114,7 @@ def run(parser,args):
              for fname in contam_filenames:
                  with open(fname,'rb') as fd: # reasonably fast copy for append
                      shutil.copyfileobj(fd, wfd)
-    
+
     #find reads
     forReads, revReads = (None,)*2
     if args.left:
@@ -124,7 +128,7 @@ def run(parser,args):
     if revReads:
         total = total*2
     status('Loading {:,} total reads'.format(total))
-    
+
     # seems like this needs to be stripping trailing extension?
     if not args.basename:
         if '_' in os.path.basename(forReads):
@@ -133,7 +137,7 @@ def run(parser,args):
             args.basename = os.path.basename(forReads).split('.')[0]
         else:
             args.basename = os.path.basename(forReads)
-        
+
     #logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
     DEVNULL = open(os.devnull, 'w')
     alignBAM = os.path.join(args.workdir, args.basename+'_contam_db.bam')
@@ -146,11 +150,11 @@ def run(parser,args):
         else:
             MEM='-Xmx{:}g'.format(round(0.6*getRAM()))
         cmd = ['bbduk.sh', MEM, 't={:}'.format(args.cpus), 'hdist=1','k=27',
-               'overwrite=true', 'in=%s'%(forReads), 
+               'overwrite=true', 'in=%s'%(forReads),
                'out=%s_1.fastq.gz'%(clean_reads) ]
         if revReads:
             cmd.extend(['in2=%s'%(revReads),'out2=%s_2.fastq.gz'%(clean_reads)])
-                
+
         cmd.extend(['ref=%s'%(",".join(refmatch_bbduk))])
         #cmd.extend(['prealloc','qhdist=1'])
         printCMD(cmd)
@@ -161,7 +165,7 @@ def run(parser,args):
 
         if not args.debug and not custom_workdir:
             SafeRemove(args.workdir)
-        
+
         clean = countfastq('{:}_1.fastq.gz'.format(clean_reads))
         if revReads:
             clean = clean*2
@@ -175,14 +179,14 @@ def run(parser,args):
                 clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
         return
 
-    elif args.aligner == 'bowtie2':  
+    elif args.aligner == 'bowtie2':
         # likely not used and less accurate than bbmap?
         if not os.path.isfile(alignBAM):
             status('Aligning reads to contamination database using bowtie2')
             if ( not os.path.exists(contamdb + ".1.bt2") or
-                 os.path.getctime(contamdb + ".1.bt2") < 
+                 os.path.getctime(contamdb + ".1.bt2") <
                  os.path.getctime(contamdb)):
-                # (re)build index if no index or index is older than 
+                # (re)build index if no index or index is older than
                 # the db
                 bowtie_index = ['bowtie2-build', contamdb, contamdb]
                 printCMD(bowtie_index)
@@ -194,63 +198,63 @@ def run(parser,args):
                 bowtie_cmd = bowtie_cmd + ['-1', forReads, '-2', revReads]
             elif forReads:
                 bowtie_cmd = bowtie_cmd + ['-U', forReads]
-            
+
             #now run and write to BAM sorted
             printCMD(bowtie_cmd)
             p1 = subprocess.Popen(bowtie_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
                                    '-o', os.path.basename(alignBAM), '-'],
-                                   cwd=args.workdir, stdout=subprocess.PIPE, 
+                                   cwd=args.workdir, stdout=subprocess.PIPE,
                                    stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
-            p2.communicate()        
-                
+            p2.communicate()
+
     elif args.aligner == 'bwa':
         # likely less accurate than bbduk so may not be used
         if not os.path.isfile(alignBAM):
             status('Aligning reads to contamination database using BWA')
             if ( not os.path.exists(contamdb + ".amb") or
-                 os.path.getctime(contamdb + ".amb") < 
+                 os.path.getctime(contamdb + ".amb") <
                  os.path.getctime(contamdb)):
                 bwa_index = ['bwa','index', contamdb]
                 printCMD(bwa_index)
                 subprocess.run(bwa_index, stderr=DEVNULL, stdout=DEVNULL)
-            
+
             bwa_cmd = ['bwa', 'mem', '-t', str(args.cpus), os.path.basename(contamdb), forReads]
             if revReads:
                 bwa_cmd.append(revReads)
-            
+
             #now run and write to BAM sorted
             printCMD(bwa_cmd)
             p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
                                    '-o', os.path.basename(alignBAM), '-'],
-                                   cwd=args.workdir, stdout=subprocess.PIPE, 
+                                   cwd=args.workdir, stdout=subprocess.PIPE,
                                    stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
-            p2.communicate()                
-      
+            p2.communicate()
+
     elif args.aligner == 'minimap2':
          # likely not used but may be useful for pacbio/nanopore?
         if not os.path.isfile(alignBAM):
             status('Aligning reads to contamination database using minimap2')
-            
+
             minimap2_cmd = ['minimap2', '-ax', 'sr', '-t', str(args.cpus), os.path.basename(contamdb), forReads]
             if revReads:
                 minimap2_cmd.append(revReads)
-            
+
             #now run and write to BAM sorted
             printCMD(minimap2_cmd)
             p1 = subprocess.Popen(minimap2_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
                                    '-o', os.path.basename(alignBAM), '-'],
-                                   cwd=args.workdir, stdout=subprocess.PIPE, 
+                                   cwd=args.workdir, stdout=subprocess.PIPE,
                                    stderr=DEVNULL, stdin=p1.stdout)
             p1.stdout.close()
-            p2.communicate()    
+            p2.communicate()
     else:
         status("Must specify bowtie2, bwa, or minimap2 for filtering")
-    
+
     if os.path.isfile(alignBAM):
         #display mapping stats in terminal
         subprocess.run(['samtools', 'index', alignBAM])
@@ -282,4 +286,4 @@ def run(parser,args):
             if not args.pipe:
                 status('Your next command might be:\n\tAAFTF assemble -l {:} -c {:} -o {:}\n'.format(
                     clean_reads+'.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
-            
+

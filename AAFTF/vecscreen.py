@@ -8,7 +8,7 @@
 # default lirbaries screen are located in resources.py
 # and include common Euk, Prok, and MITO contaminants
 
-import sys, csv, re, operator, os, gzip
+import sys, csv, re, operator, os, gzip, uuid
 import shutil
 
 from subprocess import call, Popen, PIPE, STDOUT
@@ -114,8 +114,8 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
                     if not qaccver in VecHits:
                         VecHits[qaccver] = [(saccver, int(qlen), loc, int(score), terminal, position)]
                     else:
-                        VecHits[qaccver].append((saccver, int(qlen), loc, int(score), terminal, position))          
-    
+                        VecHits[qaccver].append((saccver, int(qlen), loc, int(score), terminal, position))
+
     trimTerminal = 0
     splitContig = 0
     with open(cleaned, "w") as output_handle, open(logging, "w") as log:
@@ -133,7 +133,7 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
                 #VecHits contains list of tuples of information, if terminal, then just truncate
                 #off the closest side. Also, need to check if multiple intervals are within 50
                 #bp of each other, that whole interval is removed.
-                #should be able to accomplish above with the several rounds that it runs with, 
+                #should be able to accomplish above with the several rounds that it runs with,
                 #so split on internal and trim terminal. done.
                 for hit in VecHits[record.id]:
                     ID,length,loc,score,terminal,pos = hit
@@ -177,19 +177,19 @@ def make_blastdb(type,file,name):
         indexfile += ".nin"
     else:
         indexfile += ".pin"
-    
+
     if not os.path.exists(indexfile) or os.path.getctime(indexfile) < os.path.getctime(file):
         cmd = ['makeblastdb','-dbtype',type,'-in',file,'-out',name]
         printCMD(cmd)
         call(cmd, stdout=DEVNULL, stderr=DEVNULL)
 
-        
+
 def run(parser,args):
     if not args.workdir:
-        args.workdir = 'aaftf-vecscreen_'+str(os.getpid())
+        args.workdir = 'aaftf-vecscreen_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
-    
+
     #parse database locations
     DB = None
     if not args.AAFTF_DB:
@@ -202,7 +202,7 @@ def run(parser,args):
                 pass
     else:
         DB = args.AAFTF_DB
-    
+
     if args.percent_id:
         percentid_cutoff = args.percent_id
 
@@ -238,7 +238,7 @@ def run(parser,args):
             if not os.path.exists(nogz):
                 if not os.path.exists(file):
                     urllib.request.urlretrieve(url,file)
-                
+
                 with gzip.open(file, 'rb') as ingz, open(nogz,'wb') as outfa:
                     shutil.copyfileobj(ingz,outfa)
 #                call(['gunzip', '-k', file])
@@ -249,13 +249,13 @@ def run(parser,args):
             if not os.path.exists(file):
                 urllib.request.urlretrieve(url,file)
             make_blastdb('nucl',file,os.path.join(args.workdir,d))
-    
+
     global contigs_to_remove
     contigs_to_remove = {}
     regions_to_trim = {}
-    
+
     #qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore
-    for contam in ["CONTAM_EUKS","CONTAM_PROKS" ]:                       
+    for contam in ["CONTAM_EUKS","CONTAM_PROKS" ]:
         status("%s Contamination Screen" % (contam))
         blastreport = os.path.join(args.workdir,
                                    "%s.%s.blastn" % (contam, prefix))
@@ -312,7 +312,7 @@ def run(parser,args):
                                 cleanout.write('>split{:}_{:}\n{:}\n'.format(i+1, record.id, softwrap(newSeq)))
     else:
         eukCleaned = infile
-            
+
     # MITO screen
     status('Mitochondria Contamination Screen')
     mitoHits = []
@@ -349,7 +349,7 @@ def run(parser,args):
                   '-gapextend', '3', '-dust','yes','-soft_masking','true',
                   '-evalue', '700','-searchsp','1750000000000',
                   '-db', os.path.join(args.workdir,'UniVec'),
-                  '-outfmt', '6 qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore score qlen', 
+                  '-outfmt', '6 qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore score qlen',
                   '-num_threads',str(args.cpus),
                   '-query', eukCleaned, '-out', report]
             #logger.info('CMD: {:}'.format(printCMD(cmd,7)))
@@ -369,7 +369,7 @@ def run(parser,args):
     for k,v in sorted(contigs_to_remove.items()):
         print('\t{:} --> dbhit={:}; hit={:}; pident={:}'.format(k,v[0], v[1], v[2]))
 
-    # this could instead use the outfile and strip .fasta/fsa/fna and add mito on it I suppose, but assumes 
+    # this could instead use the outfile and strip .fasta/fsa/fna and add mito on it I suppose, but assumes
     # a bit about the naming structure
 
     mitochondria = os.path.join(outdir,prefix+'.mitochondria.fasta')
@@ -391,6 +391,6 @@ def run(parser,args):
     if not args.pipe:
         status('Your next command might be:\n\tAAFTF sourpurge -i {:} -o {:} -c {:} --phylum Ascomycota\n'.format(
             args.outfile, nextOut, args.cpus))
-    
+
     if not args.debug:
         SafeRemove(args.workdir)

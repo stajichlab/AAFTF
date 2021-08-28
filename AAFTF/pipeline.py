@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 
-from argparse import Namespace 
+from argparse import Namespace
 
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
@@ -18,6 +18,7 @@ import AAFTF.rmdup as rmdup
 import AAFTF.pilon as pilon
 import AAFTF.sort as aaftf_sort
 import AAFTF.assess as assess
+import AAFTF.mito as mito
 
 
 def run(parser, args):
@@ -27,7 +28,7 @@ def run(parser, args):
     RAM = round(0.75*getRAM())
     if not args.memory:
         args_dict['memory'] = str(RAM)
-    
+
     #run trimming with bbduk
     if not checkfile(basename+'_1P.fastq.gz'):
         trimOpts = ['memory', 'left', 'right', 'basename', 'cpus', 'debug', 'minlen']
@@ -44,7 +45,27 @@ def run(parser, args):
     if not checkfile(basename+'_1P.fastq.gz'):
         status('AATFT trim failed')
         sys.exit(1)
-        
+
+    #run mitochondrial assembly on bbduk trimmed reads
+    if args.right:
+        if not checkfile(basename+'.mito.fasta'):
+            mitoOpts = ['left', 'right', 'out', 'minlen', 'maxlen', 'seed', 'starting', 'workdir', 'pipe']
+            mitoDict = {k:v for (k,v) in args_dict.items() if k in mitoOpts}
+            mitoDict['left'] = basename+'_1P.fastq.gz'
+            mitoDict['right'] = basename+'_2P.fastq.gz'
+            mitoDict['out'] = basename+'.mito.fasta'
+            mitoDict['minlen'] = 10000
+            mitoDict['maxlen'] = 100000
+            for x in mitoOpts:
+                if not x in mitoDict:
+                    mitoDict[x] = False
+            mitoargs = Namespace(**mitoDict)
+            mito.run(parser, mitoargs)
+        else:
+            status('AAFTF mito output found: {}'.format(basename+'.mito.fasta'))
+    else:
+        status('AAFTF mito requires PE reads, skipping mitochondrial de novo assembly')
+
     #run filtering with bbduk
     if not checkfile(basename+'_filtered_1.fastq.gz'):
         filterOpts = ['screen_accessions', 'screen_urls', 'basename', 'cpus', 'debug', 'memory', 'AAFTF_DB', 'workdir']
@@ -54,6 +75,8 @@ def run(parser, args):
         if args.right:
             filterDict['right'] = basename+'_2P.fastq.gz'
         filterDict['pipe'] = True
+        if checkfile(basename+'.mito.fasta'):
+            filterDict['screen_local'] = [basename+'.mito.fasta']
         filterargs = Namespace(**filterDict)
         aaftf_filter.run(parser, filterargs)
     else:
@@ -64,7 +87,7 @@ def run(parser, args):
     if not checkfile(basename+'_filtered_1.fastq.gz'):
         status('AATFT filter failed')
         sys.exit(1)
-        
+
     #run assembly with spades
     if not checkfile(basename+'.spades.fasta'):
         assembleOpts = ['memory', 'cpus', 'debug', 'workdir', 'method', 'assembler_args', 'tmpdir']
@@ -140,7 +163,7 @@ def run(parser, args):
 
     #run pilon to error-correct
     if not checkfile(basename+'.pilon.fasta'):
-        pilonOpts = ['cpus', 'debug', 'workdir', 'iterations']
+        pilonOpts = ['cpus', 'debug', 'workdir', 'iterations', 'memory']
         pilonDict = {k:v for (k,v) in args_dict.items() if k in pilonOpts}
         pilonDict['infile'] = basename+'.rmdup.fasta'
         pilonDict['outfile'] = basename+'.pilon.fasta'
@@ -155,10 +178,11 @@ def run(parser, args):
     if not checkfile(basename+'.pilon.fasta'):
         status('AATFT pilon failed')
         sys.exit(1)
-        
+
     #sort and rename
     if not checkfile(basename+'.final.fasta'):
-        sortDict = {'input': basename+'.pilon.fasta', 'out': basename+'.final.fasta', 'name': 'scaffold'}
+        sortDict = {'input': basename+'.pilon.fasta', 'out': basename+'.final.fasta',
+                    'name': 'scaffold', 'minlen': args_dict['mincontiglen']}
         sortargs = Namespace(**sortDict)
         aaftf_sort.run(parser, sortargs)
     else:
@@ -166,7 +190,7 @@ def run(parser, args):
     if not checkfile(basename+'.final.fasta'):
         status('AATFT sort failed')
         sys.exit(1)
-   
+
     #assess the assembly
     assessDict = {'input': basename+'.final.fasta', 'report': False}
     assessargs = Namespace(**assessDict)

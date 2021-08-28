@@ -34,6 +34,8 @@ def run_subtool(parser, args):
         import AAFTF.sort as submodule
     elif args.command == 'pipeline':
         import AAFTF.pipeline as submodule
+    elif args.command == 'mito':
+        import AAFTF.mito as submodule
     else:
         parser.parse_args('')
         return
@@ -156,6 +158,46 @@ def main():
                                    help="Trimmomatic quality encoding -phred33 or phred64")
 
 
+
+    ##########
+    # mito-asm assembly mitochondrial genome
+    ##########
+
+
+    parser_mito = subparsers.add_parser('mito',
+                                        description="De novo assembly of mitochondrial genome using NOVOplasty, takes PE Illumina adapter trimmed data.",
+                                        help='De novo assembly of mitochondrial genome')
+    parser_mito.add_argument('-l', '--left',required=True,
+                             help="Left (Forward) reads")
+
+    parser_mito.add_argument('-r', '--right',required=True,
+                             help="Right (Reverse) reads")
+
+    parser_mito.add_argument('-o','--out',type=str,
+                            required=True,
+                            help="Output FASTA file for mitochondrial genome")
+
+    parser_mito.add_argument('--minlen',default=10000,type=int,
+                             help="Minimum expected genome size")
+
+    parser_mito.add_argument('--maxlen',default=100000,type=int,
+                             help="Maximum expected genome size")
+
+    parser_mito.add_argument('-s','--seed',required=False,
+                             help="Seed sequence, ie related mitochondrial genome, Default: A. nidulans")
+
+    parser_mito.add_argument('--starting',required=False,
+                             help="FASTA file of start sequence, rotate genome to, default COX1")
+
+    parser_mito.add_argument('-w', '--workdir', '--tmpdir',
+                            type=str, dest='workdir',
+                            required=False,
+                            help="Temporary directory to store datafiles and processes in")
+
+    parser_mito.add_argument('--pipe',action='store_true',
+                            help="AAFTF is running in pipeline mode")
+
+
     ##########
     # filter
     ##########
@@ -195,6 +237,10 @@ def main():
     parser_filter.add_argument('-u','--screen_urls',type = str,
                                nargs="*",
                                help="URLs to download and screen out initial reads.")
+
+    parser_filter.add_argument('-s','--screen_local',type = str,
+                               nargs="+",
+                               help="Local FASTA file(s) to use contamination screen")
 
     parser_filter.add_argument('-l', '--left',required=True,
                              help="Left (Forward) reads")

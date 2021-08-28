@@ -1,5 +1,6 @@
 import sys
 import os
+import uuid
 import shutil
 import subprocess
 from AAFTF.utility import line_count
@@ -23,7 +24,7 @@ def run(parser,args):
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
-        args.workdir = 'aaftf-pilon_'+str(os.getpid())
+        args.workdir = 'aaftf-pilon_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
@@ -69,7 +70,7 @@ def run(parser,args):
         #run Pilon
         pilon_cmd = ['pilon', '--genome', os.path.basename(initialFasta),
                      '--frags', pilonBAM,
-                     '-Xmx{}g'.format(args.memory),                     
+                     '-Xmx{}g'.format(args.memory),
                      '--output', correctedFasta.split('.fasta')[0],
                      '--threads', str(args.cpus),
                      '--changes']

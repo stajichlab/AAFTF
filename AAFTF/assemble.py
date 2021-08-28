@@ -3,7 +3,7 @@
 # users may prefer to run their custom assembly and skip this step
 
 
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, uuid
 from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import fastastats
@@ -12,7 +12,7 @@ from AAFTF.utility import fastastats
 def run_spades(parser,args):
 
     if not args.workdir:
-        args.workdir = 'spades_'+str(os.getpid())
+        args.workdir = 'spades_'+str(uuid.uuid4())[:8]
 
     runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory,
               '-o',args.workdir]

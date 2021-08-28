@@ -1,12 +1,12 @@
 
-Contaminant_Accessions = {"phiX": 'ftp://ftp.ncbi.nlm.nih.gov/genomes/Viruses/enterobacteria_phage_phix174_sensu_lato_uid14015/NC_001422.fna',
+Contaminant_Accessions = {"phiX": 'https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/enterobacteria_phage_phix174_sensu_lato_uid14015/NC_001422.fna',
         }
 
-DB_Links = {'UniVec': 'ftp://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec',
-            'CONTAM_EUKS': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_euks.fa.gz',
-            'CONTAM_PROKS': 'ftp://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_prok.fa',
-            'MITO': 'ftp://ftp.ncbi.nlm.nih.gov/refseq/release/mitochondrion/mitochondrion.1.1.genomic.fna.gz',
-            'sourmash': 'https://osf.io/zskb9/download?version=1'
+DB_Links = {'UniVec': 'https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec',
+            'CONTAM_EUKS': 'https://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_euks.fa.gz',
+            'CONTAM_PROKS': 'https://ftp.ncbi.nlm.nih.gov/pub/kitts/contam_in_prok.fa',
+            'MITO': 'https://ftp.ncbi.nlm.nih.gov/refseq/release/mitochondrion/mitochondrion.1.1.genomic.fna.gz',
+            'sourmash': 'https://osf.io/9xdg2/download?version=1'
         }
 
 Applications = {'megablast': 'blastn',
