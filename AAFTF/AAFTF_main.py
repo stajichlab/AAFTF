@@ -187,7 +187,10 @@ def main():
                              help="Seed sequence, ie related mitochondrial genome, Default: A. nidulans")
 
     parser_mito.add_argument('--starting',required=False,
-                             help="FASTA file of start sequence, rotate genome to, default COX1")
+                             help="FASTA file of start sequence, rotate genome to, default COB")
+
+    parser_mito.add_argument('--reference',required=False,
+                             help="Run NOVOplasty in reference mode")
 
     parser_mito.add_argument('-w', '--workdir', '--tmpdir',
                             type=str, dest='workdir',

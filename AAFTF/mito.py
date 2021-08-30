@@ -76,17 +76,26 @@ def run(parser,args):
 
     # check for seed sequence, otherwise write one
     if not args.seed:
-        seedFasta = os.path.abspath(os.path.join(os.path.dirname(__file__), 'mito-seed.fasta'))
+        if not args.reference:
+            seedFasta = os.path.abspath(os.path.join(os.path.dirname(__file__), 'mito-seed.fasta'))
+        else:
+            seedFasta = os.path.abspath(args.reference)
     else:
         seedFasta = os.path.abspath(args.seed)
 
     # now write the novoplasty config file
     defaultConfig = os.path.join(os.path.dirname(__file__), 'novoplasty-config.txt')
     novoConfig = os.path.join(args.workdir, 'novo-config.txt')
+    if args.reference:
+        refgenome = os.path.abspath(args.reference)
+    else:
+        refgenome = ''
     checkWords = ("<PROJECT>", "<MINLEN>", "<MAXLEN>", "<MAXMEM>",
-                  "<SEED>", "<READLEN>", "<FORWARD>", "<REVERSE>")
+                  "<SEED>", "<READLEN>", "<FORWARD>", "<REVERSE>",
+                  "<REFERENCE>")
     repWords = (unique_id, str(args.minlen), str(args.maxlen), str(int(getRAM()*.75)),
-                seedFasta,  str(read_len), os.path.abspath(args.left), os.path.abspath(args.right))
+                seedFasta,  str(read_len), os.path.abspath(args.left), os.path.abspath(args.right),
+                refgenome)
     with open(novoConfig, 'w') as outfile:
         with open(defaultConfig, 'r') as infile:
             for line in infile:
@@ -112,6 +121,9 @@ def run(parser,args):
             circular = True
             break
         if f.startswith('Contigs_1_'):
+            draftMito = os.path.join(args.workdir, f)
+            break
+        if f.startswith('Uncircularized_assemblies_'):
             draftMito = os.path.join(args.workdir, f)
             break
     if circular:

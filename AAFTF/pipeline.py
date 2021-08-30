@@ -49,7 +49,7 @@ def run(parser, args):
     #run mitochondrial assembly on bbduk trimmed reads
     if args.right:
         if not checkfile(basename+'.mito.fasta'):
-            mitoOpts = ['left', 'right', 'out', 'minlen', 'maxlen', 'seed', 'starting', 'workdir', 'pipe']
+            mitoOpts = ['left', 'right', 'out', 'minlen', 'maxlen', 'seed', 'starting', 'workdir', 'pipe', 'reference']
             mitoDict = {k:v for (k,v) in args_dict.items() if k in mitoOpts}
             mitoDict['left'] = basename+'_1P.fastq.gz'
             mitoDict['right'] = basename+'_2P.fastq.gz'
