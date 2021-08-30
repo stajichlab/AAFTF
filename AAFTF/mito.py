@@ -47,13 +47,15 @@ def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
         with open(fasta_out, 'w') as outfile:
             outfile.write('>{}\n{}\n'.format('mt', softwrap(rotated)))
     elif len(alignments) == 0:
-        sys.stderr.write('ERROR: did not find -s,--starting sequence in -f,--fasta\n')
-        sys.exit(1)
+        status('ERROR: unable to rotate because did not find --starting sequence\n')
+        with open(fasta_out, 'w') as outfile:
+            outfile.write('>{}\n{}\n'.format('mt', softwrap(initial_seq)))
     elif len(alignments) > 1:
-        sys.stderr.write('ERROR: found multiple alignments in -f,--fasta\n')
+        status('ERROR: unable to rotate because found multiple alignments\n')
         for x in alignments:
             sys.stderr.write('{}\n'.format(x))
-        sys.exit(1)
+        with open(fasta_out, 'w') as outfile:
+            outfile.write('>{}\n{}\n'.format('mt', softwrap(initial_seq)))
     if os.path.isfile(startFile):
         os.remove(startFile)
 
