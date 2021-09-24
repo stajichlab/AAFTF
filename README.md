@@ -1,7 +1,7 @@
 ### AAFTF - Automatic Assembly For The Fungi
 *Jason Stajich and Jon Palmer*
 
-![AAFTF logo](docs/AAFTF_card.png)
+![AAFTF logo](docs/AAFTF.png)
 
 Requirements
 ===================
