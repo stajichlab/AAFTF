@@ -1,5 +1,6 @@
 import sys
 import os
+import uuid
 import subprocess
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 import operator
@@ -30,7 +31,7 @@ def run(parser,args):
                         elif Header in reference:
                             rout.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
         return qfile, rfile
-    
+
     def runMinimap2(query, reference, name):
         FNULL = open(os.devnull, 'w')
         garbage = False #assume this is a good contig
@@ -40,7 +41,7 @@ def run(parser,args):
             cov = float(alnLen) / int(qLen) * 100
             if args.debug:
                 print('\tquery={:} hit={:} pident={:.2f} coverage={:.2f}'.format(qID, tID, pident, cov))
-            
+
                 if pident > args.percent_id and cov > args.percent_cov:
                     print("{:} duplicated: {:.0f}% identity over {:.0f}% of the contig. length={:}".format(name, pident, cov, qLen))
                     garbage = True
@@ -52,10 +53,10 @@ def run(parser,args):
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
-        args.workdir = 'aaftf-rmdup_'+str(os.getpid())
+        args.workdir = 'aaftf-rmdup_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
-        
+
     if args.debug:
         status(args)
     status('Looping through assembly shortest --> longest searching for duplicated contigs using minimap2')
@@ -66,7 +67,7 @@ def run(parser,args):
             fasta_lengths.append(len(Seq))
     n50 = calcN50(fasta_lengths, num=0.75)
     status('Assembly is {:,} contigs; {:,} bp; and N75 is {:,} bp'.format(numSeqs, assemblySize, n50))
-    
+
     #get list of tuples of sequences sorted by size (shortest --> longest)
     AllSeqs = {}
     with open(args.input, 'rU') as infile:
@@ -102,7 +103,7 @@ def run(parser,args):
         result = runMinimap2(qfile, rfile, x[0])
         if result:
             ignore.append(x[0])
-    
+
     ignore = set(ignore)
     with open(args.out, 'w') as clean_out:
         with open(args.input, 'rU') as infile:
@@ -117,9 +118,9 @@ def run(parser,args):
         nextOut = args.out.split('.')[0]+'.pilon.fasta'
     else:
         nextOut = args.out+'.pilon.fasta'
-    
+
     if not args.pipe:
     	status('Your next command might be:\n\tAAFTF pilon -i {:} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {:}\n'.format(args.out, nextOut))
 
     if not args.debug and not custom_workdir:
-        SafeRemove(args.workdir)        
+        SafeRemove(args.workdir)

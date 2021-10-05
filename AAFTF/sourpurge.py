@@ -1,8 +1,7 @@
 import sys, os, shutil
-
 from subprocess import call, Popen, PIPE, STDOUT
 import subprocess
-
+import uuid
 from Bio import SeqIO
 from AAFTF.utility import execute
 from AAFTF.utility import calcN50
@@ -12,13 +11,14 @@ from AAFTF.utility import status
 from AAFTF.utility import printCMD
 from AAFTF.utility import SafeRemove
 from AAFTF.utility import checkfile
+from AAFTF.utility import download
 
-# logging - we may need to think about whether this has 
+# logging - we may need to think about whether this has
 # separate name for the different runfolder
 def run(parser,args):
 
     if not args.workdir:
-        args.workdir = 'aaftf-sourpurge_'+str(os.getpid())    
+        args.workdir = 'aaftf-sourpurge_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
@@ -35,7 +35,7 @@ def run(parser,args):
     if not forReads:
         status('Unable to located FASTQ raw reads, low coverage will be skipped. Provide -l,--left or -r,--right to enable low coverage filtering.')
 #        sys.exit(1)
-    
+
     #parse database locations
     if not args.sourdb:
         try:
@@ -48,12 +48,11 @@ def run(parser,args):
                 sys.exit(1)
         SOUR = os.path.join(DB, 'genbank-k31.lca.json.gz')
         if not os.path.isfile(SOUR):
-            status("{:} sourmash database not found".format(SOUR))
-            # should we prompt it to download 
+            status("{:} sourmash database not found, download and rename to genbank-k31.lca.json.gz".format(SOUR))
             sys.exit(1)
     else:
         SOUR = os.path.abspath(args.sourdb)
-                    
+
     # hard coded tmpfile
     assembly_working  = 'assembly.fasta'
     megablast_working = 'megablast.out'
@@ -61,7 +60,7 @@ def run(parser,args):
     shutil.copyfile(args.input, os.path.join(args.workdir,assembly_working))
     numSeqs, assemblySize = fastastats(os.path.join(args.workdir,
                                                     assembly_working))
-    status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs, 
+    status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs,
                                                               assemblySize))
     DEVNULL = open(os.devnull, 'w')
 
@@ -106,7 +105,7 @@ def run(parser,args):
         if len(v) > 0:
             if not any(i in v for i in args.phylum):
                 Tax2Drop.append(k)
-    
+
     #drop contigs from taxonomy before calculating coverage
     status('Dropping {:} contigs from taxonomy screen'.format(len(Tax2Drop)))
     sourTax = os.path.join(args.workdir, 'sourmashed-tax-screen.fasta')
@@ -115,14 +114,14 @@ def run(parser,args):
             for record in SeqIO.parse(infile, 'fasta'):
                 if not record.id in Tax2Drop:
                     SeqIO.write(record, outfile, 'fasta')
-        
+
     # only do coverage trimming if reads provided
     Contigs2Drop = [] # this will be empty if no reads given to gather by coverage
     if forReads:
         #check if BAM present, if so skip running
-        if not os.path.isfile(os.path.join(args.workdir, blobBAM)):  
+        if not os.path.isfile(os.path.join(args.workdir, blobBAM)):
             # index
-            bwa_index  = ['bwa','index', os.path.basename(sourTax)]     
+            bwa_index  = ['bwa','index', os.path.basename(sourTax)]
             status('Building BWA index')
             printCMD(bwa_index)
             subprocess.run(bwa_index, cwd=args.workdir, stderr=DEVNULL)
@@ -130,7 +129,7 @@ def run(parser,args):
             bwa_cmd = ['bwa','mem',
                        '-t', str(args.cpus),
                        os.path.basename(sourTax), # assembly index base
-                       forReads]    
+                       forReads]
             if revReads:
                 bwa_cmd.append(revReads)
 
@@ -139,7 +138,7 @@ def run(parser,args):
                 printCMD(bwa_cmd)
                 p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
                                       stdout=subprocess.PIPE, stderr=DEVNULL)
-                p2 = subprocess.Popen(['samtools', 'sort', 
+                p2 = subprocess.Popen(['samtools', 'sort',
                                        '--threads', str(bamthreads),
                                        '-o', blobBAM, '-'], cwd=args.workdir,
                                       stdout=subprocess.PIPE, stderr=DEVNULL,
@@ -157,11 +156,11 @@ def run(parser,args):
                 for record in SeqIO.parse(SeqIn, 'fasta'):
                     bedout.write('{:}\t{:}\t{:}\n'.format(record.id, 0, len(record.seq)))
                     lengths.append(len(record.seq))
-    
+
         N50 = calcN50(lengths)
         Coverage = {}
         coverageBed = os.path.join(args.workdir, 'coverage.bed')
-        cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM] 
+        cov_cmd = ['samtools', 'bedcov', os.path.basename(FastaBed), blobBAM]
         printCMD(cov_cmd)
         with open(coverageBed, 'w') as bed_out:
             for line in execute(cov_cmd, args.workdir):
@@ -174,7 +173,7 @@ def run(parser,args):
                 cols = line.split('\t')
                 cov = int(cols[3]) / float(cols[2])
                 Coverage[cols[0]] = (int(cols[2]), cov)
-    
+
         #get average coverage of N50 contigs
         n50Cov = []
         for k,v in Coverage.items():
@@ -185,20 +184,20 @@ def run(parser,args):
         n50AvgCov = sum(n50Cov) / len(n50Cov)
         minpct = args.mincovpct / 100
         # should we make this a variable? 5% was something arbitrary
-        min_coverage = float(n50AvgCov * minpct)  
+        min_coverage = float(n50AvgCov * minpct)
         status('Average coverage for N50 contigs is {:}X'.format(int(n50AvgCov)))
-        
-        #Start list of contigs to drop  
+
+        #Start list of contigs to drop
         for k,v in Coverage.items():
             if v[1] <= min_coverage:
                 Contigs2Drop.append(k)
         status('Found {:,} contigs with coverage less than {:.2f}X ({:}%)'.
                             format(len(Contigs2Drop), min_coverage, args.mincovpct))
-            
+
     if args.debug:
         print('Contigs dropped due to coverage: {:,}'.format(','.join(Contigs2Drop)))
         print('Contigs dropped due to taxonomy: {:,}'.format(','.join(Tax2Drop)))
-        
+
     DropFinal = Contigs2Drop + Tax2Drop
     DropFinal = set(DropFinal)
     status('Dropping {:,} total contigs based on taxonomy and coverage'.format(len(DropFinal)))
@@ -206,7 +205,7 @@ def run(parser,args):
         for record in SeqIO.parse(seqin, 'fasta'):
             if not record.id in DropFinal:
                 SeqIO.write(record, outfile, 'fasta')
-                    
+
     numSeqs, assemblySize = fastastats(args.outfile)
     status('Sourpurged assembly is {:,} contigs and {:,} bp'.
                 format(numSeqs, assemblySize))
@@ -216,16 +215,16 @@ def run(parser,args):
         nextOut = args.outfile.split('.')[0]+'.rmdup.fasta'
     else:
         nextOut = args.outfile+'.rmdup.fasta'
-    
+
     if checkfile(sourmashTSV):
         baseinput = os.path.basename(args.input)
         if '.' in baseinput:
             baseinput = baseinput.rsplit('.',1)[0]
 
         os.rename(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
-    
+
     if not args.debug:
         SafeRemove(args.workdir)
-    
+
     if not args.pipe:
         status('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))

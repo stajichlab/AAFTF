@@ -1,0 +1,20 @@
+{
+ "creators": [
+      {
+        "name": "Jonathan M. Palmer",
+        "affiliation": "USDA Forest Service"
+      },
+      {
+        "name": "Jason E. Stajich",
+        "affiliation": "University of California-Riverside"
+      }
+    ],
+  "description": "AAFTF is a pipeline for automated genome assembly).",
+  "keywords": [
+    "genome",
+    "assembly",
+    "software"
+  ],
+  "license": "MIT",
+  "title": "Automatic assembly for the fungi (AAFTF): genome assembly pipeline"
+}

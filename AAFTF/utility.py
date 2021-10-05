@@ -1,15 +1,68 @@
 import os
+import gzip
 import subprocess
 from Bio.SeqIO.FastaIO import SimpleFastaParser
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 import shutil
 import textwrap
 import datetime
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
+import socket
+import errno
+
+def download(url, file_name):
+    try:
+        u = urlopen(url)
+        f = open(file_name, 'wb')
+        meta = u.info()
+        file_size = 0
+        for x in meta.items():
+            if x[0].lower() == 'content-length':
+                file_size = int(x[1])
+        file_size_dl = 0
+        block_sz = 8192
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+            file_size_dl += len(buffer)
+            f.write(buffer)
+        f.close()
+    except socket.error as e:
+        if e.errno != errno.ECONNRESET:
+            raise
+        pass
+
+def myround(x, base=10):
+    return int(base * round(float(x)/base))
+
+def GuessRL(input):
+    #read first 500 records, get length then exit
+    lengths = []
+    if input.endswith('.gz'):
+        with gzip.open(input, 'rt') as infile:
+            for title, seq, qual in FastqGeneralIterator(infile):
+                if len(lengths) < 500:
+                    lengths.append(len(seq))
+                else:
+                    break
+    else:
+        with open(input, 'r') as infile:
+            for title, seq, qual in FastqGeneralIterator(infile):
+                if len(lengths) < 500:
+                    lengths.append(len(seq))
+                else:
+                    break
+    return myround(max(set(lengths)))
 
 def checkfile(input):
     def _getSize(filename):
         st = os.stat(filename)
         return st.st_size
-        
+
     if os.path.isfile(input):
         filesize = _getSize(input)
         if int(filesize) < 1:
@@ -22,13 +75,18 @@ def checkfile(input):
         return False
 
 def getRAM():
-    import resource
-    import sys
-    rusage_denom = 1024.
-    if sys.platform == 'darwin':
-        # ... it seems that in OSX the output is different units ...
-        rusage_denom = rusage_denom * rusage_denom
-    mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
+    # first try simple os method
+    try:
+        mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+        mem = int(mem_bytes/(1024.**3))
+    except:
+        import resource
+        import sys
+        rusage_denom = 1024.
+        if sys.platform == 'darwin':
+            # ... it seems that in OSX the output is different units ...
+            rusage_denom = rusage_denom * rusage_denom
+        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
     return mem
 
 def which_path(file_name):
@@ -66,13 +124,13 @@ def countfastq(input):
     lines = sum(1 for line in zopen(input))
     count = int(lines) // 4
     return count
-    
+
 def softwrap(string, every=80):
     lines = []
     for i in range(0, len(string), every):
         lines.append(string[i:i+every])
     return '\n'.join(lines)
-    
+
 def bam_read_count(bamfile):
     cmd = ['samtools', 'idxstats', bamfile]
     mapped = 0
@@ -82,6 +140,20 @@ def bam_read_count(bamfile):
         mapped += int(nm)
         unmapped += int(nu)
     return (mapped, unmapped)
+
+def RevComp(s):
+    rev_comp_lib = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'U': 'A',
+                    'M': 'K', 'R': 'Y', 'W': 'W', 'S': 'S', 'Y': 'R',
+                    'K': 'M', 'V': 'B', 'H': 'D', 'D': 'H', 'B': 'V',
+                    'X': 'X', 'N': 'N'
+                    }
+    cseq = ''
+    n = len(s)
+    s = s.upper()
+    for i in range(0,n):
+        c = s[n-i-1]
+        cseq += rev_comp_lib[c]
+    return cseq
 
 def calcN50(lengths, num=0.5):
     lengths.sort()
@@ -109,7 +181,7 @@ def execute(cmd, dir):
     DEVNULL = open(os.devnull, 'w')
     popen = subprocess.Popen(cmd, cwd=dir, stdout=subprocess.PIPE, universal_newlines=True, stderr=DEVNULL)
     for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line 
+        yield stdout_line
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
@@ -135,8 +207,8 @@ def SafeRemove(input):
         os.remove(input)
     else:
         return
-        
-#streaming parallel pigz open via https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py 
+
+#streaming parallel pigz open via https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
 def which(program):
     import os
     def is_exe(fpath):

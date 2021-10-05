@@ -10,18 +10,33 @@ Requirements
 - bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
 - bwa - https://github.com/lh3/bwa
 - Pilon - https://github.com/broadinstitute/pilon/wiki
-- sourmash - https://sourmash.readthedocs.io/ (install via conda/pip)
+- sourmash (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
 - NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST
 - minimap2 - https://github.com/lh3/minimap2
 Assemblers
 - SPAdes - http://cab.spbu.ru/software/spades/
 - megahit - https://github.com/voutcn/megahit
 - dipspades - (SPAdes 3.11.1 - note it is not part of later SPAdes packages) http://cab.spbu.ru/files/release3.11.1/dipspades_manual.html
+- NOVOplasty - https://github.com/ndierckx/NOVOPlasty
 
 Authors
 ============
 * Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org
 * Jon Palmer [@nextgenusfs](https://github.com/nextgenusfs) - https://twitter.com/jonpalmer2013
+
+Install
+===========
+We are working on simplifying the install, ie getting on Pypi and bioconda.  Currently you could create conda environment and install like this:
+
+```
+conda create -n aaftf "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
+    blast minimap2 spades megahit novoplasty biopython
+```
+And then install this repo with git/pip:
+```
+$ conda activate aaftf
+$ python -m pip install git+https://github.com/stajichlab/AAFTF.git
+```
 
 Notes
 ===========
@@ -30,15 +45,16 @@ This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/ja
 Steps / Procedures
 ==================
 1. trim                Trim FASTQ input reads - with BBMap
-2. filter              Filter contaminanting reads - with BBMap
-3. assemble            Assemble reads - with SPAdes
-4. vecscreen           Vector and Contaminant Screening of assembled contigs - with BlastN based method to replicate NCBI screening
-5. sourpurge           Purge contigs based on sourmash results - with sourmash
-6. rmdup               Remove duplicate contigs - using minimap2 to find duplicates
-7. pilon               Polish contig sequences with Pilon - uses Pilon
-8. sort                Sort contigs by length and rename FASTA headers
-9. assess              Assess completeness of genome assembly
-10. pipeline           Run AAFTF pipeline all in one go.
+2. mito                De novo assemble mitochondrial genome
+3. filter              Filter contaminanting reads - with BBMap
+4. assemble            Assemble reads - with SPAdes
+5. vecscreen           Vector and Contaminant Screening of assembled contigs - with BlastN based method to replicate NCBI screening
+6. sourpurge           Purge contigs based on sourmash results - with sourmash
+7. rmdup               Remove duplicate contigs - using minimap2 to find duplicates
+8. pilon               Polish contig sequences with Pilon - uses Pilon
+9. sort                Sort contigs by length and rename FASTA headers
+10. assess             Assess completeness of genome assembly
+11. pipeline           Run AAFTF pipeline all in one go.
 
 
 # Typical runs
