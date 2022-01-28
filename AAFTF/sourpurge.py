@@ -221,7 +221,7 @@ def run(parser,args):
         if '.' in baseinput:
             baseinput = baseinput.rsplit('.',1)[0]
 
-        os.rename(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
+        shutil.copy(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
 
     if not args.debug:
         SafeRemove(args.workdir)
