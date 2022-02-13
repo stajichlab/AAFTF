@@ -195,8 +195,8 @@ def run(parser,args):
                             format(len(Contigs2Drop), min_coverage, args.mincovpct))
 
     if args.debug:
-        print('Contigs dropped due to coverage: {:,}'.format(','.join(Contigs2Drop)))
-        print('Contigs dropped due to taxonomy: {:,}'.format(','.join(Tax2Drop)))
+        print('Contigs dropped due to coverage: {:}'.format(','.join(Contigs2Drop)))
+        print('Contigs dropped due to taxonomy: {:}'.format(','.join(Tax2Drop)))
 
     DropFinal = Contigs2Drop + Tax2Drop
     DropFinal = set(DropFinal)
