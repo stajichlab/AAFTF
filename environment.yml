@@ -1,0 +1,13 @@
+name: AAFTF
+dependencies:
+  - biopython
+  - samtools
+  - bwa
+  - minimap2
+  - pilon
+  - blast
+  - diamond
+  - sourmash
+  - bowtie2
+  - trimmomatic
+  - spades
