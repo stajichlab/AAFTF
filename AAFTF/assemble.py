@@ -41,6 +41,9 @@ def run_spades(parser,args):
     else:
         runcmd = runcmd + ['--pe1-1', forReads, '--pe1-2', revReads]
 
+    if args.merged:
+        runcmd.extend(['--merged',args.merged])
+
     # this basically overrides everything above and only runs --restart-from option
     if os.path.isdir(args.workdir):
         runcmd = [ 'spades.py', '-o', args.workdir,

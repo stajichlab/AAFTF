@@ -15,6 +15,7 @@ def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
     startFile = os.path.join(folder, '{}.fasta'.format(uuid.uuid4()))
     if not start:
         # generated as spoa consensus from select fungal cob genes
+        # move this to a configurable file
         cob1 = 'atgagaattttaaaaagtcatcctttattaaaattagttaatagttatattattgattcaccacaaccttctaatattagttatttatgaaattttggatctttattagctttatgtttagttatacaaattgtaactggtgttacattagctatgcactatacacctaatgttgatttagcttttaattctgtagaacatattatgagagatgtaaataatggttgattaataagatatttacatgctaatactgcttcagcattctttttcttagttatatttacatataggtagaggattatattatggttcatataaatcacctagaacattaacatgagctattgg'
         with open(startFile, 'w') as outfile:
             outfile.write('>COB\n{}\n'.format(softwrap(cob1)))
@@ -79,14 +80,14 @@ def run(parser,args):
     # check for seed sequence, otherwise write one
     if not args.seed:
         if not args.reference:
-            seedFasta = os.path.abspath(os.path.join(os.path.dirname(__file__), 'mito-seed.fasta'))
+            seedFasta = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data','mito-seed.fasta'))
         else:
             seedFasta = os.path.abspath(args.reference)
     else:
         seedFasta = os.path.abspath(args.seed)
 
     # now write the novoplasty config file
-    defaultConfig = os.path.join(os.path.dirname(__file__), 'novoplasty-config.txt')
+    defaultConfig = os.path.join(os.path.dirname(__file__), 'data','novoplasty-config.txt')
     novoConfig = os.path.join(args.workdir, 'novo-config.txt')
     if args.reference:
         refgenome = os.path.abspath(args.reference)

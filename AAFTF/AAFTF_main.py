@@ -77,6 +77,7 @@ def main():
     # trim
     ##########
     # arguments
+    # --method bbduk*, trimmomatic, fastp
     # --trimmomatic: arguments are path to JAR or application respectively
     # assume java is PATH already for trimmomatic
     # -o / --outdir: write outdir
@@ -86,7 +87,8 @@ def main():
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
-    # currently singleton / unpaired reads not supported?
+    #
+    # --merge: merge reads in fastp
 
     parser_trim = subparsers.add_parser('trim',
        description="This comamnd trims reads in FASTQ format to remove low quality reads and trim adaptor sequences",
@@ -119,12 +121,15 @@ def main():
                              help="AAFTF is running in pipeline mode")
 
     parser_trim.add_argument('--method', default='bbduk',
-                            choices=['bbduk', 'trimmomatic'],
+                            choices=['bbduk', 'trimmomatic', 'fastp'],
                             help='Program to use for adapter trimming')
 
     parser_trim.add_argument('-m','--memory',type=int,
                             dest='memory',required=False,
                             help="Max Memory (in GB)")
+
+    parser_trim.add_argument('--merge',action='store_true',
+                            help="Merge paired end reads when running fastp")
 
     tool_group = parser_trim.add_mutually_exclusive_group(required=False)
 
@@ -162,7 +167,6 @@ def main():
     ##########
     # mito-asm assembly mitochondrial genome
     ##########
-
 
     parser_mito = subparsers.add_parser('mito',
                                         description="De novo assembly of mitochondrial genome using NOVOplasty, takes PE Illumina adapter trimmed data.",
@@ -213,6 +217,7 @@ def main():
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
+    # --single: single unpaired reads
     # or value from --prefix
     # --aligner: bbduk bwa, bowtie2, minimap for read alignment to contamdb
 
@@ -276,6 +281,7 @@ def main():
     # -p / --prefix: input/outfile prefix
     # --paired or --unpaired
     # --spades
+    # --merged for merged reads
     # --tmpdir: tempdir for spades
 
     parser_asm = subparsers.add_parser('assemble',
@@ -306,6 +312,9 @@ def main():
 
     parser_asm.add_argument('-r', '--right',required=False,
                              help="Right (Reverse) reads")
+
+    parser_asm.add_argument('--merged',required=False,
+                             help="Merged reads from flash or fastp")
 
     parser_asm.add_argument('-v','--debug',action='store_true',
                              help="Print Spades stdout to terminal")

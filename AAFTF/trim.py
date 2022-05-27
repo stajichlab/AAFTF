@@ -194,17 +194,25 @@ def run(parser,args):
     elif args.method == 'fastp':
         status('Adapter trimming using fastp')
         cmd = ['fastp', '--low_complexity_filter','-l','{:}'.format(args.minlen),
-               '-w','{:}'.format(args.cpus),'--in1','{:}'.format(args.left) ]
+               '-w','{:}'.format(args.cpus)]
 
 #               '-wref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
 #           'k=23', 'mink=11', 'minlen={:}'.format(args.minlen), 'hdist=1',
 #           'ftm=5', 'tpe', 'tbo', 'overwrite=true']
         if args.left and args.right:
-            cmd += ['in1={:}'.format(args.left), 'in2={:}'.format(args.right),
-                    'out1={:}_1P.fastq.gz'.format(args.basename), 'out2={:}_2P.fastq.gz'.format(args.basename)]
-        elif args.left:
-            cmd += ['in={:}'.format(args.left), 'out={:}_1U.fastq.gz'.format(args.basename)]
+            # could add merging ...
+            cmd += ['--in1={:}'.format(args.left),
+                    '--in2={:}'.format(args.right),
+                    '--out1={:}_1P.fastq.gz'.format(args.basename),
+                    '--out2={:}_2P.fastq.gz'.format(args.basename)
+                    ]
+            if args.merge:
+                cmd += ['--merge', '--merged_out={:}_MG.fastq.gz'.format(args.basename)]
 
+        elif args.left:
+            cmd += ['--in={:}'.format(args.left), '--out={:}_1U.fastq.gz'.format(args.basename)]
+        cmd += ['--html={:}.fastp.html'.format(args.basename),
+                '--json={:}.fastp.json'.format(args.basename)]
         printCMD(cmd)
         if args.debug:
             subprocess.run(cmd)
