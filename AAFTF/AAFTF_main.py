@@ -480,6 +480,7 @@ def main():
     # -i / --in: input assembly file
     # -o / --out: output cleaned assembly
     # -rp / --reads-prefix: input/outfile reads prefix
+    # --memory: default 4
     # --iterations: default 5
     # --tmpdir
     # --debug
@@ -499,9 +500,9 @@ def main():
     parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
 
-    parser_pilon.add_argument('-m','--memory',type=int,default=4,
+    parser_pilon.add_argument('-m','--memory',type=int,default=16,
                             dest='memory',required=False,
-                            help="Max Memory (in GB) (default is 4gb)")
+                            help="Max Memory (in GB) (default is 16gb)")
 
     parser_pilon.add_argument('-v','--debug',action='store_true',
                               help="Provide debugging messages")
