@@ -11,3 +11,5 @@ dependencies:
   - bowtie2
   - trimmomatic
   - spades
+  - fastp
+  - novoplasty
