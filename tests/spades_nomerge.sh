@@ -38,7 +38,7 @@ if [ ! -f $LEFT ]; then
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
 
     if [ -f $LEFT ]; then
-			rm -f  $LEFTTRIMFP $RIGHTTRIMFP
+			rm -f $LEFTTRIMFP $RIGHTTRIMFP
     fi
 fi
 

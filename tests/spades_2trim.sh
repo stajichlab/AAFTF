@@ -49,7 +49,7 @@ if [ ! -f $LEFT ]; then
     fi
 
     if [ -f $LEFT ]; then
-			rm $LEFTTRIM $RIGHTTRIM $MERGEDTRIM $LEFTTRIMFP $RIGHTTRIMFP
+			rm -f $LEFTTRIM $RIGHTTRIM $MERGEDTRIM $LEFTTRIMFP $RIGHTTRIMFP
     fi
 fi
 

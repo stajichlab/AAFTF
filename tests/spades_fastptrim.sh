@@ -38,13 +38,13 @@ if [ ! -f $LEFT ]; then
 
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
 		if [ -f $LEFT ]; then
-			rm $LEFTTRIMFP $RIGHTTRIMFP
+			rm -f $LEFTTRIMFP $RIGHTTRIMFP
 		fi
 fi
 if [ ! -f $MERGED ]; then
 	../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
 	if [ -f $MERGED ]; then
-		rm $MERGEDTRIM
+		rm -f $MERGEDTRIM
 	fi
 fi
 
