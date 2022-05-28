@@ -1,12 +1,12 @@
 #!/bin/bash -l
-#SBATCH -N 1 -n 48 -p short --mem 96gb  --out test_spades_nomerge.%A.log
+#SBATCH -N 1 -n 48 -p short --mem 96gb  --out test_spades_bbdukonly.%A.log
 module load AAFTF
 CPU=$SLURM_CPUS_ON_NODE
 if [ -z $CPU ]; then
 	CPU=2
 fi
 MEM=96
-OUTDIR=test_spades_nomerge
+OUTDIR=test_spades_bbdukonly
 PREFIX=Rant
 PHYLUM=Ascomycota
 mkdir -p $OUTDIR
@@ -22,23 +22,20 @@ do
 	fi
 done
 
-LEFTTRIMFP=$OUTDIR/${PREFIX}_fastp_1P.fastq.gz
-RIGHTTRIMFP=$OUTDIR/${PREFIX}_fastp_2P.fastq.gz
+LEFTTRIM=$OUTDIR/${PREFIX}_1P.fastq.gz
+RIGHTTRIM=$OUTDIR/${PREFIX}_2P.fastq.gz
 
 LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
 RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 
-
 if [ ! -f $LEFT ]; then
-    if [ ! -f $LEFTTRIMFP ]; then
-			../scripts/AAFTF trim --mem $MEM --method fastp --left $OUTDIR/${SRA}_1.fastq.gz  --right $OUTDIR/${SRA}_2.fastq.gz \
-			 -o $OUTDIR/${PREFIX}_fastp -c $CPU --dedup
-    fi
+			../scripts/AAFTF trim --mem $MEM --method bbduk --left $OUTDIR/${SRA}_1.fastq.gz --right $OUTDIR/${SRA}_2.fastq.gz \
+						 -o $OUTDIR/${PREFIX} -c $CPU
 
-    ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
+    	../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
 
     if [ -f $LEFT ]; then
-			rm -f  $LEFTTRIMFP $RIGHTTRIMFP
+			rm -f $LEFTTRIM $RIGHTTRIM
     fi
 fi
 
@@ -53,7 +50,7 @@ if [ ! -f $ASMFILE ]; then
 	echo "--mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades"
 	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug
 	if [ ! -f $ASMFILE ]; then
-		echo "spades failed"
+		echo "SPades failed"
 		exit
 	fi
 fi

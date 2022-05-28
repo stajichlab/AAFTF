@@ -24,8 +24,7 @@ done
 
 LEFTTRIMFP=$OUTDIR/${PREFIX}_fastp_1P.fastq.gz
 RIGHTTRIMFP=$OUTDIR/${PREFIX}_fastp_2P.fastq.gz
-
-MERGEDTRIM=$OUTDIR/${PREFIX}_MG.fastq.gz
+MERGEDTRIM=$OUTDIR/${PREFIX}_fastp_MG.fastq.gz
 
 LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
 RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
@@ -38,17 +37,17 @@ if [ ! -f $LEFT ]; then
     fi
 
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
-
-    if [ ! -f $MERGED ]; then
- 		 ../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
-    fi
-
-    if [ -f $LEFT ]; then
-			rm $MERGEDTRIM $LEFTTRIMFP $RIGHTTRIMFP
-    fi
+		if [ -f $LEFT ]; then
+			rm $LEFTTRIMFP $RIGHTTRIMFP
+		fi
+fi
+if [ ! -f $MERGED ]; then
+	../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
+	if [ -f $MERGED ]; then
+		rm $MERGEDTRIM
+	fi
 fi
 
-exit
 ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
 PURGE=$OUTDIR/${PREFIX}.sourpurge.fasta

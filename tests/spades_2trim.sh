@@ -24,10 +24,10 @@ done
 
 LEFTTRIM=$OUTDIR/${PREFIX}_1P.fastq.gz
 RIGHTTRIM=$OUTDIR/${PREFIX}_2P.fastq.gz
+
 LEFTTRIMFP=$OUTDIR/${PREFIX}_fastp_1P.fastq.gz
 RIGHTTRIMFP=$OUTDIR/${PREFIX}_fastp_2P.fastq.gz
-
-MERGEDTRIM=$OUTDIR/${PREFIX}_MG.fastq.gz
+MERGEDTRIM=$OUTDIR/${PREFIX}_fastp_MG.fastq.gz
 
 LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
 RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
@@ -53,7 +53,6 @@ if [ ! -f $LEFT ]; then
     fi
 fi
 
-exit
 ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
 PURGE=$OUTDIR/${PREFIX}.sourpurge.fasta
