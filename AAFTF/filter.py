@@ -175,11 +175,19 @@ def run(parser,args):
         status('{:,} reads mapped to contamination database'.format((total-clean)))
         status('{:,} reads unmapped and writing to file'.format(clean))
 
-        status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
-            clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
-        if not args.pipe:
-            status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
+        if revReads:
+            status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
+                clean_reads+'_1.fastq.gz',clean_reads+'_2.fastq.gz'))
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF assemble -l {:} -r {:} -c {:} -o {:}\n'.format(
                 clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
+
+        else:
+            status('Filtering complete:\n\Single: {:}'.format(clean_reads+'_U.fastq.gz'))
+            if not args.pipe:
+                status('Your next command might be:\n\tAAFTF assemble --merged {:} -c {:} -o {:}\n'.format(
+                clean_reads+'_U.fastq.gz', args.cpus, args.basename+'.spades.fasta'))
+
         return
 
     elif args.aligner == 'bowtie2':
