@@ -63,7 +63,7 @@ def run(parser,args):
 
         status('Adapter trimming using BBDuk')
         cmd = ['bbduk.sh', MEM, 'ref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
-           'k=23', 'mink=11', 'minlen={:}'.format(args.minlen), 'hdist=1',
+           'k=23', 'mink=11', 'minlen={:}'.format(args.minlen), 'hdist=1','maq={:}'.format(args.avgqual),
            'ftm=5', 'tpe', 'tbo', 'overwrite=true']
         if args.left and args.right:
             cmd += ['in1={:}'.format(args.left), 'in2={:}'.format(args.right),
@@ -193,7 +193,7 @@ def run(parser,args):
 
     elif args.method == 'fastp':
         status('Adapter trimming using fastp')
-        cmd = ['fastp', '--low_complexity_filter','-l','{:}'.format(args.minlen),
+        cmd = ['fastp', '--low_complexity_filter','-l','{:}'.format(args.minlen),'--average_qual','{:}'.format(args.avgqual),
                '-w','{:}'.format(args.cpus)]
 
 #               '-wref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
@@ -211,6 +211,16 @@ def run(parser,args):
 
         elif args.left:
             cmd += ['--in={:}'.format(args.left), '--out={:}_1U.fastq.gz'.format(args.basename)]
+        if args.dedup:
+            cmd += ['--dedup']
+        if args.cutfront:
+            cmd += ['--cut_front']
+        if args.cuttail:
+            cmd += ['--cut_tail']
+        if args.cutright:
+            cmd += ['--cut_right']
+
+
         cmd += ['--html={:}.fastp.html'.format(args.basename),
                 '--json={:}.fastp.json'.format(args.basename)]
         printCMD(cmd)
@@ -228,14 +238,14 @@ def run(parser,args):
                         args.basename+'_2P.fastq.gz'))
             if not args.pipe:
                 status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
-                        args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
+                args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
         else:
             clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
             status('{:,} reads remaining and writing to file'.format(clean))
             status('Trimming finished:\n\tSingle: {:}'.format(
                         args.basename+'_1U.fastq.gz'))
             if not args.pipe:
-                status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                status('Your next command might be:\n\tAAFTF filter --left {:} -o {:} -c {:}\n'.format(
                         args.basename+'_1U.fastq.gz', args.basename, args.cpus))
 
     else:
