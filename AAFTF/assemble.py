@@ -37,12 +37,13 @@ def run_spades(parser,args):
         sys.exit(1)
 
     if not revReads:
-        runcmd = runcmd + ['-s', forReads]
+        runcmd = runcmd + ['--s1', forReads]
+        if args.merged:
+            runcmd.extend(['--s2',args.merged])
     else:
         runcmd = runcmd + ['--pe1-1', forReads, '--pe1-2', revReads]
-
-    if args.merged:
-        runcmd.extend(['--merged',args.merged])
+        if args.merged:
+            runcmd.extend(['--s1',args.merged])
 
     # this basically overrides everything above and only runs --restart-from option
     if os.path.isdir(args.workdir):
