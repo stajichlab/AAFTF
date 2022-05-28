@@ -83,7 +83,7 @@ def main():
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
     # -ml / --minlen: min read length
-
+    # --avgqual (default 10)
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
@@ -113,6 +113,27 @@ def main():
     parser_trim.add_argument('-r', '--right',type=str,
                               required=False,
             help='right/reverse reads of paired-end FASTQ.')
+
+    parser_trim.add_argument('-aq','--avgqual',type=int,
+                             default=10,
+                             required=False,
+                             help="Average Quality of reads must be > than this, default: 10")
+
+    parser_trim.add_argument('--dedup',action='store_true',
+                             required=False,
+                             help="Run fastp deuplication of fastq reads (default uses ~4gb mem), default: false")
+
+    parser_trim.add_argument('--cutfront',action='store_true',
+                             required=False,
+                             help="Run fastp 5' trimming based on quality. default: false. WARNING: this operation will interfere deduplication for SE data")
+
+    parser_trim.add_argument('--cuttail',action='store_true',
+                             required=False,
+                             help="Run fastp 3' trimming based on quality. default: false. WARNING: this operation will interfere deduplication for SE data")
+
+    parser_trim.add_argument('--cutright',action='store_true',
+                             required=False,
+                             help="Run fastp move a sliding window from front to tail, if meet one window with mean quality < threshold. default: false. WARNING: this operation will interfere deduplication for SE data")
 
     parser_trim.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
@@ -381,6 +402,7 @@ def main():
     # -p / --prefix: datafile prefix and temp/output file prefix
     # -i / --indir: directory where sequence reads are located
     # -c / --cpus: number of cpus
+    # --rep or --full gtdb
     # --tmpdir
     # --phylum: phylum to keep
     parser_sour = subparsers.add_parser('sourpurge',
@@ -420,6 +442,9 @@ def main():
     parser_sour.add_argument('-v','--debug', action='store_true', dest='debug',
                              help="Provide debugging messages")
 
+    parser_sour.add_argument('--sourdb_type', default="gbk",
+                            required=False,
+                            help="Which sourpurge database to use? Values are gbk, gtdb, gtdbrep")
     parser_sour.add_argument('--AAFTF_DB',type=str,
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
