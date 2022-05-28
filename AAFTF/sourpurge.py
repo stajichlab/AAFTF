@@ -45,7 +45,7 @@ def run(parser,args):
             dbfile = DB_Links['sourmash_gtdb'][0]['filename']
         elif args.sourdb_type.lower() == "gtdbrep" or args.sourdb_type.lower() == "gtdb_rep":
             dbfile = DB_Links['sourmash_gtdbrep'][0]['filename']
-        elif args.sourdb_type.lower() == "gbk" or args.sourdb_type.lower() = "genbank":
+        elif args.sourdb_type.lower() == "gbk" or args.sourdb_type.lower() == "genbank":
             dbfile = DB_Links['sourmash_gbk'][0]['filename']
         else:
             status("Unknown sourdb_type value {:} use one of {}".format(args.sourdb_type, ['gtdb','gtdbrep','gbk']))
