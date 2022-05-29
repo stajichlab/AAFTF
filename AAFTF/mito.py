@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -62,7 +62,7 @@ def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
 
 def run(parser,args):
     # first check if NOVOplasty and minimap2 are installed, else exit
-    programs = ['NOVOplasty.pl', 'minimap2']
+    programs = ['NOVOPlasty.pl', 'minimap2']
     for x in programs:
         if not which_path(x):
             status('ERROR: {} is not installed, exiting'.format(x))
