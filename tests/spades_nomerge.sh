@@ -34,9 +34,9 @@ if [ ! -f $LEFT ]; then
 	../scripts/AAFTF trim --mem $MEM --method fastp --left $OUTDIR/${SRA}_1.fastq.gz  --right $OUTDIR/${SRA}_2.fastq.gz \
 			 -o $OUTDIR/${PREFIX}_fastp -c $CPU --dedup
     fi
-    
+
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
-    
+
     if [ -f $LEFT ]; then
 	rm -f $LEFTTRIMFP $RIGHTTRIMFP
     fi
@@ -75,7 +75,7 @@ fi
 if [ ! -f $PILON ]; then
     ../scripts/AAFTF pilon -i $CLEANDUP -o $PILON -c $CPU --left $LEFT --right $RIGHT --mem $MEM
 fi
-    
+
 if [ ! -f $SORTED ]; then
     ../scripts/AAFTF sort -i $CLEANDUP -o $SORTED
 fi

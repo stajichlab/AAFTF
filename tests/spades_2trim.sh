@@ -37,17 +37,17 @@ if [ ! -f $LEFT ]; then
     if [ ! -f $LEFTTRIMFP ]; then
 	../scripts/AAFTF trim --mem $MEM --method bbduk --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz \
 			 -o $OUTDIR/${PREFIX} -c $CPU
-	
+
 	../scripts/AAFTF trim --mem $MEM --method fastp --left $LEFTTRIM  --right $RIGHTTRIM \
 			 -o $OUTDIR/${PREFIX}_fastp -c $CPU  --merge --dedup
     fi
-    
+
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
-    
+
     if [ ! -f $MERGED ]; then
  	../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
     fi
-    
+
     if [ -f $LEFT ]; then
 	rm -f $LEFTTRIM $RIGHTTRIM $MERGEDTRIM $LEFTTRIMFP $RIGHTTRIMFP
     fi

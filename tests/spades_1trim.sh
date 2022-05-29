@@ -1,12 +1,12 @@
 #!/bin/bash -l
-#SBATCH -N 1 -n 48 -p short --mem 96gb  --out test_spades_bbdukonly.%A.log
+#SBATCH -N 1 -n 48 -p short --mem 96gb  --out test_spades_1trim.%A.log
 module load AAFTF
 CPU=$SLURM_CPUS_ON_NODE
 if [ -z $CPU ]; then
 	CPU=2
 fi
 MEM=96
-OUTDIR=test_spades_bbdukonly
+OUTDIR=test_spades_1trim
 PREFIX=Rant
 PHYLUM=Ascomycota
 mkdir -p $OUTDIR
