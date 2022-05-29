@@ -16,10 +16,10 @@ FOLDER=$(echo -n $SRA | perl -p -e '$_=sprintf("%s/%03d",substr($_,0,6),substr($
 URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/${FOLDER}/${SRA}/${SRA}
 for DIRECTION in 1 2
 do
-	if [ ! -f $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ]; then
-		echo "downloading $OUTDIR/${SRA}_${DIRECTION}.fastq.gz  from ${URL}_${DIRECTION}.fastq.gz"
-		curl -o $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ${URL}_${DIRECTION}.fastq.gz
-	fi
+    if [ ! -f $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ]; then
+	echo "downloading $OUTDIR/${SRA}_${DIRECTION}.fastq.gz  from ${URL}_${DIRECTION}.fastq.gz"
+	curl -o $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ${URL}_${DIRECTION}.fastq.gz
+    fi
 done
 
 LEFTTRIMFP=$OUTDIR/${PREFIX}_fastp_1P.fastq.gz
@@ -32,20 +32,21 @@ MERGED=$OUTDIR/${PREFIX}_filtered_U.fastq.gz
 
 if [ ! -f $LEFT ]; then
     if [ ! -f $LEFTTRIMFP ]; then
-			../scripts/AAFTF trim --mem $MEM --method fastp --left $OUTDIR/${SRA}_1.fastq.gz   --right $OUTDIR/${SRA}_2.fastq.gz \
+	../scripts/AAFTF trim --mem $MEM --method fastp --left $OUTDIR/${SRA}_1.fastq.gz \
+			 --right $OUTDIR/${SRA}_2.fastq.gz \
 			 -o $OUTDIR/${PREFIX}_fastp -c $CPU  --merge --dedup
     fi
 
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIMFP --right $RIGHTTRIMFP --aligner bbduk -o $OUTDIR/${PREFIX}
-		if [ -f $LEFT ]; then
-			rm -f $LEFTTRIMFP $RIGHTTRIMFP
-		fi
+    if [ -f $LEFT ]; then
+	rm -f $LEFTTRIMFP $RIGHTTRIMFP
+    fi
 fi
 if [ ! -f $MERGED ]; then
-	../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
-	if [ -f $MERGED ]; then
-		rm -f $MERGEDTRIM
-	fi
+    ../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
+    if [ -f $MERGED ]; then
+	rm -f $MERGEDTRIM
+    fi
 fi
 
 ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
@@ -56,30 +57,30 @@ PILON=$OUTDIR/${PREFIX}.pilon.fasta
 SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
-	echo "--mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades"
-	../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug
-	if [ ! -f $ASMFILE ]; then
-		echo "SPades failed"
-		exit
-	fi
+    echo "--mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades"
+    ../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug
+    if [ ! -f $ASMFILE ]; then
+	echo "SPades failed"
+	exit
+    fi
 fi
 if [ ! -f $VECCLEAN ]; then
-	../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU
+    ../scripts/AAFTF vecscreen -i $ASMFILE -o $VECCLEAN -c $CPU
 fi
 if [ ! -f $PURGE ]; then
-	../scripts/AAFTF sourpurge -i  $VECCLEAN -o $PURGE -c $CPU --phylum $PHYLUM --left $LEFT  --right $RIGHT
+    ../scripts/AAFTF sourpurge -i  $VECCLEAN -o $PURGE -c $CPU --phylum $PHYLUM --left $LEFT  --right $RIGHT
 fi
 if [ ! -f $CLEANDUP ]; then
-	../scripts/AAFTF rmdup -i $PURGE -o $CLEANDUP -c $CPU -m 1000
-
+    ../scripts/AAFTF rmdup -i $PURGE -o $CLEANDUP -c $CPU -m 1000
+fi
 if [ ! -f $PILON ]; then
-	../scripts/AAFTF pilon -i $CLEANDUP -o $PILON -c $CPU --left $LEFT --right $RIGHT --mem $MEM
+    ../scripts/AAFTF pilon -i $CLEANDUP -o $PILON -c $CPU --left $LEFT --right $RIGHT --mem $MEM
 fi
 
 if [ ! -f $SORTED ]; then
-	../scripts/AAFTF sort -i $CLEANDUP -o $SORTED
+    ../scripts/AAFTF sort -i $CLEANDUP -o $SORTED
 fi
 
 if [ ! -f $STATS ] ; then
-	../scripts/AAFTF assess -i $SORTED -r $STATS
+    ../scripts/AAFTF assess -i $SORTED -r $STATS
 fi
