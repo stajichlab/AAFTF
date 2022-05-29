@@ -63,7 +63,7 @@ def run(parser,args):
 
     # download univec too
     url = DB_Links['UniVec']
-    acc = os.path.basename(DB_Links['UniVec'])
+    acc = os.path.basename(DB_Links['UniVec'][0]) # take first file for now, could combine in future
     if DB:
         acc_file = os.path.join(DB, acc)
     else:
