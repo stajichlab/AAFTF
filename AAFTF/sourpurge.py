@@ -16,7 +16,6 @@ from AAFTF.utility import download
 # logging - we may need to think about whether this has
 # separate name for the different runfolder
 def run(parser,args):
-
     if not args.workdir:
         args.workdir = 'aaftf-sourpurge_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
@@ -231,10 +230,11 @@ def run(parser,args):
 
     if checkfile(sourmashTSV):
         baseinput = os.path.basename(args.input)
+        basedir = os.path.dirname(args.input)
         if '.' in baseinput:
             baseinput = baseinput.rsplit('.',1)[0]
 
-        shutil.copy(sourmashTSV, baseinput+'.sourmash-taxonomy.csv')
+        shutil.copy(sourmashTSV, os.path.join(basedir,baseinput+'.sourmash-taxonomy.csv'))
 
     if not args.debug:
         SafeRemove(args.workdir)
