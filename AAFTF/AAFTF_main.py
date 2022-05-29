@@ -77,16 +77,18 @@ def main():
     # trim
     ##########
     # arguments
+    # --method bbduk*, trimmomatic, fastp
     # --trimmomatic: arguments are path to JAR or application respectively
     # assume java is PATH already for trimmomatic
     # -o / --outdir: write outdir
     # -p / --prefix: outfile prefix
     # -ml / --minlen: min read length
-
+    # --avgqual (default 10)
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
-    # currently singleton / unpaired reads not supported?
+    #
+    # --merge: merge reads in fastp
 
     parser_trim = subparsers.add_parser('trim',
        description="This comamnd trims reads in FASTQ format to remove low quality reads and trim adaptor sequences",
@@ -112,6 +114,27 @@ def main():
                               required=False,
             help='right/reverse reads of paired-end FASTQ.')
 
+    parser_trim.add_argument('-aq','--avgqual',type=int,
+                             default=10,
+                             required=False,
+                             help="Average Quality of reads must be > than this, default: 10")
+
+    parser_trim.add_argument('--dedup',action='store_true',
+                             required=False,
+                             help="Run fastp deuplication of fastq reads (default uses ~4gb mem), default: false")
+
+    parser_trim.add_argument('--cutfront',action='store_true',
+                             required=False,
+                             help="Run fastp 5' trimming based on quality. default: false. WARNING: this operation will interfere deduplication for SE data")
+
+    parser_trim.add_argument('--cuttail',action='store_true',
+                             required=False,
+                             help="Run fastp 3' trimming based on quality. default: false. WARNING: this operation will interfere deduplication for SE data")
+
+    parser_trim.add_argument('--cutright',action='store_true',
+                             required=False,
+                             help="Run fastp move a sliding window from front to tail, if meet one window with mean quality < threshold. default: false. WARNING: this operation will interfere deduplication for SE data")
+
     parser_trim.add_argument('-v','--debug',action='store_true',
                              help="Provide debugging messages")
 
@@ -119,12 +142,15 @@ def main():
                              help="AAFTF is running in pipeline mode")
 
     parser_trim.add_argument('--method', default='bbduk',
-                            choices=['bbduk', 'trimmomatic'],
+                            choices=['bbduk', 'trimmomatic', 'fastp'],
                             help='Program to use for adapter trimming')
 
     parser_trim.add_argument('-m','--memory',type=int,
                             dest='memory',required=False,
                             help="Max Memory (in GB)")
+
+    parser_trim.add_argument('--merge',action='store_true',
+                            help="Merge paired end reads when running fastp")
 
     tool_group = parser_trim.add_mutually_exclusive_group(required=False)
 
@@ -162,7 +188,6 @@ def main():
     ##########
     # mito-asm assembly mitochondrial genome
     ##########
-
 
     parser_mito = subparsers.add_parser('mito',
                                         description="De novo assembly of mitochondrial genome using NOVOplasty, takes PE Illumina adapter trimmed data.",
@@ -213,6 +238,7 @@ def main():
     # read info, either paired data are required or singleton
     # --left: left or forward reads
     # --right: right or reverse reads
+    # --single: single unpaired reads
     # or value from --prefix
     # --aligner: bbduk bwa, bowtie2, minimap for read alignment to contamdb
 
@@ -276,6 +302,7 @@ def main():
     # -p / --prefix: input/outfile prefix
     # --paired or --unpaired
     # --spades
+    # --merged for merged reads
     # --tmpdir: tempdir for spades
 
     parser_asm = subparsers.add_parser('assemble',
@@ -306,6 +333,9 @@ def main():
 
     parser_asm.add_argument('-r', '--right',required=False,
                              help="Right (Reverse) reads")
+
+    parser_asm.add_argument('--merged',required=False,
+                             help="Merged reads from flash or fastp")
 
     parser_asm.add_argument('-v','--debug',action='store_true',
                              help="Print Spades stdout to terminal")
@@ -372,6 +402,7 @@ def main():
     # -p / --prefix: datafile prefix and temp/output file prefix
     # -i / --indir: directory where sequence reads are located
     # -c / --cpus: number of cpus
+    # --sourdb_type gtdb gtdbrep gbk
     # --tmpdir
     # --phylum: phylum to keep
     parser_sour = subparsers.add_parser('sourpurge',
@@ -411,6 +442,9 @@ def main():
     parser_sour.add_argument('-v','--debug', action='store_true', dest='debug',
                              help="Provide debugging messages")
 
+    parser_sour.add_argument('--sourdb_type', default="gbk",
+                            required=False,
+                            help="Which sourpurge database to use? Values are gbk, gtdb, gtdbrep")
     parser_sour.add_argument('--AAFTF_DB',type=str,
                                required=False,
                                help="Path to AAFTF resources, defaults to $AAFTF_DB")
@@ -480,6 +514,7 @@ def main():
     # -i / --in: input assembly file
     # -o / --out: output cleaned assembly
     # -rp / --reads-prefix: input/outfile reads prefix
+    # --memory: default 4
     # --iterations: default 5
     # --tmpdir
     # --debug
@@ -499,9 +534,9 @@ def main():
     parser_pilon.add_argument('-c','--cpus',type=int,metavar="cpus",default=1,
                                   help="Number of CPUs/threads to use.")
 
-    parser_pilon.add_argument('-m','--memory',type=int,default=4,
+    parser_pilon.add_argument('-m','--memory',type=int,default=16,
                             dest='memory',required=False,
-                            help="Max Memory (in GB) (default is 4gb)")
+                            help="Max Memory (in GB) (default is 16gb)")
 
     parser_pilon.add_argument('-v','--debug',action='store_true',
                               help="Provide debugging messages")

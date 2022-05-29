@@ -224,31 +224,26 @@ def run(parser,args):
     status('Building BLAST databases for contamination screen.')
     makeblastdblist = []
     for d in DB_Links:
-        if d == 'sourmash':
+        if d.startswith('sourmash'):
             continue
-        url = DB_Links[d]
-        dbname = os.path.basename(str(url))
-        #logger.debug("testing for url=%s dbname=%s"%(url,dbname))
-        if DB:
-            file = os.path.join(DB, dbname)
-        else:
-            file = os.path.join(args.workdir,dbname)
-        if file.endswith(".gz"):
-            nogz = os.path.splitext(file)[0]
-            if not os.path.exists(nogz):
+        outfile = os.path.join(args.workdir,"{}.fasta".format(d))
+        with open(outfile, 'wb') as outfa:
+            for url in DB_Links[d]:
+                dbname = os.path.basename(str(url))
+                #logger.debug("testing for url=%s dbname=%s"%(url,dbname))
+                if DB and os.path.exists(os.path.join(DB, dbname)):
+                    file = os.path.join(DB, dbname)
+                else:
+                    file = os.path.join(args.workdir,dbname)
                 if not os.path.exists(file):
                     urllib.request.urlretrieve(url,file)
-
-                with gzip.open(file, 'rb') as ingz, open(nogz,'wb') as outfa:
-                    shutil.copyfileobj(ingz,outfa)
-#                call(['gunzip', '-k', file])
-                make_blastdb('nucl', nogz, os.path.join(args.workdir,d))
-            else:
-                make_blastdb('nucl', nogz, os.path.join(args.workdir,d))
-        else:
-            if not os.path.exists(file):
-                urllib.request.urlretrieve(url,file)
-            make_blastdb('nucl',file,os.path.join(args.workdir,d))
+                if file.endswith(".gz"):
+                    with gzip.open(file, 'rb') as ingz:
+                        shutil.copyfileobj(ingz,outfa)
+                else:
+                    with open(file, 'rb') as infa:
+                        shutil.copyfileobj(infa,outfa)
+        make_blastdb('nucl',outfile,os.path.join(args.workdir,d))
 
     global contigs_to_remove
     contigs_to_remove = {}

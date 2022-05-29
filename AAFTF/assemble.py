@@ -14,14 +14,14 @@ def run_spades(parser,args):
     if not args.workdir:
         args.workdir = 'spades_'+str(uuid.uuid4())[:8]
 
-    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory,
+    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory, '--isolate',
               '-o',args.workdir]
 
     if args.assembler_args:
         runcmd.extend(args.assembler_args)
 
     if '--meta' not in runcmd:
-        runcmd.extend(['--cov-cutoff','auto',  '--careful'])
+        runcmd.extend(['--cov-cutoff','auto'])
 
     if args.tmpdir:
         runcmd.extend(['--tmp-dir',args.tmpdir])
@@ -37,9 +37,13 @@ def run_spades(parser,args):
         sys.exit(1)
 
     if not revReads:
-        runcmd = runcmd + ['-s', forReads]
+        runcmd = runcmd + ['--s1', forReads]
+        if args.merged:
+            runcmd.extend(['--s2',args.merged])
     else:
         runcmd = runcmd + ['--pe1-1', forReads, '--pe1-2', revReads]
+        if args.merged:
+            runcmd.extend(['--s1',args.merged])
 
     # this basically overrides everything above and only runs --restart-from option
     if os.path.isdir(args.workdir):

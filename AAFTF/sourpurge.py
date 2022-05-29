@@ -38,24 +38,36 @@ def run(parser,args):
 
     #parse database locations
     if not args.sourdb:
+#        'genbank-k31.lca.json.gz'
+        dbfle="genbank-k31.lca.json.gz" # old default
+
+        if args.sourdb_type.lower() == "gtdb":
+            dbfile = DB_Links['sourmash_gtdb'][0]['filename']
+        elif args.sourdb_type.lower() == "gtdbrep" or args.sourdb_type.lower() == "gtdb_rep":
+            dbfile = DB_Links['sourmash_gtdbrep'][0]['filename']
+        elif args.sourdb_type.lower() == "gbk" or args.sourdb_type.lower() == "genbank":
+            dbfile = DB_Links['sourmash_gbk'][0]['filename']
+        else:
+            status("Unknown sourdb_type value {:} use one of {}".format(args.sourdb_type, ['gtdb','gtdbrep','gbk']))
+            sys.exit(1)
+
         try:
             DB = os.environ["AAFTF_DB"]
         except KeyError:
             if args.AAFTF_DB:
-                SOUR = os.path.join(args.AAFTF_DB, 'genbank-k31.lca.json.gz')
+                SOUR = os.path.join(args.AAFTF_DB, dbfile)
             else:
-                status("$AAFTF_DB/genbank-k31.lca.json.gz not found, pass --sourdb")
+                status("$AAFTF_DB/{} not found, pass --sourdb".format(dbfile))
                 sys.exit(1)
-        SOUR = os.path.join(DB, 'genbank-k31.lca.json.gz')
+        SOUR = os.path.join(DB, dbfile)
         if not os.path.isfile(SOUR):
-            status("{:} sourmash database not found, download and rename to genbank-k31.lca.json.gz".format(SOUR))
+            status("{:} sourmash database not found, download and rename to {}/{}".format(SOUR,args.AAFTF_DB,dbfile))
             sys.exit(1)
     else:
         SOUR = os.path.abspath(args.sourdb)
 
     # hard coded tmpfile
     assembly_working  = 'assembly.fasta'
-    megablast_working = 'megablast.out'
     blobBAM           = 'remapped.bam'
     shutil.copyfile(args.input, os.path.join(args.workdir,assembly_working))
     numSeqs, assemblySize = fastastats(os.path.join(args.workdir,
@@ -67,6 +79,7 @@ def run(parser,args):
     #now filter for taxonomy with sourmash lca classify
     status('Running SourMash to get taxonomy classification for each contig')
     sour_sketch = os.path.basename(assembly_working)+'.sig'
+
     sour_compute = ['sourmash', 'compute', '-k', '31', '--scaled=1000',
                    '--singleton', assembly_working]
     printCMD(sour_compute)

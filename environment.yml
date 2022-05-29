@@ -12,3 +12,4 @@ dependencies:
   - trimmomatic
   - spades
   - fastp
+  - novoplasty
