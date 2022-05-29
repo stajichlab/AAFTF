@@ -402,7 +402,7 @@ def main():
     # -p / --prefix: datafile prefix and temp/output file prefix
     # -i / --indir: directory where sequence reads are located
     # -c / --cpus: number of cpus
-    # --rep or --full gtdb
+    # --sourdb_type gtdb gtdbrep gbk
     # --tmpdir
     # --phylum: phylum to keep
     parser_sour = subparsers.add_parser('sourpurge',
