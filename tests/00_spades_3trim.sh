@@ -25,33 +25,47 @@ done
 LEFTTRIM=$OUTDIR/${PREFIX}_1P.fastq.gz
 RIGHTTRIM=$OUTDIR/${PREFIX}_2P.fastq.gz
 
-LEFTTRIMFP=$OUTDIR/${PREFIX}_fastp_1P.fastq.gz
-RIGHTTRIMFP=$OUTDIR/${PREFIX}_fastp_2P.fastq.gz
+LEFTTRIMFP=$OUTDIR/${PREFIX}_fastp2_1P.fastq.gz
+RIGHTTRIMFP=$OUTDIR/${PREFIX}_fastp2_2P.fastq.gz
+
 MERGEDTRIM=$OUTDIR/${PREFIX}_fastp_MG.fastq.gz
 
 LEFT=$OUTDIR/${PREFIX}_filtered_1.fastq.gz
 RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 MERGED=$OUTDIR/${PREFIX}_filtered_U.fastq.gz
 
-if [ ! -f $LEFT ]; then
+if [[ ! -f $LEFT && ! -f $MERGED ]]; then
     if [ ! -f $LEFTTRIMFP ]; then
-	../scripts/AAFTF trim --mem $MEM --method fastp --left $OUTDIR/SRR5223785_1.fastq.gz --right $OUTDIR/SRR5223785_2.fastq.gz \
-	 -o $OUTDIR/${PREFIX}_fastp1 -c $CPU --dedup --merge
+		../scripts/AAFTF trim --mem $MEM --method fastp \
+						 --left $OUTDIR/SRR5223785_1.fastq.gz \
+						 --right $OUTDIR/SRR5223785_2.fastq.gz \
+						 -o $OUTDIR/${PREFIX}_fastp -c $CPU --dedup --merge
 
-	../scripts/AAFTF trim --mem $MEM --method fastp --left $OUTDIR/${PREFIX}_fastp1_1P.fastq.gz --right $OUTDIR/${PREFIX}_fastp1_2P.fastq.gz \
-		--cutright -o $OUTDIR/${PREFIX}_fastp2 -c $CPU
+		../scripts/AAFTF trim --mem $MEM --method fastp \
+						 --left $OUTDIR/${PREFIX}_fastp_1P.fastq.gz \
+						 --right $OUTDIR/${PREFIX}_fastp_2P.fastq.gz \
+						 --cutright -o $OUTDIR/${PREFIX}_fastp2 -c $CPU
 
-	../scripts/AAFTF trim --mem $MEM --method bbduk --left $OUTDIR/${PREFIX}_fastp2_1P.fastq.gz --right $OUTDIR/${PREFIX}_fastp2_2P.fastq.gz \
-			 -o $OUTDIR/${PREFIX}_bbduk -c $CPU
+		../scripts/AAFTF trim --mem $MEM --method bbduk \
+						 --left $LEFTTRIMFP \
+						 --right $RIGHTTRIMFP \
+						 -o $OUTDIR/${PREFIX} -c $CPU
     fi
 
-    ../scripts/AAFTF filter --mem $MEM -c $CPU --left $OUTDIR/${PREFIX}_bbduk_1P.fastq.gz --right $OUTDIR/${PREFIX}_bbduk_2P.fastq.gz --aligner bbduk -o $OUTDIR/${PREFIX}
-    ../scripts/AAFTF filter --mem $MEM -c $CPU --left $MERGEDTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
+    ../scripts/AAFTF filter --mem $MEM -c $CPU \
+					 --left $LEFTTRIM \
+					 --right $RIGHTTRIM \
+					 --aligner bbduk -o $OUTDIR/${PREFIX}
+
+    ../scripts/AAFTF filter --mem $MEM -c $CPU \
+					 --left $MERGEDTRIM \
+					 --aligner bbduk -o $OUTDIR/${PREFIX}
 
     if [ -f $LEFT ]; then
-	rm -f $LEFTTRIM $RIGHTTRIM $LEFTTRIMFP $RIGHTTRIMFP $MERGEDTRIM $OUTDIR/${PREFIX}_fastp?_[12]P.fastq.gz  $OUTDIR/${PREFIX}_bbduk1_*
+		rm -f $LEFTTRIM $RIGHTTRIM $MERGEDTRIM $OUTDIR/${PREFIX}_fastp?_[12]P.fastq.gz
     fi
 fi
+
 ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
 PURGE=$OUTDIR/${PREFIX}.sourpurge.fasta
