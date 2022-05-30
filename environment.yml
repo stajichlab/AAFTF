@@ -13,3 +13,4 @@ dependencies:
   - spades
   - fastp
   - novoplasty
+  - bbmap
