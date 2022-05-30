@@ -14,7 +14,7 @@ def run_spades(parser,args):
     if not args.workdir:
         args.workdir = 'spades_'+str(uuid.uuid4())[:8]
 
-    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory, '--isolate',
+    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory, '--careful',
               '-o',args.workdir]
 
     if args.assembler_args:
@@ -37,11 +37,11 @@ def run_spades(parser,args):
         sys.exit(1)
 
     if not revReads:
-        runcmd = runcmd + ['--s1', forReads]
+        runcmd .extend(['--s1', forReads])
         if args.merged:
             runcmd.extend(['--s2',args.merged])
     else:
-        runcmd = runcmd + ['--pe1-1', forReads, '--pe1-2', revReads]
+        runcmd.extend(['--pe1-1', forReads, '--pe1-2', revReads])
         if args.merged:
             runcmd.extend(['--s1',args.merged])
 
@@ -109,9 +109,11 @@ def run_dipspades(parser,args):
         sys.exit(1)
 
     if not revReads:
-        runcmd = runcmd + ['-s', forReads]
+        runcmd.extend(['-s', forReads])
     else:
-        runcmd = runcmd + ['--pe1-1', forReads, '--pe1-2', revReads]
+        runcmd.extend(['--pe1-1', forReads, '--pe1-2', revReads])
+        if args.merged:
+            runcmd.extend( ['-s',args.merged])
 
         # this basically overrides everything above and only runs --restart-from option
     if os.path.isdir(args.workdir):
@@ -176,9 +178,9 @@ def run_megahit(parser,args):
         sys.exit(1)
 
     if not revReads:
-        runcmd = runcmd + ['-r', forReads]
+        runcmd.extend( ['-r', forReads] )
     else:
-        runcmd = runcmd + ['-1', forReads, '-2', revReads]
+        runcmd.extend( ['-1', forReads, '-2', revReads] )
 
     if os.path.isdir(args.workdir):
         status("Cannot re-run with existing folder {}".format(args.workdir))
