@@ -25,6 +25,7 @@ export NUMEXPR_MAX_THREADS=$CPU
 GENOMEFOLDER=genomes
 EXT=fasta
 LINEAGE=capnodiales_odb10
+LINEAGE=ascomycota_odb10
 OUTFOLDER=BUSCO
 SEED_SPECIES=anidulans
 mkdir -p $OUTFOLDER
