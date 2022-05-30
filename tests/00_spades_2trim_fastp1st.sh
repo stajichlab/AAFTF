@@ -53,7 +53,6 @@ if [ ! -f $LEFT ]; then
 	rm -f $LEFTTRIM $RIGHTTRIM $LEFTTRIMFP $RIGHTTRIMFP $MERGEDTRIM $OUTDIR/${PREFIX}_fastp1* $OUTDIR/${PREFIX}_bbduk1_*
     fi
 fi
-exit
 ASMFILE=$OUTDIR/${PREFIX}.spades.fasta
 VECCLEAN=$OUTDIR/${PREFIX}.vecscreen.fasta
 PURGE=$OUTDIR/${PREFIX}.sourpurge.fasta
