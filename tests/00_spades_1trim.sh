@@ -31,9 +31,9 @@ RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 if [ ! -f $LEFT ]; then
     ../scripts/AAFTF trim --mem $MEM --method bbduk --left $OUTDIR/${SRA}_1.fastq.gz --right $OUTDIR/${SRA}_2.fastq.gz \
 		     -o $OUTDIR/${PREFIX} -c $CPU
-    
+
     ../scripts/AAFTF filter --mem $MEM -c $CPU --left $LEFTTRIM --right $RIGHTTRIM --aligner bbduk -o $OUTDIR/${PREFIX}
-    
+
     if [ -f $LEFT ]; then
 	rm -f $LEFTTRIM $RIGHTTRIM
     fi
@@ -48,7 +48,7 @@ SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
     echo "--mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades"
-    ../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug
+    ../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug --careful
     if [ ! -f $ASMFILE ]; then
 	echo "SPades failed"
 	exit

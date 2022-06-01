@@ -66,7 +66,7 @@ SORTED=$OUTDIR/${PREFIX}.sorted.fasta
 STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
     echo "--mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades"
-    ../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug
+    ../scripts/AAFTF assemble --mem $MEM --left $LEFT --right $RIGHT --merged $MERGED -o $ASMFILE -c $CPU -w $OUTDIR/spades --debug --careful
     if [ ! -f $ASMFILE ]; then
 	echo "SPades failed"
 	exit
