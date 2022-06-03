@@ -337,12 +337,13 @@ def main():
     parser_asm.add_argument('--merged',required=False,
                              help="Merged reads from flash or fastp")
 
-    parser_asm.add_argument('--careful',required=False, action='store_true',dest='isolate',
-                            help="Run --careful mode not --isolate mode in spades (Default)")
+    parser_asm.add_argument('--careful',required=False, action='store_true',default=True,
+                            help="Run --careful mode in spades (Default)")
+
+    parser_asm.add_argument('--no-careful',required=False, action='store_false',default=True,dest='careful')
 
     parser_asm.add_argument('--isolate',required=False, action='store_true',
                             help="Run --isolate mode not --careful mode in spades")
-    parser.set_defaults(isolate=False)
 
     parser_asm.add_argument('-v','--debug',action='store_true',
                              help="Print Spades stdout to terminal")

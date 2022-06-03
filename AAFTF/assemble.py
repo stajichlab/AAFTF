@@ -14,8 +14,13 @@ def run_spades(parser,args):
     if not args.workdir:
         args.workdir = 'spades_'+str(uuid.uuid4())[:8]
 
-    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory, '--careful',
+    runcmd = ['spades.py','--threads', str(args.cpus), '--mem', args.memory,
               '-o',args.workdir]
+
+    if args.isolate:
+        runcmd.extend(['--isolate'])
+    elif args.careful:
+        runcmd.extend(['--careful'])
 
     if args.assembler_args:
         runcmd.extend(args.assembler_args)
