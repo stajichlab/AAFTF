@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 
+
+### Added 
+
+ - pypi packaging for install
+
 ## 0.3.2
 
 ### Added 

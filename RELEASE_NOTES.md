@@ -3,6 +3,9 @@ Release notes for AAFTF
 
 # Automatic Assembly For The Fungi
 
+* v0.3.3
+  1. Created pypi packaging now
+
 * v0.3.2
   1. In assemble; Support --isolate and --careful option; --careful is default (as was in previous versions)
   
