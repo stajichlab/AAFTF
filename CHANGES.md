@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2
+
+### Added 
+
+ - Support --careful and --isolate mode for spades run; default is --careful which seems to be a little better in tests
+
+### Fixed
+
+ - Add dependencies to requirements.txt and environment.yml
+
 ## 0.3.1
 
 ### Added

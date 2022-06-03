@@ -3,12 +3,20 @@ Release notes for AAFTF
 
 # Automatic Assembly For The Fungi
 
+* v0.3.2
+  1. In assemble; Support --isolate and --careful option; --careful is default (as was in previous versions)
+  
 * v0.3.1
-  1. support for fastp in trimming (`trim`) command which can now support merging (--merge) and de-duplication (--dedup) as well as 5' and 3' trimming options of fastp (--cutfront, --cuttail, --cutright).
-  2. fix bug in `mito` to correctly spell novoplasty program that is used
-  3. revamped the resources.py to allow multiple files to represent mitochondria ref db for vector screening and alternative sourmash LCA databases - supporting gtdb-r207 and gtdb-rep-r207
-  4. spades in `assemble` command support merged long singleton reads along with paired end input
-  5. added tests and summary stats to compare performance of different trimming/merging strategies on final genome and gene content
+  1. Suppport novoplasty Mitochondria targetted assembly runs with the `AAFTF mito` option uses either default seed assembly (A.nidulans) or
+ you can specify your own target
+  2. Support for alternative sourpurge databases - gtdb (r207) and gtdb-rep (r207) along with default 2018 genbank-k31 release which still p
+erforms generally best
+  3. trimming supports fastp now with support for de-duplication option; merged option to merge paired end overlapping reads; and additional
+ novoseq/NextSeq trailing 'G' option trimming; support for fastp in trimming (`trim`) command which can now support merging (--merge) and de-duplication (--dedup) as well as 5' and 3' trimming options of fastp (--cutfront, --cuttail, --cutright).
+  4. fix bug in `mito` to correctly spell novoplasty program that is used
+  5. revamped the resources.py to allow multiple files to represent mitochondria ref db for vector screening and alternative sourmash LCA databases - supporting gtdb-r207 and gtdb-rep-r207
+  6. spades in `assemble` command support merged long singleton reads along with paired end input
+  7. added tests and summary stats to compare performance of different trimming/merging strategies on final genome and gene content
   
 * v0.3.0
   1. added novoplasty and `mito` sub-command
