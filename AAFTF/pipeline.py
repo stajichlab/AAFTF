@@ -35,13 +35,14 @@ def run(parser, args):
         trimDict = {k:v for (k,v) in args_dict.items() if k in trimOpts}
         trimDict['method'] = 'bbduk'
         trimDict['pipe'] = True
+        trimDict['avgqual'] = 10
         trimargs = Namespace(**trimDict)
         trim.run(parser, trimargs)
     else:
-    	if args.right:
-    	    status('AAFTF trim output found: {:} {:}'.format(basename+'_1P.fastq.gz', basename+'_2P.fastq.gz'))
-    	else:
-    	    status('AAFTF trim output found: {:}'.format(basename+'_1P.fastq.gz'))
+        if args.right:
+            status('AAFTF trim output found: {:} {:}'.format(basename+'_1P.fastq.gz', basename+'_2P.fastq.gz'))
+        else:
+            status('AAFTF trim output found: {:}'.format(basename+'_1P.fastq.gz'))
     if not checkfile(basename+'_1P.fastq.gz'):
         status('AATFT trim failed')
         sys.exit(1)
@@ -80,9 +81,9 @@ def run(parser, args):
         filterargs = Namespace(**filterDict)
         aaftf_filter.run(parser, filterargs)
     else:
-    	if args.right:
+        if args.right:
             status('AAFTF filter output found: {:} {:}'.format(basename+'_filtered_1.fastq.gz', basename+'_filtered_2.fastq.gz'))
-    	else:
+        else:
             status('AAFTF filter output found: {:}'.format(basename+'_filtered_1.fastq.gz'))
     if not checkfile(basename+'_filtered_1.fastq.gz'):
         status('AATFT filter failed')
@@ -101,7 +102,7 @@ def run(parser, args):
         assembleargs = Namespace(**assembleDict)
         assemble.run(parser, assembleargs)
     else:
-    	status('AAFTF assemble output found: {:}'.format(basename+'.spades.fasta'))
+        status('AAFTF assemble output found: {:}'.format(basename+'.spades.fasta'))
     if not checkfile(basename+'.spades.fasta'):
         status('AATFT assemble failed')
         sys.exit(1)
@@ -118,7 +119,7 @@ def run(parser, args):
         vecargs = Namespace(**vecDict)
         vecscreen.run(parser, vecargs)
     else:
-    	status('AAFTF vecscreen output found: {:}'.format(basename+'.vecscreen.fasta'))
+        status('AAFTF vecscreen output found: {:}'.format(basename+'.vecscreen.fasta'))
     if not checkfile(basename+'.vecscreen.fasta'):
         status('AATFT vecscreen failed')
         sys.exit(1)
@@ -137,7 +138,7 @@ def run(parser, args):
         sourargs = Namespace(**sourDict)
         sourpurge.run(parser, sourargs)
     else:
-    	status('AAFTF sourpurge output found: {:}'.format(basename+'.sourpurge.fasta'))
+        status('AAFTF sourpurge output found: {:}'.format(basename+'.sourpurge.fasta'))
     if not checkfile(basename+'.sourpurge.fasta'):
         status('AATFT sourpurge failed')
         sys.exit(1)
@@ -156,7 +157,7 @@ def run(parser, args):
         rmdupargs = Namespace(**rmdupDict)
         rmdup.run(parser, rmdupargs)
     else:
-    	status('AAFTF rmdup output found: {:}'.format(basename+'.rmdup.fasta'))
+        status('AAFTF rmdup output found: {:}'.format(basename+'.rmdup.fasta'))
     if not checkfile(basename+'.rmdup.fasta'):
         status('AATFT rmdup failed')
         sys.exit(1)
@@ -174,7 +175,7 @@ def run(parser, args):
         pilonargs = Namespace(**pilonDict)
         pilon.run(parser, pilonargs)
     else:
-    	status('AAFTF pilon output found: {:}'.format(basename+'.pilon.fasta'))
+        status('AAFTF pilon output found: {:}'.format(basename+'.pilon.fasta'))
     if not checkfile(basename+'.pilon.fasta'):
         status('AATFT pilon failed')
         sys.exit(1)
@@ -186,7 +187,7 @@ def run(parser, args):
         sortargs = Namespace(**sortDict)
         aaftf_sort.run(parser, sortargs)
     else:
-    	status('AAFTF sort output found: {:}'.format(basename+'.final.fasta'))
+        status('AAFTF sort output found: {:}'.format(basename+'.final.fasta'))
     if not checkfile(basename+'.final.fasta'):
         status('AATFT sort failed')
         sys.exit(1)
