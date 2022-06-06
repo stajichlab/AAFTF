@@ -99,6 +99,9 @@ def run(parser, args):
         assembleDict['out'] = basename+'.spades.fasta'
         assembleDict['spades_tmpdir'] = None
         assembleDict['pipe'] = True
+        assembleDict['isolate'] = False
+        assembleDict['careful'] = True
+        assembleDict['merged'] = False
         assembleargs = Namespace(**assembleDict)
         assemble.run(parser, assembleargs)
     else:
@@ -135,6 +138,7 @@ def run(parser, args):
         sourDict['outfile'] = basename+'.sourpurge.fasta'
         sourDict['taxonomy'] = False
         sourDict['pipe'] = True
+        sourDict['sourdb_type'] = 'gbk'
         sourargs = Namespace(**sourDict)
         sourpurge.run(parser, sourargs)
     else:
