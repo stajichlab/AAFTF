@@ -1,7 +1,11 @@
-#!/usr/bin/env python3 
-import os, sys, inspect
-currentdir = os.path.dirname(os.path.realpath(inspect.getfile(inspect.currentframe())))
+#!/usr/bin/env python3
+import os
+import sys
+import inspect
+frame = inspect.getfile(inspect.currentframe())
+currentdir = os.path.dirname(os.path.realpath(frame))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
-import AAFTF.AAFTF_main as AAFTF_main
+
+import AAFTF.AAFTF_main as AAFTF_main  # noqa: E402
 AAFTF_main.main()
