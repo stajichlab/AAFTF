@@ -1,23 +1,24 @@
-# assessment of assembly - this can be as simple as
-# N50/L50/MAX contig stats
-
-import sys, os
+import os
 from Bio import SeqIO
 from AAFTF.utility import status
 
+# assessment of assembly -
+# this can be as simple as N50/L50/MAX contig stats
+# would like to add a few more
 
-def genome_asm_stats(fasta_file,output_handle):
+
+def genome_asm_stats(fasta_file, output_handle):
 
     lengths = []
     # could be smart here and handle compressed files?
-    GC  = 0
+    GC = 0
     for record in SeqIO.parse(fasta_file, "fasta"):
         lengths.append(len(record))
         GC += sum(record.seq.count(x) for x in ["G", "C", "g", "c", "S", "s"])
 
     lengths.sort()
     total_len = sum(lengths)
-    GC  = 100.0 * (GC / total_len)
+    GC = 100.0 * (GC / total_len)
     l50 = 0
     n50 = 0
     l90 = 0
@@ -35,11 +36,11 @@ def genome_asm_stats(fasta_file,output_handle):
 
         i += 1
     report = "Assembly statistics for: %s\n" % (fasta_file)
-    report += "%15s  =  %d\n" % ('CONTIG COUNT',len(lengths))
-    report += "%15s  =  %d\n" % ('TOTAL LENGTH',total_len)
-    report += "%15s  =  %d\n" % ('MIN',lengths[0])
-    report += "%15s  =  %d\n" % ('MAX',lengths[-1])
-    report += "%15s  =  %d\n" % ('MEDIAN',lengths[int(len(lengths)/2)])
+    report += "%15s  =  %d\n" % ('CONTIG COUNT', len(lengths))
+    report += "%15s  =  %d\n" % ('TOTAL LENGTH', total_len)
+    report += "%15s  =  %d\n" % ('MIN', lengths[0])
+    report += "%15s  =  %d\n" % ('MAX', lengths[-1])
+    report += "%15s  =  %d\n" % ('MEDIAN', lengths[int(len(lengths)/2)])
     report += "%15s  =  %.2f\n" % ('MEAN',  total_len/len(lengths))
     report += "%15s  =  %d\n" % ('L50',  l50)
     report += "%15s  =  %d\n" % ('N50',  n50)
@@ -51,14 +52,16 @@ def genome_asm_stats(fasta_file,output_handle):
     if output_handle:
         output_handle.write(report)
 
-def run(parser,args):
+
+def run(parser, args):
 
     if not os.path.exists(args.input):
-        status("Inputfile %s was not readable, check parameters" % (args.input))
+        status("Inputfile %s was not readable, check parameters" % (
+            args.input))
 
-    output_handle=None
+    output_handle = None
 
     if args.report:
-        output_handle = open(args.report,"w")
+        output_handle = open(args.report, "w")
 
     genome_asm_stats(args.input, output_handle)
