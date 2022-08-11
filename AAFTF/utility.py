@@ -6,10 +6,12 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 import shutil
 import textwrap
 import datetime
+
 try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
+
 import socket
 import errno
 
@@ -18,11 +20,11 @@ def download(url, file_name):
     try:
         u = urlopen(url)
         f = open(file_name, 'wb')
-        meta = u.info()
-        file_size = 0
-        for x in meta.items():
-            if x[0].lower() == 'content-length':
-                file_size = int(x[1])
+        # meta = u.info()
+        # file_size = 0
+        # for x in meta.items():
+        #    if x[0].lower() == 'content-length':
+        #        file_size = int(x[1])
         file_size_dl = 0
         block_sz = 8192
         while True:
@@ -84,7 +86,7 @@ def getRAM():
     try:
         mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
         mem = int(mem_bytes/(1024.**3))
-    except:
+    except ValueError:
         import resource
         import sys
         rusage_denom = 1024.
@@ -174,7 +176,6 @@ def calcN50(lengths, num=0.5):
     total_len = sum(lengths)
     n50 = 0
     cumulsum = 0
-    i = 1
     for n in reversed(lengths):
         cumulsum += n
         if n50 == 0 and cumulsum >= total_len * num:
@@ -186,21 +187,25 @@ def printCMD(cmd):
     stringcmd = '{:}'.format(' '.join(cmd))
     prefix = '\033[96mCMD:\033[00m '
     wrapper = textwrap.TextWrapper(
-        initial_indent=prefix, width=80, subsequent_indent=' '*8, break_long_words=False)
+        initial_indent=prefix, width=80,
+        subsequent_indent=' '*8, break_long_words=False)
     print(wrapper.fill(stringcmd))
 
 
 def status(string):
     print('\033[92m[{:}]\033[00m {:}'.format(
-        datetime.datetime.now().strftime('%b %d %I:%M %p'), string))
+        datetime.datetime.now().strftime('%b %d %I:%M %p'),
+        string))
 
-# from https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
+# from https://stackoverflow.com/questions/4417546/
+# constantly-print-subprocess-output-while-process-is-running
 
 
 def execute(cmd, dir):
     DEVNULL = open(os.devnull, 'w')
     popen = subprocess.Popen(
-        cmd, cwd=dir, stdout=subprocess.PIPE, universal_newlines=True, stderr=DEVNULL)
+        cmd, cwd=dir, stdout=subprocess.PIPE,
+        universal_newlines=True, stderr=DEVNULL)
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line
     popen.stdout.close()
@@ -231,7 +236,8 @@ def SafeRemove(input):
     else:
         return
 
-# streaming parallel pigz open via https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
+# streaming parallel pigz open via
+# https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
 
 
 def which(program):
@@ -275,7 +281,7 @@ WHICH_PIGZ = which("pigz")
 
 
 def open_gz(filename, mode='r', buff=1024*1024, external=PARALLEL):
-    if external == None or external == NORMAL:
+    if external is None or external == NORMAL:
         import gzip
         return gzip.GzipFile(filename, mode, buff)
     elif external == PROCESS:
