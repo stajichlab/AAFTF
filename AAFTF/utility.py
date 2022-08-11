@@ -13,6 +13,7 @@ except ImportError:
 import socket
 import errno
 
+
 def download(url, file_name):
     try:
         u = urlopen(url)
@@ -36,11 +37,13 @@ def download(url, file_name):
             raise
         pass
 
+
 def myround(x, base=10):
     return int(base * round(float(x)/base))
 
+
 def GuessRL(input):
-    #read first 500 records, get length then exit
+    # read first 500 records, get length then exit
     lengths = []
     if input.endswith('.gz'):
         with gzip.open(input, 'rt') as infile:
@@ -58,6 +61,7 @@ def GuessRL(input):
                     break
     return myround(max(set(lengths)))
 
+
 def checkfile(input):
     def _getSize(filename):
         st = os.stat(filename)
@@ -74,6 +78,7 @@ def checkfile(input):
     else:
         return False
 
+
 def getRAM():
     # first try simple os method
     try:
@@ -89,12 +94,14 @@ def getRAM():
         mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
     return mem
 
+
 def which_path(file_name):
     for path in os.environ["PATH"].split(os.pathsep):
         full_path = os.path.join(path, file_name)
         if os.path.exists(full_path) and os.access(full_path, os.X_OK):
             return full_path
     return None
+
 
 def line_count(fname):
     with open(fname) as f:
@@ -103,13 +110,15 @@ def line_count(fname):
             pass
     return i + 1
 
+
 def countfasta(input):
     count = 0
     with open(input, 'rU') as f:
         for line in f:
-            if line.startswith (">"):
+            if line.startswith(">"):
                 count += 1
     return count
+
 
 def fastastats(input):
     count = 0
@@ -118,18 +127,21 @@ def fastastats(input):
         for Header, Seq in SimpleFastaParser(f):
             count += 1
             length += len(Seq)
-    return count,length
+    return count, length
+
 
 def countfastq(input):
     lines = sum(1 for line in zopen(input))
     count = int(lines) // 4
     return count
 
+
 def softwrap(string, every=80):
     lines = []
     for i in range(0, len(string), every):
         lines.append(string[i:i+every])
     return '\n'.join(lines)
+
 
 def bam_read_count(bamfile):
     cmd = ['samtools', 'idxstats', bamfile]
@@ -141,6 +153,7 @@ def bam_read_count(bamfile):
         unmapped += int(nu)
     return (mapped, unmapped)
 
+
 def RevComp(s):
     rev_comp_lib = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'U': 'A',
                     'M': 'K', 'R': 'Y', 'W': 'W', 'S': 'S', 'Y': 'R',
@@ -150,10 +163,11 @@ def RevComp(s):
     cseq = ''
     n = len(s)
     s = s.upper()
-    for i in range(0,n):
+    for i in range(0, n):
         c = s[n-i-1]
         cseq += rev_comp_lib[c]
     return cseq
+
 
 def calcN50(lengths, num=0.5):
     lengths.sort()
@@ -167,25 +181,33 @@ def calcN50(lengths, num=0.5):
             n50 = n
     return n50
 
+
 def printCMD(cmd):
     stringcmd = '{:}'.format(' '.join(cmd))
     prefix = '\033[96mCMD:\033[00m '
-    wrapper = textwrap.TextWrapper(initial_indent=prefix, width=80, subsequent_indent=' '*8, break_long_words=False)
+    wrapper = textwrap.TextWrapper(
+        initial_indent=prefix, width=80, subsequent_indent=' '*8, break_long_words=False)
     print(wrapper.fill(stringcmd))
 
-def status(string):
-    print('\033[92m[{:}]\033[00m {:}'.format(datetime.datetime.now().strftime('%b %d %I:%M %p'), string))
 
-#from https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
+def status(string):
+    print('\033[92m[{:}]\033[00m {:}'.format(
+        datetime.datetime.now().strftime('%b %d %I:%M %p'), string))
+
+# from https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
+
+
 def execute(cmd, dir):
     DEVNULL = open(os.devnull, 'w')
-    popen = subprocess.Popen(cmd, cwd=dir, stdout=subprocess.PIPE, universal_newlines=True, stderr=DEVNULL)
+    popen = subprocess.Popen(
+        cmd, cwd=dir, stdout=subprocess.PIPE, universal_newlines=True, stderr=DEVNULL)
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
+
 
 def Fzip_inplace(input, cpus):
     '''
@@ -200,6 +222,7 @@ def Fzip_inplace(input, cpus):
     except NameError:
         subprocess.call(cmd)
 
+
 def SafeRemove(input):
     if os.path.isdir(input):
         shutil.rmtree(input)
@@ -208,9 +231,12 @@ def SafeRemove(input):
     else:
         return
 
-#streaming parallel pigz open via https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
+# streaming parallel pigz open via https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
+
+
 def which(program):
     import os
+
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
     fpath, fname = os.path.split(program)
@@ -225,24 +251,28 @@ def which(program):
                 return exe_file
     return None
 
+
 def open_pipe(command, mode='r', buff=1024*1024):
     import subprocess
     import signal
     if 'r' in mode:
         return subprocess.Popen(command, shell=True, bufsize=buff,
                                 stdout=subprocess.PIPE,
-                                preexec_fn=lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-                               ).stdout
+                                preexec_fn=lambda: signal.signal(
+                                    signal.SIGPIPE, signal.SIG_DFL)
+                                ).stdout
     elif 'w' in mode:
         return subprocess.Popen(command, shell=True, bufsize=buff,
                                 stdin=subprocess.PIPE).stdin
     return None
+
 
 NORMAL = 0
 PROCESS = 1
 PARALLEL = 2
 WHICH_GZIP = which("gzip")
 WHICH_PIGZ = which("pigz")
+
 
 def open_gz(filename, mode='r', buff=1024*1024, external=PARALLEL):
     if external == None or external == NORMAL:
@@ -264,6 +294,7 @@ def open_gz(filename, mode='r', buff=1024*1024, external=PARALLEL):
             return open_pipe("pigz >" + filename, mode, buff)
     return None
 
+
 def zopen(filename, mode='r', buff=1024*1024, external=PARALLEL):
     """
     Open pipe, zipped, or unzipped file automagically
@@ -280,4 +311,3 @@ def zopen(filename, mode='r', buff=1024*1024, external=PARALLEL):
     else:
         return open(filename, mode, buff)
     return None
-
