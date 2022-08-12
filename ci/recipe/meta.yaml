@@ -1,0 +1,46 @@
+{% set data = load_setup_py_data() %}
+{% set version = data.get('version') or 'placehold' %}
+
+package:
+  name: AAFTF
+  version: {{ version }}
+
+source:
+  path: ../..
+
+build:
+  script: make install
+
+requirements:
+  host:
+    - python {{ python }}
+    - setuptools
+
+  run:
+    - python {{ python }}
+    - biopython
+    - samtools
+    - bwa
+    - minimap2
+    - pilon
+    - blast
+    - diamond
+    - sourmash
+    - bowtie2
+    - trimmomatic
+    - spades
+    - fastp
+    - novoplasty
+    - bbmap
+
+test:
+  requires:
+    - pytest
+
+  imports:
+    - Bio
+
+about:
+  home: https://github.com/stajichlab/AAFTF
+  license: MIT
+  license_family: MIT
