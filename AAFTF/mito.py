@@ -6,6 +6,8 @@ import subprocess
 import uuid
 import shutil
 from Bio.SeqIO.FastaIO import SimpleFastaParser
+from AAFTF.resources import Mitoseqs
+
 from AAFTF.utility import (softwrap, execute, RevComp, GuessRL,
                            getRAM, printCMD, status, which_path)
 
@@ -16,14 +18,7 @@ def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
     if not start:
         # generated as spoa consensus from select fungal cob genes
         # move this to a configurable file
-        cob1 = ("atgagaattttaaaaagtcatcctttattaaaattagttaatagttatattattg" +
-                "attcaccacaaccttctaatattagttatttatgaaattttggatctttattagc" +
-                "tttatgtttagttatacaaattgtaactggtgttacattagctatgcactataca" +
-                "cctaatgttgatttagcttttaattctgtagaacatattatgagagatgtaaata" +
-                "atggttgattaataagatatttacatgctaatactgcttcagcattctttttctt" +
-                "agttatatttacatataggtagaggattatattatggttcatataaatcacctag" +
-                "aacattaacatgagctattgg")
-
+        cob1 = Mitoseqs['COB1']
         with open(startFile, 'w') as outfile:
             outfile.write('>COB\n{}\n'.format(softwrap(cob1)))
     else:
