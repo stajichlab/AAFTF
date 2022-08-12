@@ -14,11 +14,14 @@ from AAFTF.utility import SafeRemove
 from AAFTF.utility import getRAM
 from AAFTF.utility import countfastq
 
+TRIMMOMATIC_TRUSEQSE = "adapters/TruSeq3-SE.fa"
+TRIMMOMATIC_TRUSEQPE = "adapters/TruSeq3-PE.fa"
 # process trimming reads with trimmomatic
 # Homebrew install of trimmomatic uses a shell script
 '''
-#!/bin/bash
-exec java  -jar /usr/local/Cellar/trimmomatic/0.36/libexec/trimmomatic-0.36.jar "$@"
+#!/bin/bash -l
+TRIMJAR=/usr/local/Cellar/trimmomatic/0.36/libexec/trimmomatic-0.36.jar
+exec java -jar $TRIMJAR "$@"
 '''
 # while bioconda install uses a python script that launches java apps
 
@@ -26,9 +29,9 @@ exec java  -jar /usr/local/Cellar/trimmomatic/0.36/libexec/trimmomatic-0.36.jar 
 def find_trimmomatic():
     trim_path = which_path('trimmomatic')
     if trim_path:
-        with open(os.path.abspath(which_path('trimmomatic')), 'rU') as trim_shell:
+        with open(os.path.abspath(trim_path), 'rU') as trim_shell:
             firstLine = trim_shell.readline()
-            if '#!/bin/bash' in firstLine:  # then homebrew do routine to get jar location
+            if '#!/bin/bash' in firstLine:  # homebrew get jar location
                 for line in trim_shell:
                     if line.startswith('exec java'):
                         items = line.split(' ')
@@ -36,7 +39,8 @@ def find_trimmomatic():
                             if x.endswith('.jar'):
                                 return x
             elif '#!/usr/bin/env python' in firstLine:
-                return os.path.join(os.path.dirname(os.path.realpath(trim_path)), 'trimmomatic.jar')
+                trimjardir = os.path.dirname(os.path.realpath(trim_path))
+                return os.path.join(trimjardir, 'trimmomatic.jar')
             else:
                 return False
     else:
@@ -66,13 +70,24 @@ def run(parser, args):
             MEM = '-Xmx{:}g'.format(round(0.6*getRAM()))
 
         status('Adapter trimming using BBDuk')
-        cmd = ['bbduk.sh', MEM, 'ref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
-               'k=23', 'mink=11', 'minlen={:}'.format(
-                   args.minlen), 'hdist=1', 'maq={:}'.format(args.avgqual),
-               'ftm=5', 'tpe', 'tbo', 'overwrite=true']
+        cmd = ['bbduk.sh', MEM,
+               'ref=adapters',
+               't={:}'.format(args.cpus),
+               'ktrim=r',
+               'k=23',
+               'mink=11',
+               'minlen={:}'.format(args.minlen),
+               'hdist=1',
+               'maq={:}'.format(args.avgqual),
+               'ftm=5',
+               'tpe',
+               'tbo',
+               'overwrite=true']
         if args.left and args.right:
-            cmd += ['in1={:}'.format(args.left), 'in2={:}'.format(args.right),
-                    'out1={:}_1P.fastq.gz'.format(args.basename), 'out2={:}_2P.fastq.gz'.format(args.basename)]
+            cmd += ['in1={:}'.format(args.left),
+                    'in2={:}'.format(args.right),
+                    'out1={:}_1P.fastq.gz'.format(args.basename),
+                    'out2={:}_2P.fastq.gz'.format(args.basename)]
         elif args.left:
             cmd += ['in={:}'.format(args.left),
                     'out={:}_1U.fastq.gz'.format(args.basename)]
@@ -88,19 +103,26 @@ def run(parser, args):
             clean = clean*2
             status('{:,} reads remaining and writing to file'.format(clean))
             status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
-                args.basename+'_1P.fastq.gz',
-                args.basename+'_2P.fastq.gz'))
+                args.basename + '_1P.fastq.gz',
+                args.basename + '_2P.fastq.gz'))
             if not args.pipe:
-                status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
-                    args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
+                status('Your next command might be:\n\t' +
+                       'AAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                           args.basename+'_1P.fastq.gz',
+                           args.basename+'_2P.fastq.gz',
+                           args.basename,
+                           args.cpus))
         else:
             clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
             status('{:,} reads remaining and writing to file'.format(clean))
             status('Trimming finished:\n\tSingle: {:}'.format(
                 args.basename+'_1U.fastq.gz'))
             if not args.pipe:
-                status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
-                    args.basename+'_1U.fastq.gz', args.basename, args.cpus))
+                status('Your next command might be:\n\t' +
+                       'AAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                           args.basename+'_1U.fastq.gz',
+                           args.basename,
+                           args.cpus))
 
     elif args.method == 'trimmomatic':
         # find path
@@ -110,8 +132,8 @@ def run(parser, args):
         elif args.trimmomatic:
             jarfile = args.trimmomatic
         else:
-            status(
-                'Trimmomatic cannot be found - please provide location of trimmomatic.jar file.')
+            status('Trimmomatic cannot be found - ' +
+                   'please provide location of trimmomatic.jar file.')
             sys.exit(1)
 
         if jarfile:
@@ -126,11 +148,11 @@ def run(parser, args):
 
             if not os.path.exists(path_to_adaptors):
                 if args.right:
-                    path_to_adaptors = dirname(
-                        jarfile)+"/adapters/TruSeq3-PE.fa"
+                    path_to_adaptors = os.path.join(dirname(jarfile),
+                                                    TRIMMOMATIC_TRUSEQPE)
                 else:
-                    path_to_adaptors = dirname(
-                        jarfile)+"/adapters/TruSeq3-SE.fa"
+                    path_to_adaptors = os.path.join(dirname(jarfile),
+                                                    TRIMMOMATIC_TRUSEQSE)
 
                 if not os.path.exists(path_to_adaptors):
                     findpath = dirname(jarfile)
@@ -138,15 +160,20 @@ def run(parser, args):
                     while findpath:
                         if os.path.exists(findpath + "/share"):
                             if args.right:
-                                path_to_adaptors = findpath+"/share/trimmomatic/adapters/TruSeq3-PE.fa"
+                                path_to_adaptors = os.path.join(
+                                    findpath,
+                                    "/share/trimmomatic",
+                                    TRIMMOMATIC_TRUSEQPE)
                             else:
-                                path_to_adaptors = findpath+"/share/trimmomatic/adapters/TruSeq3-SE.fa"
+                                path_to_adaptors = os.path.join(
+                                    findpath,
+                                    "/share/trimmomatic",
+                                    TRIMMOMATIC_TRUSEQSE)
                             break
                         findpath = dirname(findpath)
 
                 if not os.path.exists(path_to_adaptors):
-                    status("Cannot find adaptors file, please specify manually")
-                    status("Cannot find adaptors file, please specify manually")
+                    status("Cannot find adaptors file please specify manually")
                     return
 
             clipstr = args.trimmomatic_clip % (path_to_adaptors)
@@ -190,20 +217,29 @@ def run(parser, args):
                     args.basename+'_1P.fastq.gz',
                     args.basename+'_2P.fastq.gz'))
                 if not args.pipe:
-                    status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
-                        args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
+                    status('Your next command might be:\n\t' +
+                           'AAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                               args.basename+'_1P.fastq.gz',
+                               args.basename+'_2P.fastq.gz',
+                               args.basename,
+                               args.cpus))
             else:
                 status('Compressing trimmed SE FASTQ file')
-                Fzip_inplace(args.basename+'_1U.fastq', args.cpus)
+                Fzip_inplace(args.basename + '_1U.fastq', args.cpus)
                 status('Trimming finished:\n\tSingle: {:}'.format(
-                    args.basename+'_1U.fastq.gz'))
+                    args.basename + '_1U.fastq.gz'))
                 if not args.pipe:
-                    status('Your next command might be:\n\tAAFTF filter -l {:} -o {:} -c {:}\n'.format(
-                        args.basename+'_1U.fastq.gz', args.basename, args.cpus))
+                    status('Your next command might be:\n\t' +
+                           'AAFTF filter -l {:} -o {:} -c {:}\n'.format(
+                               args.basename+'_1U.fastq.gz',
+                               args.basename,
+                               args.cpus))
 
     elif args.method == 'fastp':
         status('Adapter trimming using fastp')
-        cmd = ['fastp', '--low_complexity_filter', '-l', '{:}'.format(args.minlen), '--average_qual', '{:}'.format(args.avgqual),
+        cmd = ['fastp', '--low_complexity_filter',
+               '-l', '{:}'.format(args.minlen),
+               '--average_qual', '{:}'.format(args.avgqual),
                '-w', '{:}'.format(args.cpus)]
 
 #               '-wref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
@@ -248,16 +284,22 @@ def run(parser, args):
                 args.basename+'_1P.fastq.gz',
                 args.basename+'_2P.fastq.gz'))
             if not args.pipe:
-                status('Your next command might be:\n\tAAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
-                    args.basename+'_1P.fastq.gz', args.basename+'_2P.fastq.gz', args.basename, args.cpus))
+                status('Your next command might be:\n\t' +
+                       'AAFTF filter -l {:} -r {:} -o {:} -c {:}\n'.format(
+                           args.basename+'_1P.fastq.gz',
+                           args.basename+'_2P.fastq.gz',
+                           args.basename,
+                           args.cpus))
         else:
             clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
             status('{:,} reads remaining and writing to file'.format(clean))
             status('Trimming finished:\n\tSingle: {:}'.format(
-                args.basename+'_1U.fastq.gz'))
+                args.basename + '_1U.fastq.gz'))
             if not args.pipe:
-                status('Your next command might be:\n\tAAFTF filter --left {:} -o {:} -c {:}\n'.format(
-                    args.basename+'_1U.fastq.gz', args.basename, args.cpus))
+                status('Your next command might be:\n\t' +
+                       'AAFTF filter --left {:} -o {:} -c {:}\n'.format(
+                           args.basename+'_1U.fastq.gz',
+                           args.basename, args.cpus))
 
     else:
         status('Uknown trimming method: {}'.format(args.method))
