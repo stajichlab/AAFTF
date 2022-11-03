@@ -134,7 +134,7 @@ def run(parser, args):
     else:
         status('AAFTF vecscreen output found: {:}'.format(
             basename + '.vecscreen.fasta'))
-    if not checkfile(basename + ' .vecscreen.fasta'):
+    if not checkfile(basename + '.vecscreen.fasta'):
         status('AATFT vecscreen failed')
         sys.exit(1)
 
