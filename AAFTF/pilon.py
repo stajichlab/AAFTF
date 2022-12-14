@@ -1,15 +1,20 @@
-import sys
+"""Runs the pilon illumina-based polishing of assembly.
+
+This takes care of running multiple rounds and updating the assembly
+through these versions and removing temporary BAM alignment files.
+"""
+
 import os
-import uuid
 import shutil
 import subprocess
-from AAFTF.utility import line_count
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import SafeRemove
+import sys
+import uuid
+
+from AAFTF.utility import SafeRemove, line_count, printCMD, status
 
 
 def run(parser, args):
+    """Runs pilon in multiple rounds provided with illumina reads and contig assembly FastA file."""
     # find reads for pilon
     forReads, revReads = (None,)*2
     if args.left:
@@ -35,7 +40,7 @@ def run(parser, args):
 
     DEVNULL = open(os.devnull, 'w')
     for i in range(1, args.iterations+1):
-        status('Starting Pilon polishing iteration {:}'.format(i))
+        status(f'Starting Pilon polishing iteration {i}')
         correctedFasta = 'pilon'+str(i)+'.fasta'
         if i == 1:  # first loop
             initialFasta = args.infile
@@ -73,7 +78,7 @@ def run(parser, args):
         # run Pilon
         pilon_cmd = ['pilon', '--genome', os.path.basename(initialFasta),
                      '--frags', pilonBAM,
-                     '-Xmx{}g'.format(args.memory),
+                     f'-Xmx{args.memory}g',
                      '--output', correctedFasta.split('.fasta')[0],
                      '--threads', str(args.cpus),
                      '--changes']
@@ -85,7 +90,7 @@ def run(parser, args):
         n_chg = line_count(os.path.join(args.workdir,
                                         'pilon'+str(i)+'.changes'))
 
-        status('Found {:,} changes in Pilon iteration {:}'.format(n_chg, i))
+        status(f'Found {n_chg:,} changes in Pilon iteration {i}')
 
         # clean-up as we iterate to prevent tmp directory from blowing up
         dirty = [initialFasta+'.sa', initialFasta+'.amb', initialFasta+'.ann',
@@ -105,14 +110,14 @@ def run(parser, args):
         polishedFasta = args.outfile
     else:
         fbasename = os.path.basename(args.infile).split('.f')[0]
-        polishedFasta = "{:}.pilon.fasta".format(fbasename)
+        polishedFasta = f"{fbasename}.pilon.fasta"
 
     shutil.copyfile(os.path.join(args.workdir,
                                  'pilon'+str(args.iterations)+'.fasta'),
                     polishedFasta)
 
-    status('AAFTF pilon completed {:} iterations.'.format(args.iterations))
-    status('Pilon polished assembly: {:}'.format(polishedFasta))
+    status(f'AAFTF pilon completed {args.iterations} iterations.')
+    status(f'Pilon polished assembly: {polishedFasta}')
     if '_' in polishedFasta:
         nextOut = polishedFasta.split('_')[0]+'.final.fasta'
     elif '.' in polishedFasta:
@@ -125,4 +130,4 @@ def run(parser, args):
 
     if not args.pipe:
         status('Your next command might be:\n' +
-               '\tAAFTF sort -i {:} -o {:}\n'.format(polishedFasta, nextOut))
+               f'\tAAFTF sort -i {polishedFasta} -o {nextOut}\n')
