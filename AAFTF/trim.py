@@ -1,10 +1,8 @@
 """Trims FASTQ files for reads.
 
-This is usually for Illumina reads and uses fastp or
-trimmomatic as well as merging reads (fastp).
-
-This attempts to remove vector, phiX, and primer matching
-sequences.
+This is usually for Illumina reads to quality trim reads.
+This uses either fastp, includes merging step for paired reads, OR
+trimmomatic. Expects adaptor sequence files to be in trimmomatic installed folder.
 """
 
 import os
