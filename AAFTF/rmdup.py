@@ -1,55 +1,51 @@
-import sys
-import os
-import uuid
-import subprocess
-from Bio.SeqIO.FastaIO import SimpleFastaParser
+"""RMDup module step removes smaller contigs redudnant with larger ones.
+
+This uses minimap to map small contigs against the database of contigs in an
+assembly and removes those which are redundant.
+"""
 import operator
+import os
+import sys
+import uuid
+
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+
+from AAFTF.utility import (SafeRemove, calcN50, execute, fastastats, softwrap,
+                           status)
 
 
-# this runs rountines to identify and remove duplicate
-# contigs
-
-from AAFTF.utility import calcN50
-from AAFTF.utility import softwrap
-from AAFTF.utility import fastastats
-from AAFTF.utility import execute
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import SafeRemove
-
-def run(parser,args):
-
+def run(parser, args):
+    """Run routines to identify and remove duplicate contigs."""
     def generateFastas(fasta, pref, query, reference):
-        qfile = os.path.join(args.workdir, pref +'query.fasta')
-        rfile = os.path.join(args.workdir, pref +'reference.fasta')
+        qfile = os.path.join(args.workdir, pref + 'query.fasta')
+        rfile = os.path.join(args.workdir, pref + 'reference.fasta')
         with open(qfile, 'w') as qout:
             with open(rfile, 'w') as rout:
-                with open(fasta, 'rU') as infile:
-                    for Header,Seq in SimpleFastaParser(infile):
+                with open(fasta) as infile:
+                    for Header, Seq in SimpleFastaParser(infile):
                         if Header in query:
-                            qout.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
+                            qout.write(f'>{Header}\n{softwrap(Seq)}\n')
                         elif Header in reference:
-                            rout.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
+                            rout.write(f'>{Header}\n{softwrap(Seq)}\n')
         return qfile, rfile
 
     def runMinimap2(query, reference, name):
-        FNULL = open(os.devnull, 'w')
-        garbage = False #assume this is a good contig
+        """Run minimap2 for matching contigs."""
+        garbage = False  # assume this is a good contig
         for line in execute(['minimap2', '-t', str(args.cpus), '-x', 'asm5', '-N5', reference, query], '.'):
             qID, qLen, qStart, qEnd, strand, tID, tLen, tStart, tEnd, matches, alnLen, mapQ = line.split('\t')[:12]
             pident = float(matches) / int(alnLen) * 100
             cov = float(alnLen) / int(qLen) * 100
             if args.debug:
-                print('\tquery={:} hit={:} pident={:.2f} coverage={:.2f}'.format(qID, tID, pident, cov))
+                print(f'\tquery={qID} hit={tID} pident={pident:.2f} coverage={cov:.2f}')
 
                 if pident > args.percent_id and cov > args.percent_cov:
-                    print("{:} duplicated: {:.0f}% identity over {:.0f}% of the contig. length={:}".format(name, pident, cov, qLen))
+                    print(f"{name} duplicated: {pident:.0f}% identity over {cov:.0f}% of the contig. length={qLen}")
                     garbage = True
                     break
-        return garbage #false is good, true is repeat
+        return garbage  # false is good, true is repeat
 
-
-    #start here -- functions nested so they can inherit the arguments
+    # start here -- functions nested so they can inherit the arguments
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
@@ -62,26 +58,26 @@ def run(parser,args):
     status('Looping through assembly shortest --> longest searching for duplicated contigs using minimap2')
     numSeqs, assemblySize = fastastats(args.input)
     fasta_lengths = []
-    with open(args.input, 'rU') as infile:
+    with open(args.input) as infile:
         for Header, Seq in SimpleFastaParser(infile):
             fasta_lengths.append(len(Seq))
     n50 = calcN50(fasta_lengths, num=0.75)
-    status('Assembly is {:,} contigs; {:,} bp; and N75 is {:,} bp'.format(numSeqs, assemblySize, n50))
+    status(f'Assembly is {numSeqs:,} contigs; {assemblySize:,} bp; and N75 is {n50:,} bp')
 
-    #get list of tuples of sequences sorted by size (shortest --> longest)
+    # get list of tuples of sequences sorted by size (shortest --> longest)
     AllSeqs = {}
-    with open(args.input, 'rU') as infile:
+    with open(args.input) as infile:
         for Header, Seq in SimpleFastaParser(infile):
-            if not Header in AllSeqs:
+            if Header not in AllSeqs:
                 AllSeqs[Header] = len(Seq)
-    sortSeqs = sorted(AllSeqs.items(), key=operator.itemgetter(1),reverse=False)
+    sortSeqs = sorted(AllSeqs.items(), key=operator.itemgetter(1), reverse=False)
     if args.exhaustive:
         n50 = sortSeqs[-1][1]
     those2check = [x for x in sortSeqs if x[1] < n50]
-    status('Will check {:,} contigs for duplication --> those that are < {:,} && > {:,}'.format(len(those2check), n50, args.minlen))
-    #loop through sorted list of tuples
+    status(f'Will check {len(those2check):,} contigs for duplication --> those that are < {n50:,} && > {args.minlen:,}')
+    # loop through sorted list of tuples
     ignore = []
-    for i,x in enumerate(sortSeqs):
+    for i, x in enumerate(sortSeqs):
         sys.stdout.flush()
         if x[1] < args.minlen:
             ignore.append(x[0])
@@ -91,27 +87,27 @@ def run(parser,args):
             sys.stdout.write('\n')
             break
         if args.debug:
-            status('Working on {:} len={:} remove_tally={:}'.format(x[0], x[1], len(ignore)))
+            status(f'Working on {x[0]} len={x[1]} remove_tally={len(ignore)}')
         else:
-            text = "\rProgress: {:} of {:}; remove tally={:,}; current={:}; length={:}     ".format(i, len(those2check), len(ignore), x[0], x[1])
+            text = f"\rProgress: {i} of {len(those2check)}; remove tally={len(ignore):,}; current={x[0]}; length={x[1]}     "
             sys.stdout.write(text)
-        #generate input files for minimap2
+        # generate input files for minimap2
         theRest = [i[0] for i in sortSeqs[i+1:]]
         pid = str(os.getpid())
         qfile, rfile = generateFastas(args.input, pid, x[0], theRest)
-        #run minimap2
+        # run minimap2
         result = runMinimap2(qfile, rfile, x[0])
         if result:
             ignore.append(x[0])
 
     ignore = set(ignore)
     with open(args.out, 'w') as clean_out:
-        with open(args.input, 'rU') as infile:
+        with open(args.input) as infile:
             for Header, Seq in SimpleFastaParser(infile):
-                if not Header in ignore:
-                    clean_out.write('>{:}\n{:}\n'.format(Header, softwrap(Seq)))
+                if Header not in ignore:
+                    clean_out.write(f'>{Header}\n{softwrap(Seq)}\n')
     numSeqs, assemblySize = fastastats(args.out)
-    status('Cleaned assembly is {:,} contigs and {:,} bp'.format(numSeqs, assemblySize))
+    status(f'Cleaned assembly is {numSeqs:,} contigs and {assemblySize:,} bp')
     if '_' in args.out:
         nextOut = args.out.split('_')[0]+'.pilon.fasta'
     elif '.' in args.out:
@@ -120,7 +116,7 @@ def run(parser,args):
         nextOut = args.out+'.pilon.fasta'
 
     if not args.pipe:
-    	status('Your next command might be:\n\tAAFTF pilon -i {:} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {:}\n'.format(args.out, nextOut))
+        status(f'Your next command might be:\n\tAAFTF pilon -i {args.out} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {nextOut}\n')
 
     if not args.debug and not custom_workdir:
         SafeRemove(args.workdir)

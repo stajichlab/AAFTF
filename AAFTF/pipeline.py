@@ -1,23 +1,23 @@
-import sys
+"""Support pipelining of AAFTF to simplify all-in-on runs."""
 
+import sys
 from argparse import Namespace
 
-from AAFTF.utility import status
-from AAFTF.utility import getRAM
-from AAFTF.utility import checkfile
-import AAFTF.trim as trim
-import AAFTF.filter as aaftf_filter
 import AAFTF.assemble as assemble
-import AAFTF.vecscreen as vecscreen
-import AAFTF.sourpurge as sourpurge
-import AAFTF.rmdup as rmdup
-import AAFTF.pilon as pilon
-import AAFTF.sort as aaftf_sort
 import AAFTF.assess as assess
+import AAFTF.filter as aaftf_filter
 import AAFTF.mito as mito
+import AAFTF.pilon as pilon
+import AAFTF.rmdup as rmdup
+import AAFTF.sort as aaftf_sort
+import AAFTF.sourpurge as sourpurge
+import AAFTF.trim as trim
+import AAFTF.vecscreen as vecscreen
+from AAFTF.utility import checkfile, getRAM, status
 
 
 def run(parser, args):
+    """Script runs entire AAFTF pipeline."""
     # script to run entire AAFTF pipeline
     args_dict = vars(args)
     basename = args_dict['basename']

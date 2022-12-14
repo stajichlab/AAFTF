@@ -189,6 +189,9 @@ def main():
     parser_trim.add_argument('--merge', action='store_true',
                              help="Merge paired end reads when running fastp")
 
+    parser_trim.add_argument('--prefix', type=str, required=False,
+                             help="Prefix for outfiles")
+
     tool_group = parser_trim.add_mutually_exclusive_group(required=False)
 
     tool_group.add_argument('--trimmomatic', '--jar',
@@ -284,7 +287,7 @@ def main():
     ##########
     # arguments
     # -i / --indir:  input dir
-    # -p / --prefix: in fastq reads and output prefix
+    # -o / --out: in fastq reads and output prefix
     # -a / --screen_accessions: screening sequence GenBank accessions
     # -u / --screen_urls: screening sequence URLs (fasta format)
     # --debug: print debug messages and do no remove contamdb BAM file
@@ -432,10 +435,12 @@ def main():
     parser_asm.add_argument('--tmpdir', type=str,
                             required=False,
                             help="Assembler temporary dir")
+
     parser_asm.add_argument('--assembler_args',
                             action='append',
                             required=False,
                             help="Additional SPAdes/Megahit arguments")
+
     parser_asm.add_argument('--haplocontigs',
                             dest='haplocontigs',
                             default=False,
@@ -484,6 +489,10 @@ def main():
         '-pid', '--percent_id', type=int,
         required=False,
         help="Percent Identity cutoff for vecscreen adaptor matches")
+
+    parser_vecscreen.add_argument(
+        '--prefix', type=str,
+        required=False, help="Prefix for tempfiles")
 
     parser_vecscreen.add_argument(
         '-w', '--workdir', '--tmpdir',
@@ -535,6 +544,10 @@ def main():
         '-o', '--outfile', type=str,
         required=True,  # think about sensible replacement in future
         help="Output sourmash cleaned assembly")
+
+    parser_sour.add_argument(
+        '--prefix', type=str,
+        required=False, help="Prefix for tempfiles")
 
     parser_sour.add_argument('-l', '--left', required=False,
                              help="Left (Forward) reads")
@@ -733,6 +746,10 @@ def main():
         type=str, dest='workdir',
         required=False,
         help="Temporary directory to store datafiles for processes")
+
+    parser_pilon.add_argument(
+        '--prefix', type=str,
+        required=False, help="Prefix for readfiles")
 
     parser_pilon.add_argument('--pipe', action='store_true',
                               help="AAFTF is running in pipeline mode")

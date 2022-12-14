@@ -1,21 +1,22 @@
-import sys, os, shutil
-from subprocess import call, Popen, PIPE, STDOUT
+"""Run the sourmash fast matching kmer tool to look for obvious contaminants."""
+import os
+import shutil
 import subprocess
+import sys
 import uuid
+
 from Bio import SeqIO
-from AAFTF.utility import execute
-from AAFTF.utility import calcN50
-from AAFTF.utility import fastastats
+
 from AAFTF.resources import DB_Links
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import SafeRemove
-from AAFTF.utility import checkfile
-from AAFTF.utility import download
+from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
+                           printCMD, status)
+
 
 # logging - we may need to think about whether this has
 # separate name for the different runfolder
-def run(parser,args):
+# flake8: noqa: C901
+def run(parser, args):
+    """Run the sourpurge routines to detect and remove contaminant contigs."""
     if not args.workdir:
         args.workdir = 'aaftf-sourpurge_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
@@ -25,7 +26,7 @@ def run(parser,args):
     if args.cpus < 4:
         bamthreads = 1
 
-    #find reads
+    # find reads
     forReads, revReads = (None,)*2
     if args.left:
         forReads = os.path.abspath(args.left)
@@ -33,12 +34,11 @@ def run(parser,args):
         revReads = os.path.abspath(args.right)
     if not forReads:
         status('Unable to located FASTQ raw reads, low coverage will be skipped. Provide -l,--left or -r,--right to enable low coverage filtering.')
-#        sys.exit(1)
+        # sys.exit(1)
 
-    #parse database locations
+    # parse database locations
     if not args.sourdb:
-#        'genbank-k31.lca.json.gz'
-        dbfle="genbank-k31.lca.json.gz" # old default
+        dbfile="genbank-k31.lca.json.gz"  # old default
 
         if args.sourdb_type.lower() == "gtdb":
             dbfile = DB_Links['sourmash_gtdb'][0]['filename']
@@ -56,23 +56,23 @@ def run(parser,args):
             if args.AAFTF_DB:
                 SOUR = os.path.join(args.AAFTF_DB, dbfile)
             else:
-                status("$AAFTF_DB/{} not found, pass --sourdb".format(dbfile))
+                status(f"$AAFTF_DB/{dbfile} not found, pass --sourdb")
                 sys.exit(1)
         SOUR = os.path.join(DB, dbfile)
         if not os.path.isfile(SOUR):
-            status("{:} sourmash database not found, download and rename to {}/{}".format(SOUR,args.AAFTF_DB,dbfile))
+            status(f"{SOUR} sourmash database not found, downloadxxxxxxxxxxxxxxxxxxxxxxxxxxx and rename to {args.AAFTF_DB}/{dbfile}")
             sys.exit(1)
     else:
         SOUR = os.path.abspath(args.sourdb)
 
     # hard coded tmpfile
-    assembly_working  = 'assembly.fasta'
-    blobBAM           = 'remapped.bam'
-    shutil.copyfile(args.input, os.path.join(args.workdir,assembly_working))
+    assembly_working = 'assembly.fasta'
+    blobBAM = 'remapped.bam'
+    shutil.copyfile(args.input, os.path.join(args.workdir, assembly_working))
     numSeqs, assemblySize = fastastats(os.path.join(args.workdir,
                                                     assembly_working))
     status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs,
-                                                              assemblySize))
+                                                         assemblySize))
     DEVNULL = open(os.devnull, 'w')
 
     #now filter for taxonomy with sourmash lca classify
@@ -113,16 +113,16 @@ def run(parser,args):
     for k,v in Taxonomy.items():
         v = [x for x in v if x] #remove empty items from list
         if args.debug:
-            print('{:}\t{:}'.format(k, v))
+            print(f'{k}\t{v}')
         if len(v) > 0:
             if not any(i in v for i in args.phylum):
                 Tax2Drop.append(k)
 
     #drop contigs from taxonomy before calculating coverage
-    status('Dropping {:} contigs from taxonomy screen'.format(len(Tax2Drop)))
+    status(f'Dropping {len(Tax2Drop)} contigs from taxonomy screen')
     sourTax = os.path.join(args.workdir, 'sourmashed-tax-screen.fasta')
     with open(sourTax, 'w') as outfile:
-        with open(os.path.join(args.workdir,assembly_working), 'rU') as infile:
+        with open(os.path.join(args.workdir,assembly_working)) as infile:
             for record in SeqIO.parse(infile, 'fasta'):
                 if not record.id in Tax2Drop:
                     SeqIO.write(record, outfile, 'fasta')
@@ -164,9 +164,9 @@ def run(parser,args):
         FastaBed = os.path.join(args.workdir, 'assembly.bed')
         lengths = []
         with open(FastaBed, 'w') as bedout:
-            with open(sourTax, 'rU') as SeqIn:
+            with open(sourTax) as SeqIn:
                 for record in SeqIO.parse(SeqIn, 'fasta'):
-                    bedout.write('{:}\t{:}\t{:}\n'.format(record.id, 0, len(record.seq)))
+                    bedout.write(f'{record.id}\t{0}\t{len(record.seq)}\n')
                     lengths.append(len(record.seq))
 
         N50 = calcN50(lengths)
@@ -190,14 +190,14 @@ def run(parser,args):
         n50Cov = []
         for k,v in Coverage.items():
             if args.debug:
-                print('{:}; Len: {:}; Cov: {:.2f}'.format(k, v[0], v[1]))
+                print(f'{k}; Len: {v[0]}; Cov: {v[1]:.2f}')
             if v[0] >= N50:
                 n50Cov.append(v[1])
         n50AvgCov = sum(n50Cov) / len(n50Cov)
         minpct = args.mincovpct / 100
         # should we make this a variable? 5% was something arbitrary
         min_coverage = float(n50AvgCov * minpct)
-        status('Average coverage for N50 contigs is {:}X'.format(int(n50AvgCov)))
+        status(f'Average coverage for N50 contigs is {int(n50AvgCov)}X')
 
         #Start list of contigs to drop
         for k,v in Coverage.items():
@@ -212,8 +212,8 @@ def run(parser,args):
 
     DropFinal = Contigs2Drop + Tax2Drop
     DropFinal = set(DropFinal)
-    status('Dropping {:,} total contigs based on taxonomy and coverage'.format(len(DropFinal)))
-    with open(args.outfile, 'w') as outfile, open(sourTax, 'rU') as seqin:
+    status(f'Dropping {len(DropFinal):,} total contigs based on taxonomy and coverage')
+    with open(args.outfile, 'w') as outfile, open(sourTax) as seqin:
         for record in SeqIO.parse(seqin, 'fasta'):
             if not record.id in DropFinal:
                 SeqIO.write(record, outfile, 'fasta')
@@ -240,4 +240,4 @@ def run(parser,args):
         SafeRemove(args.workdir)
 
     if not args.pipe:
-        status('Your next command might be:\n\tAAFTF rmdup -i {:} -o {:}\n'.format(args.outfile, nextOut))
+        status(f'Your next command might be:\n\tAAFTF rmdup -i {args.outfile} -o {nextOut}\n')
