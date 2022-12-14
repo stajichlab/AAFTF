@@ -1,32 +1,28 @@
-# this runs rountines to identify contaminant contigs
-# which are presumably sequences that were not screened out
-# in the filter step.
-# vector library UniVec and known or user specified contaminanting
-# sequences (by GenBank accession number) can be provided for
-# additional cleanup
+"""This runs routines to identify contaminant contigs.
 
-# default lirbaries screen are located in resources.py
-# and include common Euk, Prok, and MITO contaminants
+The contaminants are presumably sequences that were not screened out
+in the filter step.
+The vector library UniVec and known or user specified contaminanting
+sequences (by GenBank accession number) can be provided for
+additional cleanup
+
+The default libraries for screening are located in resources.py
+and include common Euk, Prok, and MITO contaminants.
+"""
 
 import csv
-import os
 import gzip
-import uuid
+import os
 import shutil
-
-from subprocess import call
-
 import urllib.request
-from AAFTF.resources import DB_Links
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import softwrap
-from AAFTF.utility import countfasta
-from AAFTF.utility import SafeRemove
+import uuid
+from subprocess import call
 
 # biopython needed
 from Bio import SeqIO
 
+from AAFTF.resources import DB_Links
+from AAFTF.utility import SafeRemove, countfasta, printCMD, softwrap, status
 
 BlastPercent_ID_ContamMatch = "90.0"
 BlastPercent_ID_MitoMatch = "98.6"
@@ -53,25 +49,27 @@ Any segment of fewer than 50 bases between two vector matches
 
 
 def group(lst, n):
+    """This groups sets by a size."""
     for i in range(0, len(lst), n):
         val = lst[i:i+n]
         if len(val) == n:
             yield tuple(val)
 
-
+# flake8: noqa: C901
 def parse_clean_blastn(fastafile, prefix, blastn, stringent):
-    '''
-    Blast header rows:
-    qaccver saccver pident length mismatch gapopen qstart qend
-    sstart send evalue score qlen
-    '''
+    """Parse the BLASTN report to get the hits from vector searching.
 
+    The Input file will have format:
+     Blast header rows:
+      qaccver saccver pident length mismatch gapopen qstart qend
+      sstart send evalue score qlen
+    """
     cleaned = prefix + ".clean.fsa"
 #    logging = prefix + ".parse.log"
 
     VecHits = {}
     found_vector_seq = 0
-    with open(blastn, "r") as vectab:
+    with open(blastn) as vectab:
         rdr = csv.reader(vectab, delimiter="\t")
         for row in rdr:
             (qaccver, saccver, pid, length, mismatch, gapopen, qstart, qend,
@@ -160,7 +158,7 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
             if record.id not in VecHits:
                 if len(record.seq) >= 200:
                     output_handle.write(
-                        '>{:}\n{:}\n'.format(record.id, softwrap(Seq)))
+                        f'>{record.id}\n{softwrap(Seq)}\n')
             else:
                 # VecHits contains list of tuples of information,
                 # if terminal, then just truncate
@@ -212,6 +210,7 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
 
 
 def make_blastdb(type, file, name):
+    """Create the BLASTN database for the vecscreen vector search."""
     idxfile = name
     if type == 'nucl':
         idxfile += ".nin"
@@ -226,8 +225,9 @@ def make_blastdb(type, file, name):
         printCMD(cmd)
         call(cmd, stdout=DEVNULL, stderr=DEVNULL)
 
-
+# flake8: noqa: C901
 def run(parser, args):
+    """Runs vectorscreening via BLASTN against a vectorDB."""
     if not args.workdir:
         args.workdir = 'aaftf-vecscreen_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
@@ -259,6 +259,7 @@ def run(parser, args):
         print("prefix is ", prefix)
     else:
         prefix = str(os.getpid())
+
     if not outfile:
         outfile = "%s.vecscreen.fasta" % prefix
 
@@ -271,7 +272,7 @@ def run(parser, args):
     for d in DB_Links:
         if d.startswith('sourmash'):
             continue
-        outfile = os.path.join(args.workdir, "{}.fasta".format(d))
+        outfile = os.path.join(args.workdir, f"{d}.fasta")
         with open(outfile, 'wb') as outfa:
             for url in DB_Links[d]:
                 dbname = os.path.basename(str(url))
@@ -299,7 +300,7 @@ def run(parser, args):
     for contam in ["CONTAM_EUKS", "CONTAM_PROKS"]:
         status("%s Contamination Screen" % (contam))
         blastreport = os.path.join(args.workdir,
-                                   "%s.%s.blastn" % (contam, prefix))
+                                   f"{contam}.{prefix}.blastn")
         blastnargs = ['blastn',
                       '-query', infile,
                       '-db', os.path.join(args.workdir, contam),
@@ -313,7 +314,7 @@ def run(parser, args):
         with open(blastreport) as report:
             colparser = csv.reader(report, delimiter="\t")
             for row in colparser:
-                if((float(row[2]) >= 98.0 and
+                if ((float(row[2]) >= 98.0 and
                     int(row[3]) >= 50) or
                     (float(row[2]) >= 94.0 and
                      int(row[3]) >= 100) or
@@ -331,13 +332,13 @@ def run(parser, args):
                     else:
                         regions_to_trim[row[0]].append(
                             (start, end, contam, row[1], float(row[2])))
-        status('{:} screening finished'.format(contam))
+        status(f'{contam} screening finished')
 
     eukCleaned = os.path.join(
         args.workdir, "%s.euk-prot_cleaned.fasta" % (prefix))
     if len(regions_to_trim) > 0:
         with open(eukCleaned, 'w') as cleanout:
-            with open(infile, 'rU') as fastain:
+            with open(infile) as fastain:
                 for record in SeqIO.parse(fastain, 'fasta'):
                     if record.id not in regions_to_trim:
                         cleanout.write('>{:}\n{:}\n'.format(
@@ -365,7 +366,7 @@ def run(parser, args):
     status('Mitochondria Contamination Screen')
     mitoHits = []
     blastreport = os.path.join(args.workdir,
-                               "%s.%s.blastn" % ('MITO', prefix))
+                               "{}.{}.blastn".format('MITO', prefix))
     blastnargs = ['blastn',
                   '-query', eukCleaned,
                   '-db', os.path.join(args.workdir, 'MITO'),
@@ -417,13 +418,13 @@ def run(parser, args):
                                                 report, args.stringency)
         status("count is %d cleanfile is %s" % (count, cleanfile))
         if count == 0:  # if there are no vector matches < than the pid cutoff
-            status("copying %s to %s" % (eukCleaned, outfile_vec))
+            status(f"copying {eukCleaned} to {outfile_vec}")
             shutil.copy(eukCleaned, outfile_vec)
         else:
             rnd += 1
             eukCleaned = cleanfile
 
-    status("{:,} contigs will be removed:".format(len(contigs_to_remove)))
+    status(f"{len(contigs_to_remove):,} contigs will be removed:")
     for k, v in sorted(contigs_to_remove.items()):
         print(
             '\t{:} --> dbhit={:}; hit={:}; pident={:}'.format(
