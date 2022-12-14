@@ -4364,7 +4364,7 @@ TTTTTT	0.00118
 [LENGTH]
 # The 'd' variable
 200
-# The length probabilities from '0' to 'd' (*1000) 
+# The length probabilities from '0' to 'd' (*1000)
 0.00119
 0.00129
 0.0014

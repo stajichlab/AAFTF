@@ -1,5 +1,5 @@
 #
-# transition probabilities and initial probabilities for the overall HMM 
+# transition probabilities and initial probabilities for the overall HMM
 # number of states
 71
 #
@@ -24,20 +24,20 @@
 7   .001    # internal Exon win 2
 8   .001    # terminal exon
 9   .001    # lessD0 Intron win 0
-10  .001    # 
-11  .001    # 
+10  .001    #
+11  .001    #
 12  .01     # geometric0 Intron win 0
-13  .001    # 
-14  .001    # 
-15  .001    # 
-16  .001    # 
+13  .001    #
+14  .001    #
+15  .001    #
+16  .001    #
 17  .01     # geometric1 Intron win 1
-18  .001    # 
-19  .001    # 
-20  .001    # 
-21  .001    # 
+18  .001    #
+19  .001    #
+20  .001    #
+21  .001    #
 22  .01     # geometric2 Intron win 2
-23  .001    # 
+23  .001    #
 24  .012    # 5' UTR single exon
 25  .001    # 5' UTR initial exon
 26  .02     # 5' UTR intron single base
@@ -59,18 +59,18 @@
 42  .001    # reverse terminal exon win 1
 43  .001    # reverse terminal exon win 2
 44  .001    # reverse lessD0 Intron win 0
-45  .001    # reverse 
-46  .001    # reverse 
+45  .001    # reverse
+46  .001    # reverse
 47  .01     # reverse geometric0 Intron win 0
-48  .001    # reverse 
-49  .001    # reverse 
-50  .001    # reverse 
-51  .001    # reverse 
+48  .001    # reverse
+49  .001    # reverse
+50  .001    # reverse
+51  .001    # reverse
 52  .01     # reverse geometric1 Intron win 1
-53  .001    # reverse 
-54  .001    # reverse 
-55  .001    # reverse 
-56  .001    # reverse 
+53  .001    # reverse
+54  .001    # reverse
+55  .001    # reverse
+56  .001    # reverse
 57  .01     # reverse geometric2 Intron win 2
 58  .001    # reverse
 59  .001    # reverse 5' UTR single exon
@@ -105,20 +105,20 @@
 7  .001    # internal Exon win 2
 8  .003    # terminal exon
 9  .001    # lessD0 Intron win 0
-10 .001    # 
-11 .001    # 
+10 .001    #
+11 .001    #
 12 .009    # geometric0 Intron win 0
-13 .001    # 
-14 .001    # 
-15 .001    # 
-16 .001    # 
+13 .001    #
+14 .001    #
+15 .001    #
+16 .001    #
 17 .009    # geometric1 Intron win 1
-18 .001    # 
-19 .001    # 
-20 .001    # 
-21 .001    # 
+18 .001    #
+19 .001    #
+20 .001    #
+21 .001    #
 22 .009    # geometric2 Intron win 2
-23 .001    # 
+23 .001    #
 24 .001    # 5' UTR single exon
 25 .001    # 5' UTR initial exon
 26 .02     # 5' UTR intron single base
@@ -140,18 +140,18 @@
 42 .001    # reverse terminal exon win 1
 43 .001    # reverse terminal exon win 2
 44 .001    # reverse lessD0 Intron win 0
-45 .001    # reverse 
-46 .001    # reverse 
+45 .001    # reverse
+46 .001    # reverse
 47 .009    # reverse geometric0 Intron win 0
-48 .001    # reverse 
-49 .001    # reverse 
-50 .001    # reverse 
-51 .001    # reverse 
+48 .001    # reverse
+49 .001    # reverse
+50 .001    # reverse
+51 .001    # reverse
 52 .009    # reverse geometric1 Intron win 1
-53 .001    # reverse 
-54 .001    # reverse 
-55 .001    # reverse 
-56 .001    # reverse 
+53 .001    # reverse
+54 .001    # reverse
+55 .001    # reverse
+56 .001    # reverse
 57 .009    # reverse geometric2 Intron win 2
 58 .001    # reverse
 59 .012    # reverse 5' UTR single exon
@@ -229,11 +229,11 @@
 # longass0
 12 13	     .0002553
 #           -----  longass0 Intron 0     -----
-# internal exon 0, 45% of all internal exons 
+# internal exon 0, 45% of all internal exons
 13 5	   .3
-# internal exon 1, 33% of all internal exons 
+# internal exon 1, 33% of all internal exons
 13 6	   .3
-# internal exon 2, 22% of all internal exons 
+# internal exon 2, 22% of all internal exons
 13 7	   .3
 # terminal exon
 13 8	   .1
@@ -254,9 +254,9 @@
 # longass1
 17 18	     .0002553
 #           -----  longass1 Intron 1  -----
-# internal exon 0, 45% of all internal exons 
+# internal exon 0, 45% of all internal exons
 18 5	   .3
-# internal exon 1, 33% of all internal exons 
+# internal exon 1, 33% of all internal exons
 18 6	   .3
 # internal exon 2, 22% of all internal exons
 18 7	   .3
@@ -279,11 +279,11 @@
 # longass2
 22 23	     .0002553
 #           -----  longass2 Intron 2     -----
-# internal exon 0, 45% of all internal exons 
+# internal exon 0, 45% of all internal exons
 23 5	   .3
-# internal exon 1, 33% of all internal exons 
+# internal exon 1, 33% of all internal exons
 23 6	   .3
-# internal exon 2, 22% of all internal exons 
+# internal exon 2, 22% of all internal exons
 23 7	   .3
 # terminal exon
 23 8	   .1
@@ -378,23 +378,23 @@
 # reverse longass2
 40 58	   1.0
 #           -----  reverse Terminal Exon  0  -----
-# reverse longass0 
+# reverse longass0
 41 48	   1.0
 #           -----  reverse Terminal Exon  1 -----
 # reverse longass1
 42 53	   1.0
 #           -----  reverse Terminal Exon  2  -----
-# reverse longass2 
+# reverse longass2
 43 58	   1.0
 #           -----  reverse lessD0 Intron 0  -----
 # longdss0
 44 45	   1.0
 #           -----  reverse longdss0 Intron 0    -----
-# reverse internal exon 0, 45% of all internal exons 
+# reverse internal exon 0, 45% of all internal exons
 45 38	   .3
-# reverse internal exon 1, 33% of all internal exons 
+# reverse internal exon 1, 33% of all internal exons
 45 39	   .3
-# reverse internal exon 2, 22% of all internal exons 
+# reverse internal exon 2, 22% of all internal exons
 45 40	   .3
 # reverse initial exon
 45 37	   .1
@@ -415,11 +415,11 @@
 # longdss1
 49 50	   1.0
 #           -----  reverse longdss1 Intron 1    -----
-# reverse internal exon 0, 45% of all internal exons 
+# reverse internal exon 0, 45% of all internal exons
 50 38	   .3
-# reverse internal exon 1, 33% of all internal exons 
+# reverse internal exon 1, 33% of all internal exons
 50 39	   .3
-# reverse internal exon 2, 22% of all internal exons 
+# reverse internal exon 2, 22% of all internal exons
 50 40	   .3
 # reverse initial exon
 50 37	   .1
@@ -440,11 +440,11 @@
 # longdss2
 54 55	   1.0
 #           -----  reverse longdss2 Intron 2    -----
-# reverse internal exon 0, 45% of all internal exons 
+# reverse internal exon 0, 45% of all internal exons
 55 38	   .3
-# reverse internal exon 1, 33% of all internal exons 
+# reverse internal exon 1, 33% of all internal exons
 55 39	   .3
-# reverse internal exon 2, 22% of all internal exons 
+# reverse internal exon 2, 22% of all internal exons
 55 40	   .3
 # reverse initial exon
 55 37	   .1

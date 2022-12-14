@@ -1,9 +1,9 @@
-# 
+#
 # This file contains a matrix used for weighing the training sequences
 # when given an input sequence. Let z = (da, dc, dg, dt) be the vector
 # containing the differences in the relative nukleotide frequencies of
 # two sequences, the input sequence and a training sequence.
-# Then the training sequence has weight proportional to 
+# Then the training sequence has weight proportional to
 #
 # exp ( - z M z^t)
 #
@@ -13,7 +13,7 @@
 # distribution - the kernel for the estimation.
 
 
-# this matrix is gc-content only, i.e. 
+# this matrix is gc-content only, i.e.
 # weight = 10 * exp (-200 * (dc + dg))^2)
 # i.e. weight <= 10
 0      0      0             0

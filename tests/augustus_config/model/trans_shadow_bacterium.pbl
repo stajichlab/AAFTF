@@ -1,5 +1,5 @@
 #
-# Transition probabilities and initial probabilities for the overall HMM 
+# Transition probabilities and initial probabilities for the overall HMM
 #
 # number of states
 3
@@ -31,7 +31,7 @@
 2   .4    # reverse single Exon
 
 #
-# Transition probabilities 
+# Transition probabilities
 # only non-zero probabilities
 [Transition]
 #           -----  Igenic region  -----
@@ -55,4 +55,3 @@
 2 1	.02
 # reverse single exon (usually overlapping)
 2 2	.02
-
