@@ -1,14 +1,21 @@
 # Changelog
 
-## 0.3.3 
+## 0.4.0
 
-### Added 
+### Added
+
+ - gzipped FastA files are supported by `AAFTF assess`
+ - Telomere info reported in assess
+
+## 0.3.3
+
+### Added
 
  - pypi packaging for install
 
 ## 0.3.2
 
-### Added 
+### Added
 
  - Support --careful and --isolate mode for spades run; default is --careful which seems to be a little better in tests
 
@@ -26,7 +33,7 @@
   - fix bug in `mito` to correctly spell novoplasty program that is used
   - revamped the resources.py to allow multiple files to represent mitochondria ref db for vector screening and alternative sourmash LCA databases - supporting gtdb-r207 and gtdb-rep-r207
   - spades in `assemble` command support merged long singleton reads along with paired end input
-  
+
 
 ## 0.3.0
 
@@ -44,5 +51,3 @@
 - Issue #10 added GC% in the assessment report table
 - Added --mem option to pilon to up the heapsize for java runs
 - merged changes in namespace by @gamcil and a tmpdir
-
-
