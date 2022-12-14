@@ -37,7 +37,7 @@ do
 	    if [ ! -f $OUTFOLDER/${FOLDER}/short_summary.specific.$LINEAGE.${FOLDER}.txt ]; then
 		    busco -c $CPU -o ${FOLDER} --out_path ${OUTFOLDER} --restart  -m genome -l $LINEAGE  --offline --augustus_species $SEED_SPECIES  --in $ASM --download_path $BUSCO_LINEAGES
 	    fi
-    else 
+    else
       busco -m genome -l $LINEAGE -c $CPU -o ${FOLDER} --out_path ${OUTFOLDER} --offline --augustus_species $SEED_SPECIES \
   		      --in $ASM --download_path $BUSCO_LINEAGES
     fi

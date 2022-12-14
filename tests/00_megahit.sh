@@ -39,12 +39,12 @@ if [ ! -f $LEFT ]; then
 			 --left $OUTDIR/SRR5223785_1.fastq.gz \
 			 --right $OUTDIR/SRR5223785_2.fastq.gz \
 			 -o $OUTDIR/${PREFIX} -c $CPU --dedup
-	
+
 	../scripts/AAFTF trim --mem $MEM --method bbduk \
 			 --left $LEFTTRIM  \
 			 --right $RIGHTTRIM  \
 			 -o $OUTDIR/${PREFIX}_rnd2 -c $CPU
-	
+
     fi
     ../scripts/AAFTF filter --mem $MEM -c $CPU \
 		     --left $LEFTTRIM2 \
@@ -67,7 +67,7 @@ STATS=$OUTDIR/${PREFIX}.sorted.stats.txt
 if [ ! -f $ASMFILE ]; then
     ../scripts/AAFTF assemble --mem $MEM \
 		     --left $LEFT --right $RIGHT -o $ASMFILE -c $CPU \
-		     --method megahit 
+		     --method megahit
 fi
 
 if [ ! -f $VECCLEAN ]; then
