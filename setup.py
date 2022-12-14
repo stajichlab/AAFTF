@@ -1,14 +1,12 @@
 import os
 from setuptools import setup
 
-#version_py = os.path.join(os.path.dirname(__file__), 'AAFTF', 'version.py')
-#version = open(version_py).read().strip().split('=')[-1].replace('"','').strip()
-#print(version)
 from AAFTF.__version__ import __version__
 version = __version__
 
 long_description = """
-``AAFTF`` Automatic Assembly For The Fungi is a toolkit for automated genome assembly, cleanup, and polishing'
+``AAFTF`` Automatic Assembly For The Fungi is a toolkit for automated
+          genome assembly, cleanup, mitochondrial genome asm, and polishing'
 """
 
 HERE = os.path.dirname(__file__)
@@ -31,7 +29,7 @@ setup(
     package_data={'AAFTF': ['test']},
     zip_safe=False,
     include_package_data=True,
-    #scripts=['AAFTF/scripts/AAFTF'],
+    # scripts=['AAFTF/scripts/AAFTF'],
     entry_points={
         'console_scripts': [
             'AAFTF=AAFTF.AAFTF_main:main',
