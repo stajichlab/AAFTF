@@ -1,15 +1,17 @@
-# this module sorts FASTA sequences by size and renames headers
+"""This module sorts FASTA sequences by size and renames headers."""
 import operator
-from Bio.SeqIO.FastaIO import SimpleFastaParser
+
 from Bio import SeqIO
-from AAFTF.utility import softwrap
-from AAFTF.utility import status
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+
+from AAFTF.utility import softwrap, status
 
 
 def run(parser, args):
+    """Sort contig/scaffold file longest to shortest and rename."""
     status('Sorting sequences by length longest --> shortest')
     AllSeqs = {}
-    with open(args.input, 'rU') as fasta_in:
+    with open(args.input) as fasta_in:
         for Header, Seq in SimpleFastaParser(fasta_in):
             if Header not in AllSeqs:
                 if len(Seq) >= args.minlen:
@@ -24,4 +26,4 @@ def run(parser, args):
                             format(args.name, i+1,
                                    softwrap(str(SeqRecords[x].seq))))
 
-    status('Output written to: {:}'.format(args.out))
+    status(f'Output written to: {args.out}')
