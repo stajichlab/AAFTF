@@ -1,22 +1,25 @@
-import os
+"""Utility scripts for parsing fasta and downloading datasets."""
+
+import datetime
 import gzip
+import os
+import shutil
 import subprocess
+import textwrap
+
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
-import shutil
-import textwrap
-import datetime
 
 try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
 
-import socket
 import errno
 
 
 def download(url, file_name):
+    """Tool for downloading data from a URL."""
     try:
         u = urlopen(url)
         f = open(file_name, 'wb')
@@ -34,17 +37,19 @@ def download(url, file_name):
             file_size_dl += len(buffer)
             f.write(buffer)
         f.close()
-    except socket.error as e:
+    except OSError as e:
         if e.errno != errno.ECONNRESET:
             raise
         pass
 
 
 def myround(x, base=10):
+    """Round a number to specific base."""
     return int(base * round(float(x)/base))
 
 
 def GuessRL(input):
+    """Guess the line lengths in Fasta File."""
     # read first 500 records, get length then exit
     lengths = []
     if input.endswith('.gz'):
@@ -55,7 +60,7 @@ def GuessRL(input):
                 else:
                     break
     else:
-        with open(input, 'r') as infile:
+        with open(input) as infile:
             for title, seq, qual in FastqGeneralIterator(infile):
                 if len(lengths) < 500:
                     lengths.append(len(seq))
@@ -65,6 +70,7 @@ def GuessRL(input):
 
 
 def checkfile(input):
+    """Check that file to read is valid."""
     def _getSize(filename):
         st = os.stat(filename)
         return st.st_size
@@ -82,6 +88,11 @@ def checkfile(input):
 
 
 def getRAM():
+    """Get the RAM available on system.
+
+    This is a simplistic approach which does not take into account shared
+    HPC allocations.
+    """
     # first try simple os method
     try:
         mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
@@ -98,6 +109,7 @@ def getRAM():
 
 
 def which_path(file_name):
+    """List full path for a file."""
     for path in os.environ["PATH"].split(os.pathsep):
         full_path = os.path.join(path, file_name)
         if os.path.exists(full_path) and os.access(full_path, os.X_OK):
@@ -106,6 +118,7 @@ def which_path(file_name):
 
 
 def line_count(fname):
+    """Count the number of lines in a file."""
     with open(fname) as f:
         i = -1
         for i, l in enumerate(f):
@@ -114,8 +127,9 @@ def line_count(fname):
 
 
 def countfasta(input):
+    """Count the number of records in FastA file."""
     count = 0
-    with open(input, 'rU') as f:
+    with open(input) as f:
         for line in f:
             if line.startswith(">"):
                 count += 1
@@ -123,9 +137,10 @@ def countfasta(input):
 
 
 def fastastats(input):
+    """Calculate statistics (num and total length) of FastA file."""
     count = 0
     length = 0
-    with open(input, 'rU') as f:
+    with open(input) as f:
         for Header, Seq in SimpleFastaParser(f):
             count += 1
             length += len(Seq)
@@ -133,12 +148,14 @@ def fastastats(input):
 
 
 def countfastq(input):
+    """Count the number of records in a FASTQ file (gzip or regular)."""
     lines = sum(1 for line in zopen(input))
     count = int(lines) // 4
     return count
 
 
 def softwrap(string, every=80):
+    """Softwrap lines in a textstring."""
     lines = []
     for i in range(0, len(string), every):
         lines.append(string[i:i+every])
@@ -146,6 +163,7 @@ def softwrap(string, every=80):
 
 
 def bam_read_count(bamfile):
+    """Count the number of reads in a BAM file using samtools."""
     cmd = ['samtools', 'idxstats', bamfile]
     mapped = 0
     unmapped = 0
@@ -157,6 +175,7 @@ def bam_read_count(bamfile):
 
 
 def RevComp(s):
+    """Reverse complement a DNA string."""
     rev_comp_lib = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'U': 'A',
                     'M': 'K', 'R': 'Y', 'W': 'W', 'S': 'S', 'Y': 'R',
                     'K': 'M', 'V': 'B', 'H': 'D', 'D': 'H', 'B': 'V',
@@ -172,6 +191,7 @@ def RevComp(s):
 
 
 def calcN50(lengths, num=0.5):
+    """Calculate the N50 from a set of integers."""
     lengths.sort()
     total_len = sum(lengths)
     n50 = 0
@@ -184,6 +204,7 @@ def calcN50(lengths, num=0.5):
 
 
 def printCMD(cmd):
+    """Print out a command for debugging."""
     stringcmd = '{:}'.format(' '.join(cmd))
     prefix = '\033[96mCMD:\033[00m '
     wrapper = textwrap.TextWrapper(
@@ -193,6 +214,7 @@ def printCMD(cmd):
 
 
 def status(string):
+    """Print out status."""
     print('\033[92m[{:}]\033[00m {:}'.format(
         datetime.datetime.now().strftime('%b %d %I:%M %p'),
         string))
@@ -202,12 +224,12 @@ def status(string):
 
 
 def execute(cmd, dir):
+    """Execute a command and wait for result."""
     DEVNULL = open(os.devnull, 'w')
     popen = subprocess.Popen(
         cmd, cwd=dir, stdout=subprocess.PIPE,
         universal_newlines=True, stderr=DEVNULL)
-    for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line
+    yield from iter(popen.stdout.readline, "")
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
@@ -215,9 +237,7 @@ def execute(cmd, dir):
 
 
 def Fzip_inplace(input, cpus):
-    '''
-    function to zip as fast as it can, pigz -> gzip
-    '''
+    """Function to run zip as fast as it can, pigz -> gzip."""
     if which_path('pigz'):
         cmd = ['pigz', '-f', '-p', str(cpus), input]
     else:
@@ -229,6 +249,7 @@ def Fzip_inplace(input, cpus):
 
 
 def SafeRemove(input):
+    """Test and remove a folder or file."""
     if os.path.isdir(input):
         shutil.rmtree(input)
     elif os.path.isfile(input):
@@ -236,11 +257,9 @@ def SafeRemove(input):
     else:
         return
 
-# streaming parallel pigz open via
-# https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
-
 
 def which(program):
+    """Report the location of an executable."""
     import os
 
     def is_exe(fpath):
@@ -259,8 +278,9 @@ def which(program):
 
 
 def open_pipe(command, mode='r', buff=1024*1024):
-    import subprocess
+    """Open read or write pipe to program."""
     import signal
+    import subprocess
     if 'r' in mode:
         return subprocess.Popen(command, shell=True, bufsize=buff,
                                 stdout=subprocess.PIPE,
@@ -279,8 +299,12 @@ PARALLEL = 2
 WHICH_GZIP = which("gzip")
 WHICH_PIGZ = which("pigz")
 
+# streaming parallel pigz open via
+# https://github.com/DarkoVeberic/utl/blob/master/futile/futile.py
+
 
 def open_gz(filename, mode='r', buff=1024*1024, external=PARALLEL):
+    """Open a gzip file using processes (gzip/pigz) or native library."""
     if external is None or external == NORMAL:
         import gzip
         return gzip.GzipFile(filename, mode, buff)
@@ -302,11 +326,11 @@ def open_gz(filename, mode='r', buff=1024*1024, external=PARALLEL):
 
 
 def zopen(filename, mode='r', buff=1024*1024, external=PARALLEL):
-    """
-    Open pipe, zipped, or unzipped file automagically
-    # external == 0: normal zip libraries
-    # external == 1: (zcat, gzip) or (bzcat, bzip2)
-    # external == 2: (pigz -dc, pigz) or (pbzip2 -dc, pbzip2)
+    """Open pipe, zipped, or unzipped file automagically.
+
+    external == 0: normal zip libraries
+    external == 1: (zcat, gzip) or (bzcat, bzip2)
+    external == 2: (pigz -dc, pigz) or (pbzip2 -dc, pbzip2)
     """
     if 'r' in mode and 'w' in mode:
         return None
