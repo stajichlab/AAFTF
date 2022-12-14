@@ -1,7 +1,11 @@
+"""AAFTF setup config script."""
+
 import os
+
 from setuptools import setup
 
 from AAFTF.__version__ import __version__
+
 version = __version__
 
 long_description = """
@@ -11,7 +15,7 @@ long_description = """
 
 HERE = os.path.dirname(__file__)
 
-with open(os.path.join(HERE, "requirements.txt"), "r") as f:
+with open(os.path.join(HERE, "requirements.txt")) as f:
     install_requires = [x.strip() for x in f.readlines()]
 
 setup(
