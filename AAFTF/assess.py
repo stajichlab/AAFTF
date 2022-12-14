@@ -1,18 +1,29 @@
+"""Assess quality statistics of a genome assembly.
+
+This simply gives GC%, N50, L50, Min, Max
+contig statistics.
+"""
+import gzip
 import os
+
 from Bio import SeqIO
+
 from AAFTF.utility import status
 
-# assessment of assembly -
-# this can be as simple as N50/L50/MAX contig stats
-# would like to add a few more
+# ToDo: Add telomere assessment
 
 
 def genome_asm_stats(fasta_file, output_handle):
-
+    """Calculate genome assembly statistuics."""
     lengths = []
     # could be smart here and handle compressed files?
     GC = 0
-    for record in SeqIO.parse(fasta_file, "fasta"):
+    if fasta_file.endswith(".gz"):
+        seqio = SeqIO.parse(gzip.open(fasta_file, mode="rt"), "fasta")
+    else:
+        seqio = SeqIO.parse(fasta_file, "fasta")
+
+    for record in seqio:
         lengths.append(len(record))
         GC += sum(record.seq.count(x) for x in ["G", "C", "g", "c", "S", "s"])
 
@@ -54,7 +65,7 @@ def genome_asm_stats(fasta_file, output_handle):
 
 
 def run(parser, args):
-
+    """This is the general run command to calculate the genome sta=tistics."""
     if not os.path.exists(args.input):
         status("Inputfile %s was not readable, check parameters" % (
             args.input))
