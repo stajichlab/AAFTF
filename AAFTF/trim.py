@@ -1,18 +1,19 @@
-# trims fastq files of reads (typically Illumina)
-# using trimmomatic or other specific trimmer (when written)
-# attemps to remove vector and primer sequences
+"""Trims FASTQ files for reads.
 
-import sys
+This is usually for Illumina reads and uses fastp or
+trimmomatic as well as merging reads (fastp).
+
+This attempts to remove vector, phiX, and primer matching
+sequences.
+"""
+
 import os
 import subprocess
+import sys
 from os.path import dirname
-from AAFTF.utility import which_path
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import Fzip_inplace
-from AAFTF.utility import SafeRemove
-from AAFTF.utility import getRAM
-from AAFTF.utility import countfastq
+
+from AAFTF.utility import (Fzip_inplace, SafeRemove, countfastq, getRAM,
+                           printCMD, status, which_path)
 
 TRIMMOMATIC_TRUSEQSE = "adapters/TruSeq3-SE.fa"
 TRIMMOMATIC_TRUSEQPE = "adapters/TruSeq3-PE.fa"
@@ -27,9 +28,10 @@ exec java -jar $TRIMJAR "$@"
 
 
 def find_trimmomatic():
+    """Finds the trimmomatic jar file."""
     trim_path = which_path('trimmomatic')
     if trim_path:
-        with open(os.path.abspath(trim_path), 'rU') as trim_shell:
+        with open(os.path.abspath(trim_path)) as trim_shell:
             firstLine = trim_shell.readline()
             if '#!/bin/bash' in firstLine:  # homebrew get jar location
                 for line in trim_shell:
@@ -46,9 +48,9 @@ def find_trimmomatic():
     else:
         return False
 
-
+# flake8: noqa: C901
 def run(parser, args):
-
+    """Run command for the module subtool of AAFTF."""
     if not args.basename:
         if '_' in os.path.basename(args.left):
             args.basename = os.path.basename(args.left).split('_')[0]
@@ -60,37 +62,37 @@ def run(parser, args):
     total = countfastq(args.left)
     if args.right:
         total = total*2
-    status('Loading {:,} total reads'.format(total))
+    status(f'Loading {total:,} total reads')
 
     DEVNULL = open(os.devnull, 'w')
     if args.method == 'bbduk':
         if args.memory:
-            MEM = '-Xmx{:}g'.format(args.memory)
+            MEM = f'-Xmx{args.memory}g'
         else:
-            MEM = '-Xmx{:}g'.format(round(0.6*getRAM()))
+            MEM = f'-Xmx{round(0.6*getRAM())}g'
 
         status('Adapter trimming using BBDuk')
         cmd = ['bbduk.sh', MEM,
                'ref=adapters',
-               't={:}'.format(args.cpus),
+               f't={args.cpus}',
                'ktrim=r',
                'k=23',
                'mink=11',
-               'minlen={:}'.format(args.minlen),
+               f'minlen={args.minlen}',
                'hdist=1',
-               'maq={:}'.format(args.avgqual),
+               f'maq={args.avgqual}',
                'ftm=5',
                'tpe',
                'tbo',
                'overwrite=true']
         if args.left and args.right:
-            cmd += ['in1={:}'.format(args.left),
-                    'in2={:}'.format(args.right),
-                    'out1={:}_1P.fastq.gz'.format(args.basename),
-                    'out2={:}_2P.fastq.gz'.format(args.basename)]
+            cmd += [f'in1={args.left}',
+                    f'in2={args.right}',
+                    f'out1={args.basename}_1P.fastq.gz',
+                    f'out2={args.basename}_2P.fastq.gz']
         elif args.left:
-            cmd += ['in={:}'.format(args.left),
-                    'out={:}_1U.fastq.gz'.format(args.basename)]
+            cmd += [f'in={args.left}',
+                    f'out={args.basename}_1U.fastq.gz']
 
         printCMD(cmd)
         if args.debug:
@@ -99,9 +101,9 @@ def run(parser, args):
             subprocess.run(cmd, stderr=DEVNULL)
 
         if args.right:
-            clean = countfastq('{:}_1P.fastq.gz'.format(args.basename))
+            clean = countfastq(f'{args.basename}_1P.fastq.gz')
             clean = clean*2
-            status('{:,} reads remaining and writing to file'.format(clean))
+            status(f'{clean:,} reads remaining and writing to file')
             status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
                 args.basename + '_1P.fastq.gz',
                 args.basename + '_2P.fastq.gz'))
@@ -113,8 +115,8 @@ def run(parser, args):
                            args.basename,
                            args.cpus))
         else:
-            clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
-            status('{:,} reads remaining and writing to file'.format(clean))
+            clean = countfastq(f'{args.basename}_1U.fastq.gz')
+            status(f'{clean:,} reads remaining and writing to file')
             status('Trimming finished:\n\tSingle: {:}'.format(
                 args.basename+'_1U.fastq.gz'))
             if not args.pipe:
@@ -238,27 +240,27 @@ def run(parser, args):
     elif args.method == 'fastp':
         status('Adapter trimming using fastp')
         cmd = ['fastp', '--low_complexity_filter',
-               '-l', '{:}'.format(args.minlen),
-               '--average_qual', '{:}'.format(args.avgqual),
-               '-w', '{:}'.format(args.cpus)]
+               '-l', f'{args.minlen}',
+               '--average_qual', f'{args.avgqual}',
+               '-w', f'{args.cpus}']
 
 #               '-wref=adapters', 't={:}'.format(args.cpus), 'ktrim=r',
 #           'k=23', 'mink=11', 'minlen={:}'.format(args.minlen), 'hdist=1',
 #           'ftm=5', 'tpe', 'tbo', 'overwrite=true']
         if args.left and args.right:
             # could add merging ...
-            cmd += ['--in1={:}'.format(args.left),
-                    '--in2={:}'.format(args.right),
-                    '--out1={:}_1P.fastq.gz'.format(args.basename),
-                    '--out2={:}_2P.fastq.gz'.format(args.basename)
+            cmd += [f'--in1={args.left}',
+                    f'--in2={args.right}',
+                    f'--out1={args.basename}_1P.fastq.gz',
+                    f'--out2={args.basename}_2P.fastq.gz'
                     ]
             if args.merge:
                 cmd += ['--merge',
-                        '--merged_out={:}_MG.fastq.gz'.format(args.basename)]
+                        f'--merged_out={args.basename}_MG.fastq.gz']
 
         elif args.left:
-            cmd += ['--in={:}'.format(args.left),
-                    '--out={:}_1U.fastq.gz'.format(args.basename)]
+            cmd += [f'--in={args.left}',
+                    f'--out={args.basename}_1U.fastq.gz']
         if args.dedup:
             cmd += ['--dedup']
         if args.cutfront:
@@ -268,8 +270,8 @@ def run(parser, args):
         if args.cutright:
             cmd += ['--cut_right']
 
-        cmd += ['--html={:}.fastp.html'.format(args.basename),
-                '--json={:}.fastp.json'.format(args.basename)]
+        cmd += [f'--html={args.basename}.fastp.html',
+                f'--json={args.basename}.fastp.json']
         printCMD(cmd)
         if args.debug:
             subprocess.run(cmd)
@@ -277,9 +279,9 @@ def run(parser, args):
             subprocess.run(cmd, stderr=DEVNULL)
 
         if args.right:
-            clean = countfastq('{:}_1P.fastq.gz'.format(args.basename))
+            clean = countfastq(f'{args.basename}_1P.fastq.gz')
             clean = clean*2
-            status('{:,} reads remaining and writing to file'.format(clean))
+            status(f'{clean:,} reads remaining and writing to file')
             status('Trimming finished:\n\tFor: {:}\n\tRev {:}'.format(
                 args.basename+'_1P.fastq.gz',
                 args.basename+'_2P.fastq.gz'))
@@ -291,8 +293,8 @@ def run(parser, args):
                            args.basename,
                            args.cpus))
         else:
-            clean = countfastq('{:}_1U.fastq.gz'.format(args.basename))
-            status('{:,} reads remaining and writing to file'.format(clean))
+            clean = countfastq(f'{args.basename}_1U.fastq.gz')
+            status(f'{clean:,} reads remaining and writing to file')
             status('Trimming finished:\n\tSingle: {:}'.format(
                 args.basename + '_1U.fastq.gz'))
             if not args.pipe:
@@ -302,4 +304,4 @@ def run(parser, args):
                            args.basename, args.cpus))
 
     else:
-        status('Uknown trimming method: {}'.format(args.method))
+        status(f'Uknown trimming method: {args.method}')
