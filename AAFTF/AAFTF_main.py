@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
+"""AAFTF main framework for submodule run."""
 
 # note structure of code taken from poretools
 # https://github.com/arq5x/poretools/blob/master/poretools/poretools_main.py
 
-import sys
 import argparse as ap
-from AAFTF.utility import status
+import sys
 
 # AAFTF imports
 from AAFTF.__version__ import __version__  # noqa: E402
+from AAFTF.utility import status
+
 myversion = __version__
 
 
 def run_subtool(parser, args):
+    """Run the subtool of the AAFTF pipeline."""
     if args.command == 'runall':
         print("runall")
     elif args.command == 'trim':
@@ -45,21 +48,24 @@ def run_subtool(parser, args):
 
 
 class ArgumentParserWithDefaults(ap.ArgumentParser):
+    """Argument parsing top level."""
     def __init__(self, *args, **kwargs):
-        super(ArgumentParserWithDefaults, self).__init__(*args, **kwargs)
+        """Init function for ArgumentParser."""
+        super().__init__(*args, **kwargs)
         self.add_argument("-q", "--quiet",
                           help="Do not output warnings to stderr",
                           action="store_true",
                           dest="quiet")
 
     def error(self, message):
+        """Error message passing from argument passing."""
         sys.stderr.write('error: %s\n' % message)
         self.print_help()
         sys.exit(2)
 
 
 def main():
-
+    """Main function for AAFTF module submenus."""
     #########################################
     # create the top-level parser
     #########################################
@@ -101,7 +107,7 @@ def main():
 
     parser_trim = subparsers.add_parser(
         'trim',
-        description="This comamnd trims reads in FASTQ format to " +
+        description="This command trims reads in FASTQ format to " +
         "remove low quality reads and trim adaptor sequences",
         help='Trim FASTQ input reads')
 
@@ -899,9 +905,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        status('Running AAFTF v{:}'.format(myversion))
+        status(f'Running AAFTF v{myversion}')
         args.func(parser, args)
-    except IOError as e:
+    except OSError as e:
         if e.errno != 32:  # ignore SIGPIPE
             raise
 
