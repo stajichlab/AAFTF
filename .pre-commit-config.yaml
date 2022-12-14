@@ -23,7 +23,7 @@ repos:
       - id: codespell
         exclude: ^tests/augustus*
         args:
-          - --ignore-words-list=nd,reacher,thist,ths,ure,referenc,wile
+          - --ignore-words-list=nd,reacher,thist,ths,ure,referenc,wile,nin,pid
   - repo: https://github.com/PyCQA/flake8
     rev: 5.0.4
     hooks:
