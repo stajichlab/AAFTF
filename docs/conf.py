@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-#
+"""Configure how docs are rendered."""
+
 # This file is execfile()d with the current directory set to its containing dir.
 #
 # Note that not all possible configuration values are present in this
@@ -8,16 +8,15 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
+import sys
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../'))
 
-#from AAFTF import __version__ as version
-version = '0.1.0'
+version = '0.4.0'
 # -- General configuration -----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -41,8 +40,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'AAFTF'
-copyright = u'2018'
+project = 'AAFTF'
+copyright = '2018-2022'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -111,18 +110,18 @@ html_short_title = project + " v" + release
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = 'gemini.png'
+# html_logo = 'gemini.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-#html_favicon = ''
-#html_style = ''
+# html_favicon = ''
+# html_style = ''
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -133,9 +132,9 @@ html_last_updated_fmt = '%b %d, %Y'
 # html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-#html_sidebars = {
+# html_sidebars = {
 #    'index': ['sidebar-intro.html', 'sourcelink.html', 'searchbox.html']
-#}
+# }
 
 
 # Additional templates that should be rendered to pages, maps page names to
@@ -185,7 +184,7 @@ htmlhelp_basename = 'AAFTF-docs'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    ('index', 'AAFTF.tex', u'AAFTF Documentation', u'Jason Stajich', 'manual'),
+    ('index', 'AAFTF.tex', 'AAFTF Documentation', 'Jason Stajich', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -217,7 +216,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'gemini', u'AAFTF Documentation', [u'Jason Stajich'], 1)
+    ('index', 'gemini', 'AAFTF Documentation', ['Jason Stajich'], 1)
 ]
 
 
@@ -225,15 +224,19 @@ man_pages = [
 intersphinx_mapping = {'http://docs.python.org/': None}
 
 
-class Mock(object):
+class Mock:
+    """Mock class."""
     def __init__(self, *args, **kwargs):
+        """Init."""
         pass
 
     def __call__(self, *args, **kwargs):
+        """call."""
         return Mock()
 
     @classmethod
     def __getattr__(cls, name):
+        """Getattr."""
         if name in ('__file__', '__path__'):
             return '/dev/null'
         elif name[0] == name[0].upper():
@@ -241,6 +244,8 @@ class Mock(object):
         else:
             return Mock()
 
+
 MOCK_MODULES = []
+
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
