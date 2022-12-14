@@ -1,7 +1,6 @@
-# Source: https://github.com/Changaco/version.py
-
-from os.path import dirname, isdir, join
+"""Version reporting for the AAFTF module."""
 import re
+from os.path import dirname, isdir, join
 from subprocess import CalledProcessError, check_output
 
 PREFIX = 'v'
@@ -9,11 +8,11 @@ PREFIX = 'v'
 tag_re = re.compile(r'\btag: %s([0-9][^,]*)\b' % PREFIX)
 version_re = re.compile('^Version: (.+)$', re.M)
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 
 
 def get_version():
-    # Return the version if it has been injected into the file by git-archive
+    """Return the version if it has been injected into the file by git-archive."""
     version = tag_re.search('$Format:%D$')
     if version:
         return version.group(1)
