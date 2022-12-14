@@ -1,33 +1,35 @@
-#!/usr/bin/env python3
+"""Run the Mitochondria assembly tool NOVOPlasty."""
 
-import sys
 import os
-import subprocess
-import uuid
 import shutil
-from Bio.SeqIO.FastaIO import SimpleFastaParser
-from AAFTF.resources import Mitoseqs
+import subprocess
+import sys
+import uuid
 
-from AAFTF.utility import (softwrap, execute, RevComp, GuessRL,
-                           getRAM, printCMD, status, which_path)
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+
+from AAFTF.resources import Mitoseqs
+from AAFTF.utility import (GuessRL, RevComp, execute, getRAM, printCMD,
+                           softwrap, status, which_path)
 
 
 def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
+    """Reorient the MT assembly based on a starting gene (if found)."""
     # if not starting, then use cytochrome oxidase (cob)
-    startFile = os.path.join(folder, '{}.fasta'.format(uuid.uuid4()))
+    startFile = os.path.join(folder, f'{uuid.uuid4()}.fasta')
     if not start:
         # generated as spoa consensus from select fungal cob genes
         # move this to a configurable file
         cob1 = Mitoseqs['COB1']
         with open(startFile, 'w') as outfile:
-            outfile.write('>COB\n{}\n'.format(softwrap(cob1)))
+            outfile.write(f'>COB\n{softwrap(cob1)}\n')
     else:
         shutil.copyfile(start, startFile)
 
     # load sequence into dictionary
     initial_seq = ''
     # header = ''
-    with open(fasta_in, 'r') as infile:
+    with open(fasta_in) as infile:
         for title, seq in SimpleFastaParser(infile):
             initial_seq = seq
             # header = title
@@ -57,7 +59,7 @@ def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
     elif len(alignments) > 1:
         status('ERROR: unable to rotate because found multiple alignments\n')
         for x in alignments:
-            sys.stderr.write('{}\n'.format(x))
+            sys.stderr.write(f'{x}\n')
         with open(fasta_out, 'w') as outfile:
             outfile.write('>{}\n{}\n'.format('mt', softwrap(initial_seq)))
     if os.path.isfile(startFile):
@@ -65,11 +67,12 @@ def orient_to_start(fasta_in, fasta_out, folder='.', start=False):
 
 
 def run(parser, args):
+    """Run the NOVOplasty tool."""
     # first check if NOVOplasty and minimap2 are installed, else exit
     programs = ['NOVOPlasty.pl', 'minimap2']
     for x in programs:
         if not which_path(x):
-            status('ERROR: {} is not installed, exiting'.format(x))
+            status(f'ERROR: {x} is not installed, exiting')
             sys.exit(1)
     # first we need to generate working directory
     unique_id = str(uuid.uuid4())[:8]
@@ -112,7 +115,7 @@ def run(parser, args):
                 os.path.abspath(args.right),  # rev read
                 refgenome)               # ref genome file
     with open(novoConfig, 'w') as outfile:
-        with open(defaultConfig, 'r') as infile:
+        with open(defaultConfig) as infile:
             for line in infile:
                 for check, rep in zip(checkWords, repWords):
                     line = line.replace(check, rep)
@@ -145,7 +148,7 @@ def run(parser, args):
     if circular:
         status('NOVOplasty assembled complete circular genome')
         if args.starting:
-            status('Rotating assembly to start with {}'.format(args.starting))
+            status(f'Rotating assembly to start with {args.starting}')
         else:
             status('Rotating assembly to start with Cytochrome b (cob) gene')
         orient_to_start(draftMito, args.out,
@@ -154,7 +157,7 @@ def run(parser, args):
         numContigs = 0
         contigLength = 0
         with open(args.out, 'w') as outfile:
-            with open(draftMito, 'r') as infile:
+            with open(draftMito) as infile:
                 for title, seq in SimpleFastaParser(infile):
                     numContigs += 1
                     contigLength += len(seq)
@@ -162,10 +165,10 @@ def run(parser, args):
                         numContigs, softwrap(seq)))
         # weird formatting here for PEP8
         status(
-            'NOVOplasty assembled {} contigs consiting of {:,} bp,'.format(
+            'NOVOplasty assembled {} contigs consisting of {:,} bp,'.format(
                 numContigs, contigLength) +
             'but was unable to circularize genome')
 
-    status('AAFTF mito complete: {}'.format(args.out))
+    status(f'AAFTF mito complete: {args.out}')
     if not args.pipe:
         shutil.rmtree(args.workdir)
