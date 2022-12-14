@@ -1,32 +1,24 @@
-import sys
+"""Filter runs routines to remove sequence reads matching contaminant DB.
+
+This will match contaminant database and PhiX using read mapping kmer
+tools. See resources.py for these defaults.
+"""
+
 import os
 import shutil
-import gzip
 import subprocess
-import uuid
+import sys
 import urllib.request
+import uuid
 
-# this runs rountines to remove sequence reads
-# which match contaminant databases and sources
-# including by default PhiX and others specified by
-# the user
-
-# it will download the libraries from GenBank using
-# accession numbers as well as some hard coded links
-# to PhiX - see resouces.py for these defaults
-
-from AAFTF.resources import Contaminant_Accessions
-from AAFTF.resources import SeqDBs
-from AAFTF.resources import DB_Links
-from AAFTF.utility import bam_read_count
-from AAFTF.utility import countfastq
-from AAFTF.utility import status
-from AAFTF.utility import printCMD
-from AAFTF.utility import SafeRemove
-from AAFTF.utility import getRAM
+from AAFTF.resources import Contaminant_Accessions, DB_Links, SeqDBs
+from AAFTF.utility import (SafeRemove, bam_read_count, countfastq, getRAM,
+                           printCMD, status)
 
 
+# flake8: noqa: C901
 def run(parser, args):
+    """Generic run command for this submodule for filtering reads."""
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
@@ -135,7 +127,7 @@ def run(parser, args):
     total = countfastq(forReads)
     if revReads:
         total = total*2
-    status('Loading {:,} total reads'.format(total))
+    status(f'Loading {total:,} total reads')
 
     # seems like this needs to be stripping trailing extension?
     if not args.basename:
@@ -146,7 +138,7 @@ def run(parser, args):
         else:
             args.basename = os.path.basename(forReads)
 
-    #logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
+    # logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
     DEVNULL = open(os.devnull, 'w')
     alignBAM = os.path.join(args.workdir, args.basename+'_contam_db.bam')
     clean_reads = args.basename + "_filtered"
@@ -154,10 +146,10 @@ def run(parser, args):
     if args.aligner == "bbduk":
         status('Kmer filtering reads using BBDuk')
         if args.memory:
-            MEM = '-Xmx{:}g'.format(args.memory)
+            MEM = f'-Xmx{args.memory}g'
         else:
-            MEM = '-Xmx{:}g'.format(round(0.6*getRAM()))
-        cmd = ['bbduk.sh', MEM, 't={:}'.format(args.cpus), 'hdist=1', 'k=27',
+            MEM = f'-Xmx{round(0.6*getRAM())}g'
+        cmd = ['bbduk.sh', MEM, f't={args.cpus}', 'hdist=1', 'k=27',
                'overwrite=true']
 
         leftcleanfname = '%s_1.fastq.gz' % (clean_reads)
@@ -182,8 +174,8 @@ def run(parser, args):
         clean = countfastq(leftcleanfname)
         if revReads:
             clean = clean*2  # might want to actually count - but should be always 2x
-        status('{:,} reads mapped to contamination database'.format((total-clean)))
-        status('{:,} reads unmapped and writing to file'.format(clean))
+        status(f'{(total-clean):,} reads mapped to contamination database')
+        status(f'{clean:,} reads unmapped and writing to file')
 
         if revReads:
             status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
@@ -286,8 +278,8 @@ def run(parser, args):
         # display mapping stats in terminal
         subprocess.run(['samtools', 'index', alignBAM])
         mapped, unmapped = bam_read_count(alignBAM)
-        status('{:,} reads mapped to contamination database'.format(mapped))
-        status('{:,} reads unmapped and writing to file'.format(unmapped))
+        status(f'{mapped:,} reads mapped to contamination database')
+        status(f'{unmapped:,} reads unmapped and writing to file')
         # now output unmapped reads from bamfile
         # this needs to be -f 5 so unmapped-pairs
         if forReads and revReads:
