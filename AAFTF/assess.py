@@ -22,18 +22,18 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
     else:
         seqio = SeqIO.parse(fasta_file, "fasta")
 
-    telomere_stats = {'FORWARD TELOMERES': 0,
-                      'REVERSE TELOMERES': 0,
-                      'BOTH TELOMERES': 0}
+    telomere_stats = {'TELOMERE FWD': 0,
+                      'TELOMERE REV': 0,
+                      'T2T SCAFFOLDS': 0}
     for record in seqio:
         lengths.append(len(record))
         forward, reverse = findTelomere(record.seq, telomere_repeat, n_minimum)
         if forward:
-            telomere_stats['FORWARD TELOMERES'] += 1
+            telomere_stats['TELOMERE FWD'] += 1
         if reverse:
-            telomere_stats['REVERSE TELOMERES'] += 1
+            telomere_stats['TELOMERE REV'] += 1
         if forward and reverse:
-            telomere_stats['BOTH TELOMERES'] += 1
+            telomere_stats['T2T SCAFFOLDS'] += 1
 
         GC += sum(record.seq.count(x) for x in ["G", "C", "g", "c", "S", "s"])
 
@@ -69,7 +69,7 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
     report += "%15s  =  %d\n" % ('N90',  n90)
     report += "%15s  =  %.2f\n" % ('GC%', GC)
     for f in sorted(telomere_stats):
-        report += "%15s  =  %.2f\n" % (f, telomere_stats[f])
+        report += "%15s  =  %d\n" % (f, telomere_stats[f])
 
     print(report)
     if output_handle:
@@ -110,13 +110,13 @@ def findTelomere(seq, monomer, n):
     https://github.com/markhilt/genome_analysis_tools
     """
     # Look within first and last 200 bp for repeats
-    start = seq[:100].upper()
-    end = seq[-100:].upper()
+    start = str(seq[:100]).upper()
+    end = str(seq[-100:]).upper()
 
     forward, reverse = False, False
 
     # Look for the monomer repeat n number of times.
-    if re.search(monomer*n, start):
+    if re.search(monomer*2, start):
         forward = True
     rev_monomer = revcomp(monomer)
     if re.search(rev_monomer*n, end):
@@ -138,5 +138,4 @@ def run(parser, args):
 
     if args.report:
         output_handle = open(args.report, "w")
-
     genome_asm_stats(args.input, output_handle, args.telomere_monomer, args.telomere_n_repeat)
