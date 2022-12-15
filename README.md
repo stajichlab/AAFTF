@@ -29,7 +29,7 @@ Install
 We are working on simplifying the install, ie getting on Pypi and bioconda.  Currently you could create conda environment and install like this:
 
 ```
-conda create -n aaftf "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
+conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
     blast minimap2 spades megahit novoplasty biopython
 ```
 And then install this repo with git/pip:
