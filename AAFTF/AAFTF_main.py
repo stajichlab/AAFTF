@@ -792,7 +792,8 @@ def main():
     # arguments
     # -i / --input: input assembly file
     # -r / --report: report file (otherwise stdout)
-    # --tmpdir
+    # -t / --telomere_monomer: telomere repeat monomer pattern (default=[TAA[C]+])
+    # -n / --telomere_n_repeats: Minimum number of repeats of telomere monomer (default=2)
 
     parser_assess = subparsers.add_parser(
         'assess',
@@ -809,6 +810,15 @@ def main():
         '-r', '--report', type=str,
         help='Filename to save report information otherwise ' +
         'will print to stdout')
+
+    parser_assess.add_argument(
+        '-t', '--telomere_monomer', type=str,
+        help='Telomere repeat monomer to search for. default(TAA[C]+)',
+        default='TAA[C]+')
+
+    parser_assess.add_argument(
+        '-t', '--telomere_n_repeat', type=int, default=2,
+        help='Telomere minimum number of monomer repeats. (default 2)')
 
     ##########
     # pipeline run it all
