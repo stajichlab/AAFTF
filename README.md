@@ -30,7 +30,7 @@ We are working on simplifying the install, ie getting on Pypi and bioconda.  Cur
 
 ```
 conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
-    blast minimap2 spades megahit novoplasty biopython
+    blast minimap2 spades megahit novoplasty biopython fastp
 ```
 And then install this repo with git/pip:
 ```
@@ -74,7 +74,7 @@ usage: AAFTF trim [-h] [-q] [-o BASENAME] [-c cpus] [-ml MINLEN] -l LEFT
                   [--trimmomatic_slidingwindow TRIMMOMATIC_SLIDINGWINDOW]
                   [--trimmomatic_quality TRIMMOMATIC_QUALITY]
 
-This comamnd trims reads in FASTQ format to remove low quality reads and trim
+This command trims reads in FASTQ format to remove low quality reads and trim
 adaptor sequences
 
 optional arguments:
