@@ -817,7 +817,7 @@ def main():
         default='TAA[C]+')
 
     parser_assess.add_argument(
-        '-t', '--telomere_n_repeat', type=int, default=2,
+        '-n', '--telomere_n_repeat', type=int, default=2,
         help='Telomere minimum number of monomer repeats. (default 2)')
 
     ##########
