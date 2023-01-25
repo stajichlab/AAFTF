@@ -1,1 +1,2 @@
-__version__ = "0.3.4"
+"""Hardcode the version number."""
+__version__ = "0.4.1"
