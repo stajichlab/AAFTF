@@ -1,6 +1,5 @@
 #!/bin/bash -l
 #SBATCH -N 1 -n 48 -p short --mem 96gb  --out test_spades_2trim_fastp1st_isolate.%A.log
-module load AAFTF
 CPU=$SLURM_CPUS_ON_NODE
 if [ -z $CPU ]; then
 	CPU=2
@@ -16,7 +15,7 @@ FOLDER=$(echo -n $SRA | perl -p -e '$_=sprintf("%s/%03d",substr($_,0,6),substr($
 URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/${FOLDER}/${SRA}/${SRA}
 for DIRECTION in 1 2
 do
-    if [ ! -f $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ]; then
+    if [ ! -s $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ]; then
 	echo "downloading $OUTDIR/${SRA}_${DIRECTION}.fastq.gz  from ${URL}_${DIRECTION}.fastq.gz"
 	curl -o $OUTDIR/${SRA}_${DIRECTION}.fastq.gz ${URL}_${DIRECTION}.fastq.gz
     fi

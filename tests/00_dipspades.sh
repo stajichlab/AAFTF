@@ -8,12 +8,12 @@ which spades.py
 
 MEM=96
 OUTDIR=test_dipspades
-PREFIX=Rant
+PREFIX=Rmuc
 PHYLUM=Ascomycota
 
 mkdir -p $OUTDIR
 
-SRA=SRR5223785
+SRA=SRR11774204
 FOLDER=$(echo -n $SRA | perl -p -e '$_=sprintf("%s/%03d",substr($_,0,6),substr($_,3,1))')
 URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/${FOLDER}/${SRA}/${SRA}
 for DIRECTION in 1 2

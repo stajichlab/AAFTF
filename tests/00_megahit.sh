@@ -1,7 +1,8 @@
 #!/bin/bash -l
 #SBATCH -N 1 -n 24 --mem 32gb --out test_megahit.%A.log
-
-module load AAFTF
+conda activate /scratch/jstajich/3185183/test_AAFTF
+module load fastp
+module load BBMap
 module load megahit
 MEM=32
 OUTDIR=test_megahit
@@ -9,7 +10,7 @@ PREFIX=Rant
 PHYLUM=Ascomycota
 
 mkdir -p $OUTDIR
-SRA=SRR5223785
+SRA=SRR11774204
 FOLDER=$(echo -n $SRA | perl -p -e '$_=sprintf("%s/%03d",substr($_,0,6),substr($_,3,1))')
 URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/${FOLDER}/${SRA}/${SRA}
 for DIRECTION in 1 2
@@ -36,8 +37,8 @@ RIGHT=$OUTDIR/${PREFIX}_filtered_2.fastq.gz
 if [ ! -f $LEFT ]; then
     if [ ! -f $LEFTTRIM ]; then
 	../scripts/AAFTF trim --mem $MEM --method fastp \
-			 --left $OUTDIR/SRR5223785_1.fastq.gz \
-			 --right $OUTDIR/SRR5223785_2.fastq.gz \
+			 --left $OUTDIR/${SRA}_1.fastq.gz \
+			 --right $OUTDIR/${SRA}_2.fastq.gz \
 			 -o $OUTDIR/${PREFIX} -c $CPU --dedup
 
 	../scripts/AAFTF trim --mem $MEM --method bbduk \
