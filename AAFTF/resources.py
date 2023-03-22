@@ -1,3 +1,5 @@
+"""URLS and hardcoded resource links."""
+
 NCBI = 'https://ftp.ncbi.nlm.nih.gov'
 
 Contaminant_Accessions = {
@@ -46,4 +48,13 @@ Mitoseqs = {
              "atggttgattaataagatatttacatgctaatactgcttcagcattctttttctt" +
              "agttatatttacatataggtagaggattatattatggttcatataaatcacctag" +
              "aacttaacatgagctattgg"),
+}
+
+"""NCBI Foreign Contaminant Screen tool links"""
+FCSADAPTOR = {
+    'VERSION': '0.4.0',
+    'SIF': 'fcs-adaptor.sif',
+    'SIFLOCAL': 'fcs-adaptor.%s.sif',
+    'SIFURL': 'https://ftp.ncbi.nlm.nih.gov/genomes/TOOLS/FCS/releases/',
+    'EXEURL': 'https://raw.githubusercontent.com/ncbi/fcs/v%s/dist/run_fcsadaptor.sh',
 }
