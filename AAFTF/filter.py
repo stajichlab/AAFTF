@@ -5,6 +5,7 @@ tools. See resources.py for these defaults.
 """
 
 import os
+import gzip
 import shutil
 import subprocess
 import sys
@@ -46,7 +47,26 @@ def run(parser, args):
     earliest_file_age = -1
     contam_filenames = []
     # db of contaminant (PhiX)
-    for url in Contaminant_Accessions.values():
+    for urls in Contaminant_Accessions.values():
+        for url in urls:
+            acc = os.path.basename(url)
+            if DB:
+                acc_file = os.path.join(DB, acc)
+            else:
+                acc_file = os.path.join(args.workdir, acc)
+            contam_filenames.append(acc_file)
+            if not os.path.exists(acc_file):
+                try:
+                    urllib.request.urlretrieve(url, acc_file)
+                except:
+                    status(f'error with url {url} {acc_file}')
+            if (earliest_file_age < 0 or
+                    earliest_file_age < os.path.getctime(acc_file)):
+                earliest_file_age = os.path.getctime(acc_file)
+
+    # download univec
+    for url in DB_Links['UniVec']:
+        # take first file for now, could combine in future
         acc = os.path.basename(url)
         if DB:
             acc_file = os.path.join(DB, acc)
@@ -55,24 +75,9 @@ def run(parser, args):
         contam_filenames.append(acc_file)
         if not os.path.exists(acc_file):
             urllib.request.urlretrieve(url, acc_file)
-        if (earliest_file_age < 0 or
-                earliest_file_age < os.path.getctime(acc_file)):
-            earliest_file_age = os.path.getctime(acc_file)
-
-    # download univec too
-    url = DB_Links['UniVec']
-    # take first file for now, could combine in future
-    acc = os.path.basename(DB_Links['UniVec'][0])
-    if DB:
-        acc_file = os.path.join(DB, acc)
-    else:
-        acc_file = os.path.join(args.workdir, acc)
-    contam_filenames.append(acc_file)
-    if not os.path.exists(acc_file):
-        urllib.request.urlretrieve(url, acc_file)
-        if (earliest_file_age < 0 or
-                earliest_file_age < os.path.getctime(acc_file)):
-            earliest_file_age = os.path.getctime(acc_file)
+            if (earliest_file_age < 0 or
+                    earliest_file_age < os.path.getctime(acc_file)):
+                earliest_file_age = os.path.getctime(acc_file)
 
     if args.screen_accessions:
         for acc in args.screen_accessions:
@@ -105,15 +110,20 @@ def run(parser, args):
             contam_filenames.append(os.path.abspath(f))
 
     # concat vector db
-    status('Generating combined contamination database:\n{:}'.format(
-        '\n'.join(contam_filenames)))
+    
     contamdb = os.path.join(args.workdir, 'contamdb.fa')
+    filelist = '\n'.join(contam_filenames)
+    status(f'Generating combined contamination database {contamdb} from:\n{filelist}')
     if (not os.path.exists(contamdb) or
             (os.path.getctime(contamdb) < earliest_file_age)):
         with open(contamdb, 'wb') as wfd:
             for fname in contam_filenames:
-                with open(fname, 'rb') as fd:  # reasonably fast copy for append
-                    shutil.copyfileobj(fd, wfd)
+                if fname.endswith('.gz'):
+                    with gzip.open(fname, 'r') as fd:                        
+                        shutil.copyfileobj(fd, wfd)
+                else:
+                    with open(fname, 'rb') as fd:  # reasonably fast copy for append
+                        shutil.copyfileobj(fd, wfd)
 
     # find reads
     forReads, revReads = (None,)*2
@@ -294,6 +304,7 @@ def run(parser, args):
         subprocess.run(samtools_cmd, stderr=DEVNULL)
         if not args.debug:
             SafeRemove(args.workdir)
+
         if revReads:
             status('Filtering complete:\n\tFor: {:}\n\tRev: {:}'.format(
                 clean_reads+'_1.fastq.gz', clean_reads+'_2.fastq.gz'))

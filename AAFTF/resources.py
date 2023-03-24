@@ -3,8 +3,8 @@
 NCBI = 'https://ftp.ncbi.nlm.nih.gov'
 
 Contaminant_Accessions = {
-    "phiX": (NCBI + '/genomes/Viruses/' +
-             'enterobacteria_phage_phix174_sensu_lato_uid14015/NC_001422.fna'),
+    "phiX": [NCBI + '/genomes/all/GCF/000/819/615/' +
+    'GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz']
 }
 
 
@@ -33,11 +33,11 @@ DB_Links = {
 }
 
 SeqDBs = {
-    'nucleotide': (NCBI + '/entrez/eutils/efetch.fcgi?' +
-                   'db=nucleotide&id=%s&rettype=fasta'),
+    'nucleotide': [NCBI + '/entrez/eutils/efetch.fcgi?' +
+                   'db=nucleotide&id=%s&rettype=fasta'],
     'nucleotide_ebi': 'https://www.ebi.ac.uk/ena/data/view/%s?display=fasta',
-    'nucleotide_ncbi': (NCBI + '/entrez/eutils/efetch.fcgi?' +
-                        'db=nucleotide&id=%s&rettype=fasta'),
+    'nucleotide_ncbi': [NCBI + '/entrez/eutils/efetch.fcgi?' +
+                        'db=nucleotide&id=%s&rettype=fasta'],
 }
 
 Mitoseqs = {
