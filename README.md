@@ -35,9 +35,17 @@ conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pi
 And then install this repo with git/pip:
 ```
 $ conda activate aaftf
+$ pip install AAFTF
+# or install latest from github
 $ python -m pip install git+https://github.com/stajichlab/AAFTF.git
 ```
 
+To install the sourmash database you need to set a place to store your AAFTF databases
+```
+$ mkdir -p ~/lib/AAFTF_DB # or make a place that is systemwide
+$ export AAFTF_DB=~/lib/AAFTF_DB
+# fill in download procedure / add to AAFTF
+``` 
 Notes
 ===========
 This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.
