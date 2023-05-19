@@ -28,6 +28,8 @@ def run_subtool(parser, args):
         import AAFTF.vecscreen as submodule
     elif args.command == 'fcs_screen':
         import AAFTF.fcs_screen as submodule
+    elif args.command == 'fcs_gx_purge':
+        import AAFTF.fcs_gx_purge as submodule
     elif args.command == 'sourpurge':
         import AAFTF.sourpurge as submodule
     elif args.command == 'rmdup':
@@ -594,17 +596,85 @@ def main():
         help="AAFTF is running in pipeline mode")
 
     ##########
-    # sourpurge
+    # fcs_gx_purge
     ##########
     # arguments
     # -a / --assembly: input assembly file
     # -o / --out: output cleaned assembly file
     # -p / --prefix: datafile prefix and temp/output file prefix
-    # -i / --indir: directory where sequence reads are located
+    # -c / --cpus: number of cpus
+    # -d / --db: path to db (this is best if is memory mapped location)
+    # -t / --taxid: ncbi taxonid (can be any node in taxonomy)
+
+    parser_fcsgx = subparsers.add_parser(
+        'fcs_gx_purge',
+        description="Purge contigs based on fcs_gx results",
+        help='Purge contigs based on contamination search with fcs_gx')
+
+    parser_fcsgx.add_argument(
+        '-i', '--input', type=str,
+        required=True,
+        help="Input contigs or scaffold assembly")
+
+    parser_fcsgx.add_argument(
+        '-o', '--outfile', type=str,
+        required=True,  # think about sensible replacement in future
+        help="Output fcs_gx cleaned assembly")
+
+    parser_fcsgx.add_argument(
+        '--prefix', type=str,
+        required=False, help="Prefix for tempfiles")
+
+    parser_fcsgx.add_argument(
+        '-t', '--taxid',
+        required=False, default=4890,
+        help="NCBI Taxonomy ID for contamaination matches, i.e. Ascomycota")
+
+    parser_fcsgx.add_argument(
+        '-d', '--db', required=False, default='/my_tmpfs/gxdb/all',
+        help="gxdb database path")
+
+    parser_fcsgx.add_argument('-c', '--cpus', type=int,
+                             metavar="cpus", default=1,
+                             help="Number of CPUs/threads to use.")
+
+    parser_fcsgx.add_argument(
+        '-w', '--workdir', '--tmpdir',
+        type=str, dest='workdir',
+        required=False,
+        help="Temporary directory to store datafiles and processes in")
+
+    parser_fcsgx.add_argument('-v', '--debug',
+                             action='store_true',
+                             dest='debug',
+                             help="Provide debugging messages")
+
+    parser_fcsgx.add_argument(
+        '--AAFTF_DB', type=str,
+        required=False,
+        help="Path to AAFTF resources, defaults to $AAFTF_DB")
+
+    parser_fcsgx.add_argument(
+        '--pipe', action='store_true',
+        help="AAFTF is running in pipeline mode")
+
+
+
+
+    ##########
+    # sourpurge
+    ##########
+    # arguments
+    # -i / --input: input assembly file
+    # -o / --out: output cleaned assembly file
+    # -p / --prefix: datafile prefix and temp/output file prefix
+    # -l / --left: left read of pair
+    # -r / --right: right read of pair
     # -c / --cpus: number of cpus
     # --sourdb_type gtdb gtdbrep gbk
     # --tmpdir
     # --phylum: phylum to keep
+    # -mc / --mincovpct: 
 
     parser_sour = subparsers.add_parser(
         'sourpurge',

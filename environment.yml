@@ -1,4 +1,7 @@
 name: AAFTF
+channels:
+  - bioconda
+  - conda-forge
 dependencies:
   - biopython
   - samtools
