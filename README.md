@@ -45,7 +45,7 @@ To install the sourmash database you need to set a place to store your AAFTF dat
 $ mkdir -p ~/lib/AAFTF_DB # or make a place that is systemwide
 $ export AAFTF_DB=~/lib/AAFTF_DB
 # fill in download procedure / add to AAFTF
-``` 
+```
 Notes
 ===========
 This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.

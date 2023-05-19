@@ -4,8 +4,8 @@ This will match contaminant database and PhiX using read mapping kmer
 tools. See resources.py for these defaults.
 """
 
-import os
 import gzip
+import os
 import shutil
 import subprocess
 import sys
@@ -110,7 +110,7 @@ def run(parser, args):
             contam_filenames.append(os.path.abspath(f))
 
     # concat vector db
-    
+
     contamdb = os.path.join(args.workdir, 'contamdb.fa')
     filelist = '\n'.join(contam_filenames)
     status(f'Generating combined contamination database {contamdb} from:\n{filelist}')
@@ -119,7 +119,7 @@ def run(parser, args):
         with open(contamdb, 'wb') as wfd:
             for fname in contam_filenames:
                 if fname.endswith('.gz'):
-                    with gzip.open(fname, 'r') as fd:                        
+                    with gzip.open(fname, 'r') as fd:
                         shutil.copyfileobj(fd, wfd)
                 else:
                     with open(fname, 'rb') as fd:  # reasonably fast copy for append

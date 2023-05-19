@@ -674,7 +674,7 @@ def main():
     # --sourdb_type gtdb gtdbrep gbk
     # --tmpdir
     # --phylum: phylum to keep
-    # -mc / --mincovpct: 
+    # -mc / --mincovpct:
 
     parser_sour = subparsers.add_parser(
         'sourpurge',

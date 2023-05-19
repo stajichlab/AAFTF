@@ -6,6 +6,7 @@ import sys
 import uuid
 
 from Bio import SeqIO
+
 from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
                            printCMD, status)
 
@@ -31,23 +32,23 @@ def run(parser, args):
     DEVNULL = open(os.devnull, 'w')
 
     #now filter for taxonomy with sourmash lca classify
-    status('Running fcs_gx to get taxonomy classification for each contig')    
+    status('Running fcs_gx to get taxonomy classification for each contig')
 
     fcsgx_compute = ['run_gx', '--fasta', args.input, '--tax-id', args.taxid,
                      '--gx-db', args.db,'--out-dir', args.workdir]
     printCMD(fcsgx_compute)
     subprocess.run(fcsgx_compute, stderr=DEVNULL)
     fname = os.path.splitext(os.path.basename(args.input))[0]
-    # output tsv: 
+    # output tsv:
     # seq_id	start_pos	end_pos	seq_len	action	div	agg_cont_cov	top_tax_name
-    
+
     Seq2Drop = {}
 
     fcsgxTSV = os.path.join(args.workdir, f'{fname}.{args.taxid}.fcs_gx_report.txt')
     if not os.path.isfile(fcsgxTSV):
         status(f'fcs_gx did not produce file {fcsgxTSV}')
         return
-    with open(fcsgxTSV, 'r') as fcsgx_out:
+    with open(fcsgxTSV) as fcsgx_out:
         for line in fcsgx_out:
             if not line.startswith("#"):
                 line = line.strip()
