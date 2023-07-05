@@ -82,6 +82,8 @@ def run(parser, args):
                      '--output', correctedFasta.split('.fasta')[0],
                      '--threads', str(args.cpus),
                      '--changes']
+        if args.diploid:
+            pilon_cmd.append('--diploid')
         pilon_log = 'pilon'+str(i)+'.log'
         printCMD(pilon_cmd)
         with open(os.path.join(args.workdir, pilon_log), 'w') as logfile:
