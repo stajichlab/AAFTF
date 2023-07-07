@@ -59,6 +59,7 @@ def run(parser, args):
     numSeqs, assemblySize = fastastats(args.input)
     fasta_lengths = []
     with open(args.input) as infile:
+        # trunk-ignore(ruff/B007)
         for Header, Seq in SimpleFastaParser(infile):
             fasta_lengths.append(len(Seq))
     n50 = calcN50(fasta_lengths, num=0.75)
