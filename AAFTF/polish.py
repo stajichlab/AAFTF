@@ -39,18 +39,16 @@ def run(parser, args):  # noqa: C901
         sys.exit(1)
 
     if args.method == "racon" and not longreads:
-        status('Unable to located long read FASTQ raw reads, ' +
-               'pass via -lr or --longreads')
+        status('Unable to located long read FASTQ raw reads, pass via -lr or --longreads')
         sys.exit(1)
     if not forReads and args.method != "racon":
-        status('Unable to located FASTQ raw reads, ' +
-               'pass via -l,--left and/or -r,--right')
+        status('Unable to located FASTQ raw reads, pass via -l,--left and/or -r,--right')
         sys.exit(1)
 
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
-        args.workdir = 'aaftf-polish_'+str(uuid.uuid4())[:8]
+        args.workdir = f'aaftf-polish_{str(uuid.uuid4())[:8]}'
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
@@ -77,8 +75,7 @@ def run(parser, args):  # noqa: C901
             else:
                 initialFasta = os.path.join(args.workdir,
                                             'polished'+str(i-1)+'.fasta')
-            BAMfile = make_bwa_bam(initialFasta, forReads, revReads,
-                                   args.workdir, args.cpus, memperthread)
+            BAMfile = make_bwa_bam(initialFasta, forReads, revReads, args.workdir, args.cpus, memperthread)
             run_cmd = []
             polish_log = None
             dirty = []
