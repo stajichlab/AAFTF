@@ -1,4 +1,4 @@
-"""Run the ncbi fcs-gx tool to look for contaminants."""
+"""Run the fcs-gx tool to look for contaminants."""
 import os
 import shutil
 import subprocess
@@ -7,8 +7,7 @@ import uuid
 
 from Bio import SeqIO
 
-from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
-                           printCMD, status)
+from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats, printCMD, status)
 
 # logging - we may need to think about whether this has
 # separate name for the different runfolder
@@ -17,7 +16,7 @@ from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
 def run(parser, args):
     """Run NCBI fcs_gx routines to detect and remove contaminant contigs."""
     if not args.workdir:
-        args.workdir = 'aaftf-fcsgx_'+str(uuid.uuid4())[:8]
+        args.workdir = f'aaftf-fcsgx_{str(uuid.uuid4())[:8]}'
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
@@ -27,17 +26,21 @@ def run(parser, args):
         sys.exit(1)
 
     numSeqs, assemblySize = fastastats(os.path.join(args.input))
-    status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs,
-                                                         assemblySize))
+    status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs,assemblySize))
     DEVNULL = open(os.devnull, 'w')
 
     #now filter for taxonomy with sourmash lca classify
     status('Running fcs_gx to get taxonomy classification for each contig')
+    
+    #python scripts/run_gx.py --bin-dir dist --gx-db /sw/db/gxdb --tax-id 4842 --fasta
 
     fcsgx_compute = ['run_gx', '--fasta', args.input, '--tax-id', args.taxid,
-                     '--gx-db', args.db,'--out-dir', args.workdir]
+                    '--gx-db', args.db, '--out-dir', args.workdir]
     printCMD(fcsgx_compute)
-    subprocess.run(fcsgx_compute, stderr=DEVNULL)
+    fcs_log = "fcs_gx.log"
+    with open(os.path.join(args.workdir, fcs_log), 'w') as logfile:
+        subprocess.run(fcsgx_compute, stderr=logfile)
+
     fname = os.path.splitext(os.path.basename(args.input))[0]
     # output tsv:
     # seq_id	start_pos	end_pos	seq_len	action	div	agg_cont_cov	top_tax_name
@@ -59,7 +62,7 @@ def run(parser, args):
     status(f'Dropping {len(Seq2Drop)} contigs from fcs-gx taxonomy screen')
     with open(args.outfile, 'w') as ofh:
         for record in SeqIO.parse(args.input, 'fasta'):
-            if not record.id in Seq2Drop:
+            if record.id not in Seq2Drop:
                 SeqIO.write(record, ofh, 'fasta')
 
     if args.debug:
@@ -73,7 +76,7 @@ def run(parser, args):
     elif '.' in args.outfile:
         nextOut = args.outfile.split('.')[0]+'.rmdup.fasta'
     else:
-        nextOut = args.outfile+'.rmdup.fasta'
+        nextOut = f'{args.outfile}.rmdup.fasta'
 
     if checkfile(fcsgxTSV):
         baseinput = os.path.basename(args.input)
@@ -81,7 +84,7 @@ def run(parser, args):
         if '.' in baseinput:
             baseinput = baseinput.rsplit('.',1)[0]
 
-        shutil.copy(fcsgxTSV, os.path.join(basedir,baseinput+'.fcs_gx-taxonomy.tsv'))
+        shutil.copy(fcsgxTSV, os.path.join(basedir,f'{baseinput}.fcs_gx-taxonomy.tsv'))
 
     if not args.debug:
         SafeRemove(args.workdir)
