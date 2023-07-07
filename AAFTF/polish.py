@@ -19,6 +19,10 @@ def run(parser, args):  # noqa: C901
 
     polishMethod = args.method
     memperthread = int(args.memory / args.cpus)
+    if memperthread == 0:
+        memperthread = "500K"
+    else:
+        memperthread = f"{memperthread}G"
 
     forReads, revReads = (None,)*2
     if args.left:
@@ -127,9 +131,10 @@ def run(parser, args):  # noqa: C901
                 elif args.ploidy:
                     run_cmd.extend(['-ploidy', str(args.ploidy)])
                 polish_log = 'nextpolish_t1_'+str(i)+'.log'
-                printCMD(run_cmd)
                 with open(os.path.join(args.workdir, polish_log), 'w') as logfile:
+                    printCMD(run_cmd)
                     subprocess.run(run_cmd, cwd=args.workdir, stderr=logfile, stdout=logfile)
+                logfile.close()
                 run_cmd = ['samtools', 'faidx', tempoutfasta]
                 # make second BAM file for second task of nextPolish
                 BAMfile = make_bwa_bam(tempoutfasta, forReads, revReads,
@@ -138,8 +143,9 @@ def run(parser, args):  # noqa: C901
                 run_cmd = ['python', nextPolishExe,
                            '-g', tempoutfasta,
                            '-t', '2',
-                           '-s', BAMfile,
+                           '-debug',
                            '-p', str(args.cpus),
+                           '-s', BAMfile,
                            '-o', correctedBase + ".fasta"]
                 if args.diploid or args.ploidy == 2:
                     run_cmd.extend(['-ploidy', '2'])
@@ -147,6 +153,7 @@ def run(parser, args):  # noqa: C901
                     run_cmd.extend(['-ploidy', str(args.ploidy)])
                 polish_log = 'nextpolish_t2_'+str(i)+'.log'
                 with open(os.path.join(args.workdir, polish_log), 'w') as logfile:
+                    printCMD(run_cmd)
                     subprocess.run(run_cmd, cwd=args.workdir, stderr=logfile, stdout=logfile)
                 dirty.append(tempoutfasta)
 
@@ -180,7 +187,7 @@ def run(parser, args):  # noqa: C901
         shutil.copyfile(args.infile, os.path.join(args.workdir, initialFasta))
         polca_cmd = [args.polca, '-a', initialFasta,
                      '-r', f'{forReads} {revReads}',
-                     '-t', str(args.cpus), '-m', f'{memperthread}G']
+                     '-t', str(args.cpus), '-m', memperthread]
         printCMD(polca_cmd)
         # run the polca polishing
         with open(os.path.join(args.workdir, polish_log), 'w') as logfile:
@@ -195,6 +202,7 @@ def run(parser, args):  # noqa: C901
                         f'{polishedFasta}.polca_report.txt')
         status('AAFTF polish completed.')
         status(f'{method} polished assembly: {polishedFasta}')
+
     if '_' in polishedFasta:
         nextOut = polishedFasta.split('_')[0]+'.final.fasta'
     elif '.' in polishedFasta:
@@ -218,7 +226,7 @@ def make_bwa_bam(inFasta, forReads, revReads,
     BAM = ASMpref + '.bwa.bam'
     if os.path.exists(os.path.join(workdir, BAM)):
         return BAM
-    tempfiles = ['fixmate.bam', 'markdup.bam']
+    tempfiles = [f'{ASMpref}.fixmate.bam', f'{ASMpref}.markdup.bam']
     DEVNULL = open(os.devnull, 'w')
     bamthreads = 4
     if cpus < 4:
@@ -245,7 +253,7 @@ def make_bwa_bam(inFasta, forReads, revReads,
         # level 1
         samtools_cmd = ['samtools', 'sort', '-l', '1',
                         '-@', str(bamthreads), '-T', ASMpref,
-                        '-m', f'{memperthread}G', tempfiles[0]]
+                        '-m', memperthread, tempfiles[0]]
         printCMD(samtools_cmd)
         p3 = subprocess.Popen(samtools_cmd, stdout=subprocess.PIPE, cwd=workdir)
 
