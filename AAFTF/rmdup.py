@@ -109,14 +109,14 @@ def run(parser, args):
     numSeqs, assemblySize = fastastats(args.out)
     status(f'Cleaned assembly is {numSeqs:,} contigs and {assemblySize:,} bp')
     if '_' in args.out:
-        nextOut = args.out.split('_')[0]+'.pilon.fasta'
+        nextOut = args.out.split('_')[0]+'.polish.fasta'
     elif '.' in args.out:
-        nextOut = args.out.split('.')[0]+'.pilon.fasta'
+        nextOut = args.out.split('.')[0]+'.polish.fasta'
     else:
-        nextOut = args.out+'.pilon.fasta'
+        nextOut = args.out+'.polish.fasta'
 
     if not args.pipe:
-        status(f'Your next command might be:\n\tAAFTF pilon -i {args.out} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {nextOut}\n')
+        status(f'Your next command might be:\n\tAAFTF polish -i {args.out} -l PE_R1.fastq.gz -r PE_R2.fastq.gz -o {nextOut}\n')
 
     if not args.debug and not custom_workdir:
         SafeRemove(args.workdir)
