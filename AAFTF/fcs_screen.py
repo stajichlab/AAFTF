@@ -21,16 +21,24 @@ from AAFTF.utility import SafeRemove, printCMD, status
 
 
 def run(parser, args):
-    """Runs fcs screening."""
+    """Perform vector trimming via the fcs screening tool."""
+    DB = args.AAFTF_DB
+    if args.AAFTF_DB:
+        DB = args.AAFTF_DB
+    elif "AAFTF_DB" in os.environ:
+        DB = os.environ["AAFTF_DB"]
+    else:
+        DB = 'AAFTF_DB'
+        if not os.path.exists(DB):
+            os.mkdir(DB)
+        status("No AAFTF_DB environ variable please see setup instructions. Creating locally.")
+
     containerengine = args.container_engine
     infilename = os.path.basename(os.path.realpath(args.infile))
     image = args.image
     tax = "--euk"
     if args.prok:
         tax = "--prok"
-
-    DB = args.AAFTF_DB or os.environ["AAFTF_DB"]
-
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
