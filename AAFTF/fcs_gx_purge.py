@@ -10,12 +10,12 @@ from Bio import SeqIO
 from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
                            printCMD, status)
 
-
 # logging - we may need to think about whether this has
 # separate name for the different runfolder
+
 # flake8: noqa: C901
 def run(parser, args):
-    """Run the fcs_gx routines to detect and remove contaminant contigs."""
+    """Run NCBI fcs_gx routines to detect and remove contaminant contigs."""
     if not args.workdir:
         args.workdir = 'aaftf-fcsgx_'+str(uuid.uuid4())[:8]
     if not os.path.exists(args.workdir):
@@ -55,7 +55,7 @@ def run(parser, args):
                 cols = line.split("\t")
                 Seq2Drop[cols[0]] = 1
 
-    #drop contigs from taxonomy before calculating coverage
+    # drop contigs from taxonomy before calculating coverage
     status(f'Dropping {len(Seq2Drop)} contigs from fcs-gx taxonomy screen')
     with open(args.outfile, 'w') as ofh:
         for record in SeqIO.parse(args.input, 'fasta'):
