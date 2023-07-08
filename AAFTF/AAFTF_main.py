@@ -635,8 +635,8 @@ def main():
         help="gxdb database path")
 
     parser_fcsgx.add_argument('-c', '--cpus', type=int,
-                             metavar="cpus", default=1,
-                             help="Number of CPUs/threads to use.")
+                              metavar="cpus", default=1,
+                              help="Number of CPUs/threads to use.")
 
     parser_fcsgx.add_argument(
         '-w', '--workdir', '--tmpdir',
@@ -645,9 +645,9 @@ def main():
         help="Temporary directory to store datafiles and processes in")
 
     parser_fcsgx.add_argument('-v', '--debug',
-                             action='store_true',
-                             dest='debug',
-                             help="Provide debugging messages")
+                              action='store_true',
+                              dest='debug',
+                              help="Provide debugging messages")
 
     parser_fcsgx.add_argument(
         '--AAFTF_DB', type=str,
@@ -657,9 +657,6 @@ def main():
     parser_fcsgx.add_argument(
         '--pipe', action='store_true',
         help="AAFTF is running in pipeline mode")
-
-
-
 
     ##########
     # sourpurge
@@ -749,76 +746,6 @@ def main():
         help="Show taxonomy information and exit")
 
     parser_sour.add_argument(
-        '--pipe', action='store_true',
-        help="AAFTF is running in pipeline mode")
-
-    ##########
-    # fcs_purge
-    ##########
-    # arguments
-    # -i / --input:  input assembly file
-    # -o / --outfile: output cleaned assembly
-    # --prefix: Prefix for output / temp files
-    # --euk - expect eukaryotic screening
-    # --prol - expect prokaryote screening
-
-    parser_fcs_purge = subparsers.add_parser(
-        'fcsgx_purge',
-        description="Purge contigs based on NCBI FCS-gx contigs for contaminated contigs",
-        help='NCBI Foreign Contaminant Screening for foreign contamination using cross-species genome alignment')
-
-    parser_fcs_purge.add_argument(
-        '-i', '--input', '--infile',
-        type=str,
-        required=True,
-        dest='infile',
-        help="Input contigs or scaffold assembly")
-
-    parser_fcs_purge.add_argument(
-        '-o', '--outfile',
-        type=str,
-        required=True,
-        help="Output vector screened and cleaned assembly")
-
-    parser_fcs_purge.add_argument(
-        '--prefix', type=str,
-        required=False, help="Prefix for tempfiles")
-
-    parser_fcs_purge.add_argument(
-        '--container_engine', type=str, default='singularity',
-        help="Container engine (singular or docker)")
-
-    parser_fcs_purge.add_argument(
-        '--image', type=str, required=False,
-        help="Container file (or will download and look in AAFTF_DB)")
-
-    parser_fcs_purge.add_argument(
-        '-w', '--workdir', '--tmpdir',
-        type=str,
-        help="Working directory to store datafiles and processes in")
-
-    parser_fcs_purge.add_argument(
-        '--AAFTF_DB', type=str,
-        required=False,
-        help="Path to AAFTF resources, defaults to $AAFTF_DB")
-
-    parser_fcs_purge.add_argument(
-        '--prok', action='store_true',
-        help="Run in Prokaryote matching mode")
-
-    parser_fcs_purge.add_argument(
-        '--euk', action='store_true',
-        help="Run in Eukaryote matching mode (Default)")
-
-    parser_fcs_purge.add_argument(
-        '--fcs_script',  type=str, required=False,
-        help="location of the run_fcsadaptor.sh script (or will download automatically)")
-
-    parser_fcs_purge.add_argument(
-        '-v', '--debug', action='store_true', dest='debug',
-        help="Provide debugging messages")
-
-    parser_fcs_purge.add_argument(
         '--pipe', action='store_true',
         help="AAFTF is running in pipeline mode")
 
