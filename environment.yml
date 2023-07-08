@@ -17,3 +17,6 @@ dependencies:
   - fastp
   - novoplasty
   - bbmap
+  - ncbi-fcs-gx
+  - masurca
+  - nextpolish
