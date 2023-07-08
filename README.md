@@ -1,38 +1,55 @@
-### AAFTF - Automatic Assembly For The Fungi
-*Jason Stajich and Jon Palmer*
+# AAFTF - Automatic Assembly For The Fungi
+* Authors: Jason Stajich and Jon Palmer*
 
 ![AAFTF logo](docs/AAFTF.png)
 
-Requirements
-===================
-- BBTools - https://jgi.doe.gov/data-and-tools/bbtools/
-- Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic (Optional)
-- bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
+# Requirements
+Most of these can be installed via conda packages. Noting that some tools have different samtools version expectations, which can lead to problems. In particular the bioconda install of samtools is v0.2 while the version expected for most other tools is v1.17. This can lead to some issues.
+
+## read aligners supporting
 - bwa - https://github.com/lh3/bwa
-- Pilon - https://github.com/broadinstitute/pilon/wiki
-- sourmash (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
-- NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST
 - minimap2 - https://github.com/lh3/minimap2
-Assemblers
+- bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
+
+## QC and trimming
+- BBTools - https://jgi.doe.gov/data-and-tools/bbtools/ - supports read-level filtering for contamination and vector/primer
+- Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic (Optional)
+- fastp - alternative (preferred) read trimming and quality control https://github.com/OpenGene/fastp
+
+## Assemblers
 - SPAdes - http://cab.spbu.ru/software/spades/
 - megahit - https://github.com/voutcn/megahit
 - dipspades - (SPAdes 3.11.1 - note it is not part of later SPAdes packages) http://cab.spbu.ru/files/release3.11.1/dipspades_manual.html
 - NOVOplasty - https://github.com/ndierckx/NOVOPlasty
 
-Authors
-============
+
+## Assembly Contamination screening support
+- sourmash (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
+- NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST
+- ncbi-fcs (for vector screening)
+- ncbi-fcs-gx (for contaminant filtering, alternative to sourmash)
+
+
+## Assembly polishing
+- Pilon - https://github.com/broadinstitute/pilon/wiki
+- Masurca - https://github.com/alekseyzimin/masurca (for polca.sh polishing)
+- NextPolish - https://github.com/Nextomics/NextPolish
+
+
+# Authors
 * Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org
 * Jon Palmer [@nextgenusfs](https://github.com/nextgenusfs) - https://twitter.com/jonpalmer2013
 
-Install
-===========
-We are working on simplifying the install, ie getting on Pypi and bioconda.  Currently you could create conda environment and install like this:
+# Install
+We are working on simplifying the install, ie getting on Pypi and bioconda.
+Currently you could create conda environment and install like this:
 
 ```
 conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
     blast minimap2 spades megahit novoplasty biopython fastp
 ```
 And then install this repo with git/pip:
+
 ```
 $ conda activate aaftf
 $ pip install AAFTF
@@ -46,6 +63,7 @@ $ mkdir -p ~/lib/AAFTF_DB # or make a place that is systemwide
 $ export AAFTF_DB=~/lib/AAFTF_DB
 # fill in download procedure / add to AAFTF
 ```
+
 Notes
 ===========
 This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.
@@ -57,7 +75,8 @@ Steps / Procedures
 3. filter              Filter contaminanting reads - with BBMap
 4. assemble            Assemble reads - with SPAdes
 5. vecscreen           Vector and Contaminant Screening of assembled contigs - with BlastN based method to replicate NCBI screening
-6. sourpurge           Purge contigs based on sourmash results - with sourmash
+6a. sourpurge          Purge contigs based on sourmash results - with sourmash
+6b. fcs_gx_purge       Purge contigs based on NCBI fcs-gx tool. Note this runs MUCH faster with large memory.
 7. rmdup               Remove duplicate contigs - using minimap2 to find duplicates
 8. pilon               Polish contig sequences with Pilon - uses Pilon
 9. sort                Sort contigs by length and rename FASTA headers
