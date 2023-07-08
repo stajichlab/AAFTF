@@ -7,7 +7,7 @@ import AAFTF.assemble as assemble
 import AAFTF.assess as assess
 import AAFTF.filter as aaftf_filter
 import AAFTF.mito as mito
-import AAFTF.pilon as pilon
+import AAFTF.polish as polish
 import AAFTF.rmdup as rmdup
 import AAFTF.sort as aaftf_sort
 import AAFTF.sourpurge as sourpurge
@@ -180,28 +180,28 @@ def run(parser, args):
         status('AATFT rmdup failed')
         sys.exit(1)
 
-    # run pilon to error-correct
-    if not checkfile(basename+'.pilon.fasta'):
-        pilonOpts = ['cpus', 'debug', 'workdir', 'iterations', 'memory']
-        pilonDict = {k: v for (k, v) in args_dict.items() if k in pilonOpts}
-        pilonDict['infile'] = basename + '.rmdup.fasta'
-        pilonDict['outfile'] = basename + '.pilon.fasta'
-        pilonDict['left'] = basename + '_filtered_1.fastq.gz'
+    # run polish to error-correct
+    if not checkfile(basename+'.polish.fasta'):
+        polishOpts = ['cpus', 'debug', 'workdir', 'iterations', 'memory']
+        polishDict = {k: v for (k, v) in args_dict.items() if k in polishOpts}
+        polishDict['infile'] = basename + '.rmdup.fasta'
+        polishDict['outfile'] = basename + '.polish.fasta'
+        polishDict['left'] = basename + '_filtered_1.fastq.gz'
         if args.right:
-            pilonDict['right'] = basename + '_filtered_2.fastq.gz'
-        pilonDict['pipe'] = True
-        pilonargs = Namespace(**pilonDict)
-        pilon.run(parser, pilonargs)
+            polishDict['right'] = basename + '_filtered_2.fastq.gz'
+        polishDict['pipe'] = True
+        polishargs = Namespace(**polishDict)
+        polish.run(parser, polishargs)
     else:
-        status('AAFTF pilon output found: {:}'.format(
-            basename + '.pilon.fasta'))
-    if not checkfile(basename + '.pilon.fasta'):
-        status('AATFT pilon failed')
+        status('AAFTF polish output found: {:}'.format(
+            basename + '.polish.fasta'))
+    if not checkfile(basename + '.polish.fasta'):
+        status('AATFT polish failed')
         sys.exit(1)
 
     # sort and rename
     if not checkfile(basename + '.final.fasta'):
-        sortDict = {'input': basename + '.pilon.fasta',
+        sortDict = {'input': basename + '.polish.fasta',
                     'out':   basename + '.final.fasta',
                     'name':  'scaffold',
                     'minlen': args_dict['mincontiglen']}

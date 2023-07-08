@@ -28,12 +28,16 @@ def run_subtool(parser, args):
         import AAFTF.vecscreen as submodule
     elif args.command == 'fcs_screen':
         import AAFTF.fcs_screen as submodule
+    elif args.command == 'fcs_gx_purge':
+        import AAFTF.fcs_gx_purge as submodule
     elif args.command == 'sourpurge':
         import AAFTF.sourpurge as submodule
     elif args.command == 'rmdup':
         import AAFTF.rmdup as submodule
+    elif args.command == 'polish':
+        import AAFTF.polish as submodule
     elif args.command == 'pilon':
-        import AAFTF.pilon as submodule
+        import AAFTF.polish as submodule
     elif args.command == 'assess':
         import AAFTF.assess as submodule
     elif args.command == 'sort':
@@ -67,7 +71,7 @@ class ArgumentParserWithDefaults(ap.ArgumentParser):
 
 
 def main():
-    """Main function for AAFTF module submenus."""
+    """Present the main AAFTF module submenus."""
     #########################################
     # create the top-level parser
     #########################################
@@ -382,8 +386,9 @@ def main():
 
     parser_asm.add_argument(
         '--method', type=str,
+        choices=['spades', 'dipspades', 'megahit', 'masurca', 'nextdenovo'],
         required=False, default="spades",
-        help="Assembly method: spades, dipspades, megahit")
+        help="Assembly method: spades, dipspades, megahit, nextdenovo, masurca")
 
     parser_asm.add_argument(
         '-o', '--out', type=str,
@@ -412,7 +417,8 @@ def main():
 
     parser_asm.add_argument('-r', '--right', required=False,
                             help="Right (Reverse) reads")
-
+    parser_asm.add_argument('-lr', '--longreads', required=False,
+                            help="Long Read fastq (pacbio or ONT)")
     parser_asm.add_argument('--merged', required=False,
                             help="Merged reads from flash or fastp")
 
@@ -532,7 +538,7 @@ def main():
     parser_fcs_screen = subparsers.add_parser(
         'fcs_screen',
         description="Screen with NCBI fcs tool contigs for vector and common contaminantion",
-        help='NCBI Foreign Contaminant Screening of contigs')
+        help='NCBI Foreign Contaminant Screening for Vector sequences in contigs')
 
     parser_fcs_screen.add_argument(
         '-i', '--input', '--infile',
@@ -556,10 +562,6 @@ def main():
         help="Container engine (singular or docker)")
 
     parser_fcs_screen.add_argument(
-        '--container', type=str, default='run_av_screen_x',
-        help="Container name for docker")
-
-    parser_fcs_screen.add_argument(
         '--image', type=str, required=False,
         help="Container file (or will download and look in AAFTF_DB)")
 
@@ -578,12 +580,12 @@ def main():
         help="Run in Prokaryote matching mode")
 
     parser_fcs_screen.add_argument(
-        '--fcs_script',  type=str, required=False,
-        help="location of the run_fcsadaptor.sh script (or will download automatically)")
-
-    parser_fcs_screen.add_argument(
         '--euk', action='store_true',
         help="Run in Eukaryote matching mode (Default)")
+
+    parser_fcs_screen.add_argument(
+        '--fcs_script',  type=str, required=False,
+        help="location of the run_fcsadaptor.sh script (or will download automatically)")
 
     parser_fcs_screen.add_argument(
         '-v', '--debug', action='store_true', dest='debug',
@@ -594,17 +596,82 @@ def main():
         help="AAFTF is running in pipeline mode")
 
     ##########
-    # sourpurge
+    # fcs_gx_purge
     ##########
     # arguments
     # -a / --assembly: input assembly file
     # -o / --out: output cleaned assembly file
     # -p / --prefix: datafile prefix and temp/output file prefix
-    # -i / --indir: directory where sequence reads are located
+    # -c / --cpus: number of cpus
+    # -d / --db: path to db (this is best if is memory mapped location)
+    # -t / --taxid: ncbi taxonid (can be any node in taxonomy)
+
+    parser_fcsgx = subparsers.add_parser(
+        'fcs_gx_purge',
+        description="Purge contigs based on fcs_gx results",
+        help='Purge contigs based on contamination search with fcs_gx')
+
+    parser_fcsgx.add_argument(
+        '-i', '--input', type=str,
+        required=True,
+        help="Input contigs or scaffold assembly")
+
+    parser_fcsgx.add_argument(
+        '-o', '--outfile', type=str,
+        required=True,  # think about sensible replacement in future
+        help="Output fcs_gx cleaned assembly")
+
+    parser_fcsgx.add_argument(
+        '--prefix', type=str,
+        required=False, help="Prefix for tempfiles")
+
+    parser_fcsgx.add_argument(
+        '-t', '--taxid',
+        required=False, default=4890,
+        help="NCBI Taxonomy ID for contamaination matches, i.e. Ascomycota")
+
+    parser_fcsgx.add_argument(
+        '-d', '--db', required=False, default='/my_tmpfs/gxdb/all',
+        help="gxdb database path")
+
+    parser_fcsgx.add_argument('-c', '--cpus', type=int,
+                              metavar="cpus", default=1,
+                              help="Number of CPUs/threads to use.")
+
+    parser_fcsgx.add_argument(
+        '-w', '--workdir', '--tmpdir',
+        type=str, dest='workdir',
+        required=False,
+        help="Temporary directory to store datafiles and processes in")
+
+    parser_fcsgx.add_argument('-v', '--debug',
+                              action='store_true',
+                              dest='debug',
+                              help="Provide debugging messages")
+
+    parser_fcsgx.add_argument(
+        '--AAFTF_DB', type=str,
+        required=False,
+        help="Path to AAFTF resources, defaults to $AAFTF_DB")
+
+    parser_fcsgx.add_argument(
+        '--pipe', action='store_true',
+        help="AAFTF is running in pipeline mode")
+
+    ##########
+    # sourpurge
+    ##########
+    # arguments
+    # -i / --input: input assembly file
+    # -o / --out: output cleaned assembly file
+    # -p / --prefix: datafile prefix and temp/output file prefix
+    # -l / --left: left read of pair
+    # -r / --right: right read of pair
     # -c / --cpus: number of cpus
     # --sourdb_type gtdb gtdbrep gbk
     # --tmpdir
     # --phylum: phylum to keep
+    # -mc / --mincovpct:
 
     parser_sour = subparsers.add_parser(
         'sourpurge',
@@ -759,76 +826,96 @@ def main():
                               help="AAFTF is running in pipeline mode")
 
     ##########
-    # pilon
+    # polish
     ##########
     # arguments
     # -i / --in: input assembly file
     # -o / --out: output cleaned assembly
+    # --left: left fastq read file (ILLUMINA)
+    # --right: right fastq read file (ILLUMINA)
+    # --longreads: long reads (ONT/PACBIO) fastq
     # -rp / --reads-prefix: input/outfile reads prefix
+    # --method pilon
     # --memory: default 4
     # --iterations: default 5
     # --tmpdir
     # --debug
+    # --diploid - inddicate this is a diploid organism
 
-    parser_pilon = subparsers.add_parser(
-        'pilon',
-        description="Polish contig sequences with Pilon",
-        help='Polish contig sequences with Pilon')
+    parser_polish = subparsers.add_parser(
+        'polish',
+        description="Polish contig sequences with Pilon, POLCA, NextPolish, racon",
+        help='Polish contig sequences with short reads')
 
-    parser_pilon.add_argument('-o', '--out', '--outfile',
-                              type=str,
-                              dest='outfile',
-                              required=True,
-                              help="Output Pilon polished assembly")
+    parser_polish.add_argument('-o', '--out', '--outfile',
+                               type=str,
+                               dest='outfile', required=False,
+                               help="Output a Polished assembly")
 
-    parser_pilon.add_argument(
-        '-i', '--infile', '--input',
-        type=str, dest='infile',
-        required=True,
-        help="Input contigs or scaffold assembly")
+    parser_polish.add_argument('-i', '--infile', '--input',
+                               type=str, dest='infile',
+                               required=True,
+                               help="Input contigs or scaffold assembly")
 
-    parser_pilon.add_argument('-c', '--cpus', type=int,
-                              metavar="cpus", default=1,
-                              help="Number of CPUs/threads to use.")
+    parser_polish.add_argument('-c', '--cpus', type=int,
+                               metavar="cpus", default=1,
+                               help="Number of CPUs/threads to use.")
 
-    parser_pilon.add_argument('-m', '--memory', type=int,
-                              default=16,
-                              dest='memory',
-                              required=False,
-                              help="Max Memory (in GB) (default is 16gb)")
+    parser_polish.add_argument('-m', '--memory', type=int,
+                               default=16,
+                               dest='memory', required=False,
+                               help="Max Memory (in GB) (default is 16gb)")
 
-    parser_pilon.add_argument('-v', '--debug', action='store_true',
-                              help="Provide debugging messages")
+    parser_polish.add_argument('-v', '--debug', action='store_true',
+                               help="Provide debugging messages")
 
-    parser_pilon.add_argument(
-        '-it', '--iterations', type=int,
-        default=5,
-        help="Number of Polishing iterations to run (default is 5)")
+    parser_polish.add_argument('-it', '--iterations', type=int,
+                               default=5,
+                               help="Number of Polishing iterations to run (default is 5)")
+    parser_polish.add_argument('--method', type=str,
+                               choices=['pilon', 'polca', 'nextpolish', 'racon'],
+                               required=False, default="pilon",
+                               help="Polishing method: pilon, polca, nextpolish, racon")
 
-    parser_pilon.add_argument(
+    parser_polish.add_argument('--polca', type=str,
+                               default="polca.sh",
+                               help='polca exe path - provide full path to deal with samtools mismatch in masurca')
+
+    parser_polish.add_argument(
         '-l', '--left', type=str,
-        required=True,
-        help='The name of the left/forward reads of paired-end ' +
+        required=False,
+        help='The name of the left/forward Illumina reads of paired-end ' +
         'FASTQ formatted reads.')
 
-    parser_pilon.add_argument(
+    parser_polish.add_argument(
         '-r', '--right', type=str,
-        required=True,
-        help='The name of the right/reverse reads of paired-end ' +
+        required=False,
+        help='The name of the right/reverse Illumina reads of paired-end ' +
         'FASTQ formatted reads.')
 
-    parser_pilon.add_argument(
+    parser_polish.add_argument('-lr', '--longreads',
+                               required=False,
+                               help="Long Read FASTQ (PacBio or ONT)")
+    parser_polish.add_argument(
         '-w', '--workdir', '--tmpdir',
         type=str, dest='workdir',
         required=False,
         help="Temporary directory to store datafiles for processes")
 
-    parser_pilon.add_argument(
+    parser_polish.add_argument(
         '--prefix', type=str,
         required=False, help="Prefix for readfiles")
 
-    parser_pilon.add_argument('--pipe', action='store_true',
-                              help="AAFTF is running in pipeline mode")
+    parser_polish.add_argument(
+            '--diploid', action='store_true',
+            help="Run pilon in diploid mode - affects heterozygous SNP calling")
+
+    parser_polish.add_argument(
+            '--ploidy', default=1, type=int,
+            help="Run nextpolish in specific ploidy mode - affects heterozygous SNP calling, default is 1")
+
+    parser_polish.add_argument('--pipe', action='store_true',
+                               help="AAFTF is running in pipeline mode")
 
     ##########
     # sort/rename FASTA headers
