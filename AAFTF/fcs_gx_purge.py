@@ -7,7 +7,8 @@ import uuid
 
 from Bio import SeqIO
 
-from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats, printCMD, status)
+from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
+                           printCMD, status)
 
 # logging - we may need to think about whether this has
 # separate name for the different runfolder
@@ -26,15 +27,15 @@ def run(parser, args):
         sys.exit(1)
 
     numSeqs, assemblySize = fastastats(os.path.join(args.input))
-    status('Assembly is {:,} contigs and {:,} bp'.format(numSeqs,assemblySize))
+    status(f'Assembly is {numSeqs:,} contigs and {assemblySize:,} bp')
     DEVNULL = open(os.devnull, 'w')
 
     #now filter for taxonomy with sourmash lca classify
     status('Running fcs_gx to get taxonomy classification for each contig')
-    
+
     #python scripts/run_gx.py --bin-dir dist --gx-db /sw/db/gxdb --tax-id 4842 --fasta
 
-    fcsgx_compute = ['run_gx', '--fasta', args.input, '--tax-id', args.taxid,
+    fcsgx_compute = ['run_gx.py', '--fasta', args.input, '--tax-id', args.taxid,
                     '--gx-db', args.db, '--out-dir', args.workdir]
     printCMD(fcsgx_compute)
     fcs_log = "fcs_gx.log"
