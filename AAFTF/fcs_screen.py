@@ -58,7 +58,7 @@ def run(parser, args):
             if args.debug:
                 status(f'url {url} download to {fcsexe}')
             urllib.request.urlretrieve(url, fcsexe)
-            os.chmod(fcsexe, 0o755)
+            os.chmod(fcsexe, 0o444)
     if image is None:
         image = os.path.join(DB, FCSADAPTOR['SIFLOCAL'] % (FCSADAPTOR['VERSION']))
         if not os.path.exists(image):
