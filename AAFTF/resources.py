@@ -3,25 +3,22 @@
 NCBI = 'https://ftp.ncbi.nlm.nih.gov'
 
 Contaminant_Accessions = {
-    "phiX": [NCBI + '/genomes/all/GCF/000/819/615/' +
-    'GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz']
+    "phiX": [f'{NCBI}/genomes/all/GCF/000/819/615/' +
+             'GCF_000819615.1_ViralProj14015/' +
+             'GCF_000819615.1_ViralProj14015_genomic.fna.gz']
 }
 
 
 DB_Links = {
-    'UniVec': [NCBI+'/pub/UniVec/UniVec'],
-    'CONTAM_EUKS': [NCBI + '/pub/kitts/contam_in_euks.fa.gz'],
-    'CONTAM_PROKS': [NCBI + '/pub/kitts/contam_in_prok.fa'],
-    'MITO': [NCBI + '/refseq/release/mitochondrion/' +
-             'mitochondrion.1.1.genomic.fna.gz',
-             NCBI + '/refseq/release/mitochondrion/' +
-             'mitochondrion.2.1.genomic.fna.gz'],
-    # 'sourmash': 'https://osf.io/9xdg2/download?version=1'
-    # can store multiple versions here
+    'UniVec': [f'{NCBI}/pub/UniVec/UniVec'],
+    'CONTAM_EUKS': [f'{NCBI}/pub/kitts/contam_in_euks.fa.gz'],
+    'CONTAM_PROKS': [f'{NCBI}/pub/kitts/contam_in_prok.fa'],
+    'MITO': [f'{NCBI}/refseq/release/mitochondrion/' +
+             'mitochondrion.1.1.genomic.fna.gz'],
     'sourmash_gbk': [{
-        'version': 2018,
+        'version': '2017.11.07',
         'filename': 'genbank-k31.lca.json.gz',
-        'url': 'https://osf.io/p9ezm/download'}],
+        'url': 'https://osf.io/4f8n3/download'}],
     'sourmash_gtdbrep': [{
         'version': 'rs207',
         'filename': 'gtdb-rs207-genomic-reps.dna.k31.lca.json.gz',
@@ -33,10 +30,10 @@ DB_Links = {
 }
 
 SeqDBs = {
-    'nucleotide': [NCBI + '/entrez/eutils/efetch.fcgi?' +
+    'nucleotide': [f'{NCBI}/entrez/eutils/efetch.fcgi?' +
                    'db=nucleotide&id=%s&rettype=fasta'],
     'nucleotide_ebi': 'https://www.ebi.ac.uk/ena/data/view/%s?display=fasta',
-    'nucleotide_ncbi': [NCBI + '/entrez/eutils/efetch.fcgi?' +
+    'nucleotide_ncbi': [f'{NCBI}/entrez/eutils/efetch.fcgi?' +
                         'db=nucleotide&id=%s&rettype=fasta'],
 }
 
