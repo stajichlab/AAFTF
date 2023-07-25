@@ -1,9 +1,7 @@
 #!/bin/bash -l
 #SBATCH -N 1 -n 24 --mem 32gb --out test_megahit.%A.log
-conda activate /scratch/jstajich/3185183/test_AAFTF
-module load fastp
-module load BBMap
-module load megahit
+
+module load AAFTF
 MEM=32
 OUTDIR=test_megahit
 PREFIX=Rant
