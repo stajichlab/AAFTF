@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib
 import uuid
 
 from Bio import SeqIO
@@ -33,22 +34,24 @@ def run(parser, args):
     if args.right:
         revReads = os.path.abspath(args.right)
     if not forReads:
-        status('Unable to located FASTQ raw reads, low coverage will be skipped. Provide -l,--left or -r,--right to enable low coverage filtering.')
+        status('Unable to located FASTQ raw reads, low coverage will be skipped. Provide -l,--left (and if paired -r,--right) to enable low coverage filtering.')
         # sys.exit(1)
 
     # parse database locations
     if not args.sourdb:
-        dbfile="genbank-k31.lca.json.gz"  # old default
-
+        dbindex = 'sourmash_genbank'
         if args.sourdb_type.lower() == "gtdb":
-            dbfile = DB_Links['sourmash_gtdb'][0]['filename']
+            dbindex = 'sourmash_gtdb'
         elif args.sourdb_type.lower() == "gtdbrep" or args.sourdb_type.lower() == "gtdb_rep":
-            dbfile = DB_Links['sourmash_gtdbrep'][0]['filename']
+            dbindex = 'sourmash_gtdbrep'
         elif args.sourdb_type.lower() == "gbk" or args.sourdb_type.lower() == "genbank":
-            dbfile = DB_Links['sourmash_gbk'][0]['filename']
+            dbindex = 'sourmash_gbk'
         else:
             status("Unknown sourdb_type value {:} use one of {}".format(args.sourdb_type, ['gtdb','gtdbrep','gbk']))
             sys.exit(1)
+
+        dburl = DB_Links[dbindex][0]['url']
+        dbfile = DB_Links[dbindex][0]['filename']
 
         try:
             DB = os.environ["AAFTF_DB"]
@@ -60,7 +63,14 @@ def run(parser, args):
                 sys.exit(1)
         SOUR = os.path.join(DB, dbfile)
         if not os.path.isfile(SOUR):
-            status(f"{SOUR} sourmash database not found, downloadxxxxxxxxxxxxxxxxxxxxxxxxxxx and rename to {args.AAFTF_DB}/{dbfile}")
+            try:
+                status(f"{SOUR} sourmash database not found, downloading from {dburl} and renaming to {args.AAFTF_DB}/{dbfile}")
+                urllib.request.urlretrieve(dburl, SOUR)
+            except urllib.error.HTTPError as error:
+                status(f"Error downloading from {dburl}: {error}")
+                sys.exit(1)
+        if not os.path.isfile(SOUR):
+            status(f"{SOUR} sourmash database download of {dburl} failed. Manually download and rename to {args.AAFTF_DB}/{dbfile}")
             sys.exit(1)
     else:
         SOUR = os.path.abspath(args.sourdb)
@@ -79,7 +89,7 @@ def run(parser, args):
     status('Running SourMash to get taxonomy classification for each contig')
     sour_sketch = os.path.basename(assembly_working)+'.sig'
 
-    sour_compute = ['sourmash', 'compute', '-k', '31', '--scaled=1000',
+    sour_compute = ['sourmash', 'compute', '-k', args.kmer, '--scaled=1000',
                    '--singleton', assembly_working]
     printCMD(sour_compute)
     subprocess.run(sour_compute, cwd=args.workdir, stderr=DEVNULL)
@@ -96,8 +106,8 @@ def run(parser, args):
                 continue
             line = line.strip()
             cols = line.split(',')
-            if 'found' in cols:
-                idx = cols.index('found')
+            if 'found' in cols[1]:
+                idx = 1
                 Taxonomy[cols[0]] = cols[idx+1:]
                 taxClean = [x for x in cols[idx+1:] if x]
                 UniqueTax.append('{:}'.format(';'.join(taxClean)))
@@ -113,7 +123,7 @@ def run(parser, args):
     for k,v in Taxonomy.items():
         v = [x for x in v if x] #remove empty items from list
         if args.debug:
-            print(f'{k}\t{v}')
+            status(f'{k}\t{v}')
         if len(v) > 0:
             if not any(i in v for i in args.phylum):
                 Tax2Drop.append(k)
