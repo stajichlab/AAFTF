@@ -667,7 +667,7 @@ def main():
     # -p / --prefix: datafile prefix and temp/output file prefix
     # -l / --left: left read of pair
     # -r / --right: right read of pair
-    # -c / --cpus: number of cpus
+    # -k / --kmer: kmer size when running sourmash (needs to match db), default '31'
     # --sourdb_type gtdb gtdbrep gbk
     # --tmpdir
     # --phylum: phylum to keep
@@ -706,7 +706,11 @@ def main():
 
     parser_sour.add_argument(
         '--sourdb', required=False,
-        help="SourMash LCA k-31 taxonomy database")
+        help="SourMash LCA taxonomy database (defaults to k-31)")
+
+    parser_sour.add_argument(
+        '-k', '--kmer', required=False, default='31',
+        help="SourMash LCA kmersize when taxonomy database was built")
 
     parser_sour.add_argument(
         '-mc', '--mincovpct',
@@ -730,9 +734,8 @@ def main():
 
     parser_sour.add_argument(
         '--sourdb_type', default="gbk",
-        required=False,
-        help="Which sourpurge database to use? " +
-        "Values are gbk, gtdb, gtdbrep")
+        required=False, choices=['gbk', 'gtdbrep', 'gtdb'],
+        help="Which sourpurge database to use.")
 
     parser_sour.add_argument(
         '--AAFTF_DB', type=str,
