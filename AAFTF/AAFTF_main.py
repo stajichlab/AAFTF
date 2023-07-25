@@ -113,6 +113,7 @@ def main():
 
     parser_trim = subparsers.add_parser(
         'trim',
+        aliases=['trim_reads', 'read_trim'],
         description="This command trims reads in FASTQ format to " +
         "remove low quality reads and trim adaptor sequences",
         help='Trim FASTQ input reads')
@@ -246,6 +247,7 @@ def main():
 
     parser_mito = subparsers.add_parser(
         'mito',
+        aliases=['mito_asm', 'mitochondria'],
         description="De novo assembly of mitochondrial genome using " +
         "NOVOplasty, takes PE Illumina adapter trimmed data.",
         help='De novo assembly of mitochondrial genome')
@@ -306,6 +308,7 @@ def main():
 
     parser_filter = subparsers.add_parser(
         'filter',
+        aliases=['filter_reads', 'read_filter'],
         description="Filter reads which match " +
         "contaminant databases such as phiX",
         help='Filter contaminanting reads')
@@ -381,6 +384,7 @@ def main():
 
     parser_asm = subparsers.add_parser(
         'assemble',
+        aliases=['asm', 'spades'],
         description="Run assembler on cleaned reads",
         help='Assemble reads')
 
@@ -471,6 +475,7 @@ def main():
 
     parser_vecscreen = subparsers.add_parser(
         'vecscreen',
+        aliases=['vectorscreen', 'vector_blast'],
         description="Screen contigs for vector and common contaminantion",
         help='BLASTN Vector and Contaminant Screening of contigs')
 
@@ -537,6 +542,7 @@ def main():
 
     parser_fcs_screen = subparsers.add_parser(
         'fcs_screen',
+        aliases=['ncbi_fcs', 'ncbi_fcs-screen'],
         description="Screen with NCBI fcs tool contigs for vector and common contaminantion",
         help='NCBI Foreign Contaminant Screening for Vector sequences in contigs')
 
@@ -608,6 +614,7 @@ def main():
 
     parser_fcsgx = subparsers.add_parser(
         'fcs_gx_purge',
+        aliases=['ncbi_fcs-gx', 'ncbi_fcs_gx', 'gx'],
         description="Purge contigs based on fcs_gx results",
         help='Purge contigs based on contamination search with fcs_gx')
 
@@ -675,6 +682,7 @@ def main():
 
     parser_sour = subparsers.add_parser(
         'sourpurge',
+        aliases=['purge'],
         description="Purge contigs based on sourmash results",
         help='Purge contigs based on sourmash results')
 
@@ -767,6 +775,7 @@ def main():
 
     parser_rmdup = subparsers.add_parser(
         'rmdup',
+        aliases=['dedup'],
         description="Remove duplicate contigs",
         help='Remove duplicate contigs')
     parser_rmdup.add_argument(
@@ -847,7 +856,8 @@ def main():
 
     parser_polish = subparsers.add_parser(
         'polish',
-        description="Polish contig sequences with Pilon, POLCA, NextPolish, racon",
+        aliases=['pilon', 'polca'],
+        description="Polish contig sequences with Pilon, POLCA, NextPolish",
         help='Polish contig sequences with short reads')
 
     parser_polish.add_argument('-o', '--out', '--outfile',
@@ -963,6 +973,7 @@ def main():
 
     parser_assess = subparsers.add_parser(
         'assess',
+        aliases=['stats'],
         description="Assess completeness of genome assembly",
         help='Assess completeness of genome assembly')
 
