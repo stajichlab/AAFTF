@@ -15,18 +15,26 @@ DB_Links = {
     'CONTAM_PROKS': [f'{NCBI}/pub/kitts/contam_in_prok.fa'],
     'MITO': [f'{NCBI}/refseq/release/mitochondrion/' +
              'mitochondrion.1.1.genomic.fna.gz'],
-    'sourmash_gbk': [{
-        'version': '2017.11.07',
-        'filename': 'genbank-k31.lca.json.gz',
-        'url': 'https://osf.io/4f8n3/download'}],
-    'sourmash_gtdbrep': [{
-        'version': 'rs207',
-        'filename': 'gtdb-rs207-genomic-reps.dna.k31.lca.json.gz',
-        'url':      'https://osf.io/p9ezm/download'}],
-    'sourmash_gtdb': [{
-        'version': 'rs207',
-        'filename': 'gtdb-rs207.genomic.k31.lca.json.gz',
-        'url':      'https://osf.io/tf3ah/download'}]
+    'sourmash_gbk': [
+        {'version': '2017.11.07',
+         'filename': 'genbank-k31.lca.json.gz',
+         'url': 'https://osf.io/4f8n3/download'}],
+    # first in list is default, will fix someday to allow choosing the version
+    'sourmash_gtdbrep': [
+        {'version': 'rs214',
+         'filename': 'tdb-rs214-reps.k31.lca.json.gz',
+         'url': 'https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs214/gtdb-rs214-reps.k31.lca.json.gz'},  # noqa: E501
+        {'version': 'rs207',
+         'filename': 'gtdb-rs207-genomic-reps.dna.k31.lca.json.gz',
+         'url': 'https://osf.io/p9ezm/download'}],
+    # first in list is default, will fix someday to allow choosing the version
+    'sourmash_gtdb': [
+        {'version': 'rs214',
+         'filename': 'gtdb-rs214-k31.lca.json.gz',
+         'url': 'https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs214/gtdb-rs214-k31.lca.json.gz'},  # noqa: E501
+        {'version': 'rs207',
+         'filename': 'gtdb-rs207.genomic.k31.lca.json.gz',
+         'url': 'https://osf.io/tf3ah/download'}],
 }
 
 SeqDBs = {
@@ -53,5 +61,5 @@ FCSADAPTOR = {
     'SIF': 'fcs-adaptor.sif',
     'SIFLOCAL': 'fcs-adaptor.%s.sif',
     'SIFURL': 'https://ftp.ncbi.nlm.nih.gov/genomes/TOOLS/FCS/releases/',
-    'EXEURL': 'https://raw.githubusercontent.com/ncbi/fcs/v%s/dist/run_fcsadaptor.sh',
+    'EXEURL': 'https://raw.githubusercontent.com/ncbi/fcs/v%s/dist/run_fcsadaptor.sh',  # noqa: E501
 }
