@@ -1,0 +1,11 @@
+*** /opt/linux/centos/8.x/x86_64/pkgs/masurca/4.1.0/bin/polca.sh	2023-06-01 22:10:46.192450000 -0700
+--- /opt/linux/centos/8.x/x86_64/pkgs/AAFTF/0.5.0/bin/polca.sh	2023-07-25 18:50:51.627676888 -0700
+*************** if [ ! -e $BASM.sort.success ];then
+*** 136 ****
+!   $SAMTOOLS sort -m $MEM -@ $NUM_THREADS <(samtools view -uhS $BASM.unSorted.sam) $BASM.alignSorted 2>>samtools.err && \
+--- 136 ----
+!   $SAMTOOLS sort -m $MEM -T $BASM -@ $NUM_THREADS $BASM.unSorted.sam -o $BASM.alignSorted.bam 2>>samtools.err && \
+*************** if [ ! -e $BASM.sort.success ];then
+*** 139 ****
+--- 140 ----
++
