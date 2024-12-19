@@ -24,21 +24,21 @@ Most of these can be installed via conda packages. Noting that some tools have d
 
 
 ## Assembly Contamination screening support
-- sourmash (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
+- [sourmash](https://pubmed.ncbi.nlm.nih.gov/31508216/) (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
 - NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST
-- ncbi-fcs (for vector screening)
-- ncbi-fcs-gx (for contaminant filtering, alternative to sourmash)
+- [ncbi-fcs](https://pubmed.ncbi.nlm.nih.gov/38409096/) (for vector screening) - https://github.com/ncbi/fcs/
+- [ncbi-fcs-gx](https://pubmed.ncbi.nlm.nih.gov/38409096/) (for contaminant filtering, alternative to sourmash, requires large memory or SSD drive) [https://github.com/ncbi/fcs/](https://github.com/ncbi/fcs-gx)
 
 
 ## Assembly polishing
-- Pilon - https://github.com/broadinstitute/pilon/wiki
-- Masurca - https://github.com/alekseyzimin/masurca (for polca.sh polishing)
-- NextPolish - https://github.com/Nextomics/NextPolish
+- [polca](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007981) (from MaSuRCA) - https://github.com/alekseyzimin/masurca (polca.sh polishing)
+- [Pilon](https://pubmed.ncbi.nlm.nih.gov/25409509/) - https://github.com/broadinstitute/pilon/wiki
+- [NextPolish](https://pubmed.ncbi.nlm.nih.gov/31778144/) - https://github.com/Nextomics/NextPolish
 
 
 # Authors
-* Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org
-* Jon Palmer [@nextgenusfs](https://github.com/nextgenusfs) - https://twitter.com/jonpalmer2013
+* Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org, [@hyphaltip.bsky](https://bsky.app/profile/hyphaltip.bsky.social)
+* Jon Palmer [@nextgenusfs](https://github.com/nextgenusfs) - [@jonpalmer.bsky](https://bsky.app/profile/jonpalmer.bsky.social)
 
 # Citation 
 Palmer JM and Stajich JE. (2023). Automatic assembly for the fungi (AAFTF): genome assembly pipeline (v0.5.0). Zenodo. doi: 10.5281/zenodo.1620526 
@@ -49,7 +49,7 @@ Currently you could create conda environment and install like this:
 
 ```
 conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
-    blast minimap2 spades megahit novoplasty biopython fastp
+    blast minimap2 spades megahit novoplasty biopython fastp masurca
 ```
 And then install this repo with git/pip:
 
@@ -66,6 +66,8 @@ $ mkdir -p ~/lib/AAFTF_DB # or make a place that is systemwide
 $ export AAFTF_DB=~/lib/AAFTF_DB
 # fill in download procedure / add to AAFTF
 ```
+
+To run ncbi-fcs or ncbi-fcs-gx in AAFTF through singularit will need to have that installed in system or environment.
 
 Notes
 ===========
