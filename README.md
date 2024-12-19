@@ -40,6 +40,9 @@ Most of these can be installed via conda packages. Noting that some tools have d
 * Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org
 * Jon Palmer [@nextgenusfs](https://github.com/nextgenusfs) - https://twitter.com/jonpalmer2013
 
+# Citation 
+Palmer JM and Stajich JE. (2023). Automatic assembly for the fungi (AAFTF): genome assembly pipeline (v0.5.0). Zenodo. doi: 10.5281/zenodo.1620526 
+
 # Install
 We are working on simplifying the install, ie getting on Pypi and bioconda.
 Currently you could create conda environment and install like this:
