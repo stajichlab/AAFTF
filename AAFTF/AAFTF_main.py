@@ -633,9 +633,9 @@ def main():
         required=False, help="Prefix for tempfiles")
 
     parser_fcsgx.add_argument(
-        '-t', '--taxid',
+        '-t', '--taxid', type=int,
         required=False, default=4890,
-        help="NCBI Taxonomy ID for contamaination matches, i.e. Ascomycota")
+        help="NCBI Taxonomy ID for contamaination matches, i.e. 4890 for Ascomycota")
 
     parser_fcsgx.add_argument(
         '-d', '--db', required=False, default='/my_tmpfs/gxdb/all',
