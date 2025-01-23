@@ -35,7 +35,7 @@ def run(parser, args):
 
     #python scripts/run_gx.py --bin-dir dist --gx-db /sw/db/gxdb --tax-id 4842 --fasta
 
-    fcsgx_compute = ['run_gx.py', '--fasta', args.input, '--tax-id', args.taxid,
+    fcsgx_compute = ['run_gx.py', '--fasta', args.input, '--tax-id', f'{args.taxid}', # taxid is a numeric
                     '--gx-db', args.db, '--out-dir', args.workdir]
     printCMD(fcsgx_compute)
     fcs_log = "fcs_gx.log"
