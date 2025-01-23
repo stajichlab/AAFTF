@@ -33,6 +33,9 @@ Most of these can be installed via conda packages. Noting that some tools have d
 ## Assembly polishing
 - Pilon - https://github.com/broadinstitute/pilon/wiki
 - Masurca - https://github.com/alekseyzimin/masurca (for polca.sh polishing)
+   * note that the polca use of samtools supports an old version and will not work with version of samtools installed by default
+     To fix this apply the patch in patches/polca.patch to fix your local version or copy patches/polca.sh to replace version installed
+     in your environment or system.
 - NextPolish - https://github.com/Nextomics/NextPolish
 
 
