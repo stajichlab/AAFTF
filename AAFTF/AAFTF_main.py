@@ -390,9 +390,9 @@ def main():
 
     parser_asm.add_argument(
         '--method', type=str,
-        choices=['spades', 'dipspades', 'megahit', 'masurca', 'nextdenovo'],
-        required=False, default="spades",
-        help="Assembly method: spades, dipspades, megahit, nextdenovo, masurca")
+        choices=['spades', 'dipspades', 'megahit', 'unicycler'],
+        required=False, default="unicycler",
+        help="Assembly method: spades, dipspades, megahit, unicycler. Default: unicycler")
 
     parser_asm.add_argument(
         '-o', '--out', type=str,
@@ -423,22 +423,26 @@ def main():
                             help="Right (Reverse) reads")
     parser_asm.add_argument('-lr', '--longreads', required=False,
                             help="Long Read fastq (pacbio or ONT)")
-    parser_asm.add_argument('--merged', required=False,
-                            help="Merged reads from flash or fastp")
+    parser_asm.add_argument('--single', '--merged', required=False, dest='merged',
+                            help="Merged reads from flash or fastp or just single end reads")
 
     parser_asm.add_argument('--careful', required=False,
                             action='store_true', default=True,
-                            help="Run --careful mode in spades (Default)")
+                            help="Run --careful mode in spades (Default)", dest='careful')
 
     parser_asm.add_argument('--no-careful', required=False,
                             action='store_false',
                             default=True,
                             dest='careful')
 
+    parser_asm.add_argument('--isolate', required=False,
+                            action='store_true', dest='isolate',
+                            help="Run in isolate mode (default)")
+
     parser_asm.add_argument(
-        '--isolate', required=False,
-        action='store_true',
-        help="Run --isolate mode not --careful mode in spades")
+        '--no-isolate', required=False,
+        action='store_false', dest='isolate',
+        help="Don't run --isolate mode")
 
     parser_asm.add_argument('-v', '--debug',
                             action='store_true',

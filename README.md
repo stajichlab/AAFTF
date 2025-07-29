@@ -52,7 +52,7 @@ Currently you could create conda environment and install like this:
 
 ```
 conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
-    blast minimap2 spades megahit novoplasty biopython fastp masurca
+    blast minimap2 spades megahit novoplasty biopython fastp masurca unicycler
 ```
 And then install this repo with git/pip:
 
@@ -70,7 +70,7 @@ $ export AAFTF_DB=~/lib/AAFTF_DB
 # fill in download procedure / add to AAFTF
 ```
 
-To run ncbi-fcs or ncbi-fcs-gx in AAFTF through singularit will need to have that installed in system or environment.
+To run ncbi-fcs or ncbi-fcs-gx in AAFTF through singularity will need to have that installed in system or environment.
 
 Notes
 ===========

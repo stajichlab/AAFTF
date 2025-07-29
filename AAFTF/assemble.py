@@ -20,8 +20,8 @@ def run_spades(parser, args):
     if not args.workdir:
         args.workdir = 'spades_'+str(uuid.uuid4())[:8]
 
-    runcmd = ['spades.py', '--threads', str(args.cpus), '--mem', args.memory,
-              '-o', args.workdir]
+    runcmd = ['spades.py', '--threads', str(args.cpus),
+              '--mem', args.memory, '-o', args.workdir]
 
     if args.isolate:
         runcmd.extend(['--isolate'])
@@ -166,9 +166,10 @@ def run_dipspades(parser, args):
         numSeqs, assemblySize = fastastats(finalOut)
         status(f'Assembly is {numSeqs:,} scaffolds and {assemblySize:,} bp')
     else:
-        status('Spades assembly output missing -- check Dipspades logfile in {:}.'.format(os.path.join(args.workdir,
-                                                                                                       'dipspades',
-                                                                                                       'dipspades.log')))
+        status('Spades assembly output missing -- '
+               'check Dipspades logfile in {:}.'.format(os.path.join(args.workdir,
+                                                                     'dipspades',
+                                                                     'dipspades.log')))
 
     if not args.pipe:
         status(f'Your next command might be:\n\tAAFTF vecscreen -i {finalOut} -c {args.cpus}\n')
@@ -239,6 +240,78 @@ def run_megahit(parser, args):
         status(f'Your next command might be:\n\tAAFTF vecscreen -i {finalOut} -c {args.cpus}\n')
 
 
+def run_unicycler(parser, args):
+    """Run Unicycler assembhler."""
+    if not args.workdir:
+        args.workdir = 'unicycler_'+str(uuid.uuid4())[:8]
+
+    runcmd = ['unicycler', '--threads', str(args.cpus),
+              '-o', args.workdir]
+
+    # if args.memory:
+    #    runcmd.extend(['--spades_options', f'-m {args.memory}'])
+
+    # find reads -- use --left/right or look for cleaned in tmpdir
+    forReads, revReads = (None,)*2
+    if args.left:
+        forReads = os.path.abspath(args.left)
+    if args.right:
+        revReads = os.path.abspath(args.right)
+    if not forReads:
+        status('Unable to located FASTQ raw reads, provide --left')
+        sys.exit(1)
+
+    if args.longreads:
+        runcmd.extend(['--long', args.longreads])
+
+    if not revReads:
+        runcmd.extend(['--unpaired', forReads])
+    elif args.merged:
+        runcmd.extend(['--unpaired', args.merged])
+    else:
+        runcmd.extend(['--short1', forReads, '--short2', revReads])
+        if args.merged:
+            runcmd.extend(['--unpaired', args.merged])
+
+    # not supporting restarting a run
+    # this basically overrides everything above and only runs --restart-from option
+    #    if os.path.isdir(args.workdir):
+    #    runcmd = ['unicycler', '-o', args.workdir,
+    #            '--threads', str(args.cpus),
+    #            '--mem', args.memory,
+    #            '--restart-from last']
+
+    # now run the spades job
+    status('Assembling FASTQ data using Unicycler')
+    printCMD(runcmd)
+    DEVNULL = open(os.devnull, 'w')
+    if args.debug:
+        subprocess.run(runcmd)
+    else:
+        subprocess.run(runcmd, stdout=DEVNULL, stderr=DEVNULL)
+
+    # pull out assembly
+    if args.out:
+        finalOut = args.out
+    else:
+        prefix = os.basename(forReads)
+        m = re.search(r'(\S+)\.(fastq|fq)(\.\S+)?', prefix)
+        if m:
+            prefix = m.group(1)
+        finalOut = prefix+'.unicycler.fasta'
+
+    if os.path.isfile(os.path.join(args.workdir, 'assembly.fasta')):
+        shutil.copyfile(os.path.join(args.workdir, 'assembly.fasta'), finalOut)
+        status(f'Unicycler assembly finished: {finalOut}')
+        numSeqs, assemblySize = fastastats(finalOut)
+        status(f'Assembly is {numSeqs:,} scaffolds and {assemblySize:,} bp')
+    else:
+        status('Unicycler assembly output missing -- check Unicycler logfile.')
+
+    if not args.pipe:
+        status(f'Your next command might be:\n\tAAFTF vecscreen -i {finalOut} -c {args.cpus}\n')
+
+
 def run(parser, args):
     """General run command for this subcommand module where parameters are consumed."""
     if args.method == "spades":
@@ -247,5 +320,11 @@ def run(parser, args):
         run_dipspades(parser, args)
     elif args.method == "megahit":
         run_megahit(parser, args)
+    elif args.method == "masurca":
+        status("Masurca assembly is not yet implemented in AAFTF")
+    elif args.method == "nextdenovo":
+        status("NextDenovo assembly is not yet implemented in AAFTF")
+    elif args.method == "unicycler":
+        run_unicycler(parser, args)
     else:
         status(f"Unknown assembler method {args.method}")
