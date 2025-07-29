@@ -3,7 +3,7 @@ Release notes for AAFTF
 
 # Automatic Assembly For The Fungi
 * v0.6.0
-  1. add unicycler support, make it the default for assemble step
+  1. add unicycler support
 
 * v0.5.0
   1. fcs NCBI tool supported with docker/singularity run

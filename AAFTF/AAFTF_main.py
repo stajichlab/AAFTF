@@ -391,7 +391,7 @@ def main():
     parser_asm.add_argument(
         '--method', type=str,
         choices=['spades', 'dipspades', 'megahit', 'unicycler'],
-        required=False, default="unicycler",
+        required=False, default="spades",
         help="Assembly method: spades, dipspades, megahit, unicycler. Default: unicycler")
 
     parser_asm.add_argument(
