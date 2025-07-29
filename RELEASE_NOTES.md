@@ -2,6 +2,16 @@ Release notes for AAFTF
 =======================
 
 # Automatic Assembly For The Fungi
+* v0.6.0
+  1. add unicycler support, make it the default for assemble step
+
+* v0.5.0
+  1. fcs NCBI tool supported with docker/singularity run
+  2. fcs_gx from NCBI supported with docker/singularity - this is perhaps more accurate than sourpurge in many cases
+  3. renamed pilon to polish step, defaults to POLCA now (but pilon can still be used)
+  4.
+* v0.4.1
+  1. Some bug fixes related to URLs
 * v0.4.0
   1. linted code better with flake8
   2. Support gzipped assembly files in assess
