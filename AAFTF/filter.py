@@ -6,11 +6,14 @@ tools. See resources.py for these defaults.
 
 import gzip
 import os
+import re
 import shutil
 import subprocess
 import sys
 import urllib.request
 import uuid
+
+from packaging.version import Version
 
 from AAFTF.resources import Contaminant_Accessions, DB_Links, SeqDBs
 from AAFTF.utility import (SafeRemove, bam_read_count, countfastq, getRAM,
@@ -150,6 +153,12 @@ def run(parser, args):
 
     # logger.info('Loading {:,} FASTQ reads'.format(countfastq(forReads)))
     DEVNULL = open(os.devnull, 'w')
+
+    samtoolsversion = ""
+    result = subprocess.run(["samtools"], capture_output=True, text=True)
+    m = re.search(r'Version:\s+(\S+)',result.stderr)
+    if m:
+        samtoolsversion = Version(m.group(1))
     alignBAM = os.path.join(args.workdir, args.basename+'_contam_db.bam')
     clean_reads = args.basename + "_filtered"
     refmatch_bbduk = [contamdb, 'phix', 'artifacts', 'lambda']
@@ -225,14 +234,26 @@ def run(parser, args):
 
             # now run and write to BAM sorted
             printCMD(bowtie_cmd)
+
             p1 = subprocess.Popen(
                 bowtie_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
-                                   '-o', os.path.basename(alignBAM), '-'],
-                                  cwd=args.workdir, stdout=subprocess.PIPE,
-                                  stderr=DEVNULL, stdin=p1.stdout)
-            p1.stdout.close()
-            p2.communicate()
+            if samtoolsversion >= Version("1.0"):
+                p2 = subprocess.Popen(['samtools', 'view',
+                                '-bS', '-o', tempfiles[3], '-'], cwd=args.workdir,
+                                stdout=subprocess.PIPE, stderr=DEVNULL,
+                                stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+            else:
+                p2 = subprocess.Popen(['samtools', 'view',
+                                '-bS', '-o', 'unsorted.bam', '-'], cwd=args.workdir,
+                                stdout=subprocess.PIPE, stderr=DEVNULL,
+                                stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+                subprocess.run(['samtools', 'sort', '-@', str(bamthreads),
+                                '-f', 'unsorted.bam', os.path.basename(alignBAM)],
+                                cwd=args.workdir)
 
     elif args.aligner == 'bwa':
         # likely less accurate than bbduk so may not be used
@@ -246,20 +267,31 @@ def run(parser, args):
                 subprocess.run(bwa_index, stderr=DEVNULL, stdout=DEVNULL)
 
             bwa_cmd = ['bwa', 'mem', '-t',
-                       str(args.cpus), os.path.basename(contamdb), forReads]
+                    str(args.cpus), os.path.basename(contamdb), forReads]
             if revReads:
                 bwa_cmd.append(revReads)
 
             # now run and write to BAM sorted
             printCMD(bwa_cmd)
             p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
-                                  stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
-                                   '-o', os.path.basename(alignBAM), '-'],
-                                  cwd=args.workdir, stdout=subprocess.PIPE,
-                                  stderr=DEVNULL, stdin=p1.stdout)
-            p1.stdout.close()
-            p2.communicate()
+                                stdout=subprocess.PIPE, stderr=DEVNULL)
+            if samtoolsversion >= Version("1.0"):
+                p2 = subprocess.Popen(['samtools', 'view',
+                                '-bS', '-o', tempfiles[3], '-'], cwd=args.workdir,
+                                stdout=subprocess.PIPE, stderr=DEVNULL,
+                                stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+            else:
+                p2 = subprocess.Popen(['samtools', 'view',
+                                '-bS', '-o', 'unsorted.bam', '-'], cwd=args.workdir,
+                                stdout=subprocess.PIPE, stderr=DEVNULL,
+                                stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+                subprocess.run(['samtools', 'sort', '-@', str(bamthreads),
+                                '-f', 'unsorted.bam', os.path.basename(alignBAM)],
+                                cwd=args.workdir)
 
     elif args.aligner == 'minimap2':
         # likely not used but may be useful for pacbio/nanopore?
@@ -275,12 +307,23 @@ def run(parser, args):
             printCMD(minimap2_cmd)
             p1 = subprocess.Popen(
                 minimap2_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-            p2 = subprocess.Popen(['samtools', 'sort', '-@', str(bamthreads),
-                                   '-o', os.path.basename(alignBAM), '-'],
-                                  cwd=args.workdir, stdout=subprocess.PIPE,
-                                  stderr=DEVNULL, stdin=p1.stdout)
-            p1.stdout.close()
-            p2.communicate()
+            if samtoolsversion >= Version("1.0"):
+                p2 = subprocess.Popen(['samtools', 'view',
+                                '-bS', '-o', tempfiles[3], '-'], cwd=args.workdir,
+                                stdout=subprocess.PIPE, stderr=DEVNULL,
+                                stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+            else:
+                p2 = subprocess.Popen(['samtools', 'view',
+                                '-bS', '-o', 'unsorted.bam', '-'], cwd=args.workdir,
+                                stdout=subprocess.PIPE, stderr=DEVNULL,
+                                stdin=p1.stdout)
+                p1.stdout.close()
+                p2.communicate()
+                subprocess.run(['samtools', 'sort', '-@', str(bamthreads),
+                                '-f', 'unsorted.bam', os.path.basename(alignBAM)],
+                                cwd=args.workdir)
     else:
         status("Must specify bowtie2, bwa, or minimap2 for filtering")
 
