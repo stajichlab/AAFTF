@@ -1,5 +1,6 @@
 """Run the sourmash fast matching kmer tool to look for obvious contaminants."""
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -7,6 +8,7 @@ import urllib
 import uuid
 
 from Bio import SeqIO
+from packaging.version import Version
 
 from AAFTF.resources import DB_Links
 from AAFTF.utility import (SafeRemove, calcN50, checkfile, execute, fastastats,
@@ -90,7 +92,7 @@ def run(parser, args):
     sour_sketch = os.path.basename(assembly_working)+'.sig'
 
     sour_compute = ['sourmash', 'compute', '-k', args.kmer, '--scaled=1000',
-                   '--singleton', assembly_working]
+                    '--singleton', assembly_working]
     printCMD(sour_compute)
     subprocess.run(sour_compute, cwd=args.workdir, stderr=DEVNULL)
     sour_classify = ['sourmash', 'lca', 'classify', '--db', SOUR,'--query', sour_sketch]
@@ -156,17 +158,36 @@ def run(parser, args):
                 bwa_cmd.append(revReads)
 
                 #run BWA and pipe to samtools sort
+                result = subprocess.run(["samtools"], capture_output=True, text=True)
+                m = re.search(r'Version:\s+(\S+)',result.stderr)
+                if m:
+                    samtoolsversion = Version(m.group(1))
+                status(f"samtools version: {samtoolsversion}")
                 status('Aligning reads to assembly with BWA')
                 printCMD(bwa_cmd)
                 p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir,
-                                      stdout=subprocess.PIPE, stderr=DEVNULL)
-                p2 = subprocess.Popen(['samtools', 'sort',
-                                       '--threads', str(bamthreads),
-                                       '-o', blobBAM, '-'], cwd=args.workdir,
-                                      stdout=subprocess.PIPE, stderr=DEVNULL,
-                                      stdin=p1.stdout)
-                p1.stdout.close()
-                p2.communicate()
+                                    stdout=subprocess.PIPE, stderr=DEVNULL)
+
+                # this needs samtools > 1.0
+                # we need to do some checks on the version number and swap this out to other cmd if it isn't
+                if samtoolsversion < Version("1.0"):
+                    unsortBAM='unsorted.bam'
+                    p2 = subprocess.Popen(['samtools', 'view',
+                                        '-bS', '-o', unsortBAM, '-'], cwd=args.workdir,
+                                        stdout=subprocess.PIPE, stderr=DEVNULL,
+                                        stdin=p1.stdout)
+                    p1.stdout.close()
+                    p2.communicate()
+                    subprocess.run(['samtools', 'sort', '-@', str(bamthreads), '-f', unsortBAM, blobBAM], cwd=args.workdir)
+                else:
+                    p2 = subprocess.Popen(['samtools', 'sort',
+                                        '--threads', str(bamthreads),
+                                        '-o', blobBAM, '-'], cwd=args.workdir,
+                                        stdout=subprocess.PIPE, stderr=DEVNULL,
+                                        stdin=p1.stdout)
+                    p1.stdout.close()
+                    p2.communicate()
+
                 subprocess.run(['samtools', 'index', blobBAM], cwd=args.workdir)
 
         #now calculate coverage from BAM file
