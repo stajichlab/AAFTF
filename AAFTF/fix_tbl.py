@@ -67,14 +67,15 @@ def parse_adjustments(adj_file_handle):
         try:
             original_length = int(row[1])
             action = row[2]
-            range = row[3]
-            m = re.match(r'(\d+)\.\.(\d+)', range)
-            if m:
-                trim_start, trim_end = m.groups()
-            if seqid not in adjustments:
-                adjustments[seqid] = []
-            adjustments[seqid].append([int(original_length), action,
-                                       int(trim_start), int(trim_end)])
+            for range in row[3].split(','):
+                m = re.match(r'(\d+)\.\.(\d+)', range)
+                if m:
+                    trim_start, trim_end = m.groups()
+                    if seqid not in adjustments:
+                        adjustments[seqid] = []
+                    adjustments[seqid].append([int(original_length),
+                                               action,
+                                               int(trim_start), int(trim_end)])
         except ValueError:
             status(f'Skipping line: {row}')
             continue
@@ -116,11 +117,14 @@ def fix_tbl(tbl_fh, adjustment_fh, output_handle):
                     fstart -= adj["trim_left"]
                     if fstart < 1:
                         fstart = 1
+                    fend -= adj["trim_left"]
+                    if fend < 1:
+                        fend = 1
                     fstart = f'{modstart}{fstart}'
-                    fend = f'{fend - adj["trim_left"]}{modend}'
+                    fend = f'{modend}{fend}'
                     feature[0] = fstart
                     feature[1] = fend
-                elif 'trim_right' in adj:
+                if 'trim_right' in adj:
                     fstart = int(feature[0].lstrip('<>'))
                     fend = int(feature[1].lstrip('<>'))
                     if (fstart >= adj['trim_right'] or fend >= adj['trim_right']):
