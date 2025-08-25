@@ -21,8 +21,8 @@ authors:
 license: MIT
 repository-code: https://github.com/stajichlab/AAFTF
 abstract: This is a tool for running automated genome assembly from short-reads to polished, cleaned, sorted assembly files.
-version: 0.5.0
+version: 0.6.0
 identifiers:
   - type: doi
     value: 10.5281/zenodo.1620526
-date-released: 2023-03-15
+date-released: 2025-08-01

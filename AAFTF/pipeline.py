@@ -148,6 +148,7 @@ def run(parser, args):
             sourDict['right'] = basename + '_filtered_2.fastq.gz'
         sourDict['input'] = basename + '.vecscreen.fasta'
         sourDict['outfile'] = basename + '.sourpurge.fasta'
+        sourDict['kmer'] = 31
         sourDict['taxonomy'] = False
         sourDict['pipe'] = True
         sourDict['sourdb_type'] = 'gbk'

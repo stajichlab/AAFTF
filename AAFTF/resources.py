@@ -57,7 +57,7 @@ Mitoseqs = {
 
 """NCBI Foreign Contaminant Screen tool links"""
 FCSADAPTOR = {
-    'VERSION': '0.4.0',
+    'VERSION': '0.5.5',
     'SIF': 'fcs-adaptor.sif',
     'SIFLOCAL': 'fcs-adaptor.%s.sif',
     'SIFURL': 'https://ftp.ncbi.nlm.nih.gov/genomes/TOOLS/FCS/releases/',

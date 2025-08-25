@@ -10,6 +10,7 @@ Most of these can be installed via conda packages. Noting that some tools have d
 - bwa - https://github.com/lh3/bwa
 - minimap2 - https://github.com/lh3/minimap2
 - bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
+- BBTools - bbmap
 
 ## QC and trimming
 - BBTools - https://jgi.doe.gov/data-and-tools/bbtools/ - supports read-level filtering for contamination and vector/primer
@@ -20,8 +21,8 @@ Most of these can be installed via conda packages. Noting that some tools have d
 - SPAdes - http://cab.spbu.ru/software/spades/
 - megahit - https://github.com/voutcn/megahit
 - dipspades - (SPAdes 3.11.1 - note it is not part of later SPAdes packages) http://cab.spbu.ru/files/release3.11.1/dipspades_manual.html
-- NOVOplasty - https://github.com/ndierckx/NOVOPlasty
-
+- NOVOplasty - https://github.com/ndierckx/NOVOPlasty for MT genome assembly
+- unicycler - https://github.com/rrwick/Unicycler (which runs spades)
 
 ## Assembly Contamination screening support
 - [sourmash](https://pubmed.ncbi.nlm.nih.gov/31508216/) (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
@@ -52,8 +53,15 @@ Currently you could create conda environment and install like this:
 
 ```
 conda create -n aaftf -c bioconda "python>=3.6" bbmap trimmomatic bowtie2 bwa pilon sourmash \
-    blast minimap2 spades megahit novoplasty biopython fastp masurca
+    blast minimap2 spades megahit novoplasty biopython fastp masurca unicycler
 ```
+A challenge has been older version of samtools tied to some of the dependencies while AAFTF prefers samtool >= 1.0.
+If you can install samtools >1.22.1 for example after installing these depenendicies or via a separate env that can help
+ensure the markduplicates step can still be run. However this is relatively minor.
+
+There is a slight performance improvement if you can run the later samtools as it does not require writing temp unsorted
+BAM files to disk.
+
 And then install this repo with git/pip:
 
 ```
@@ -70,7 +78,9 @@ $ export AAFTF_DB=~/lib/AAFTF_DB
 # fill in download procedure / add to AAFTF
 ```
 
-To run ncbi-fcs or ncbi-fcs-gx in AAFTF through singularit will need to have that installed in system or environment.
+To run ncbi-fcs or ncbi-fcs-gx in AAFTF through singularity will need to have that installed in system or environment.
+The fcs gx database will need to be downloaded and requires large memory machines.
+More instructions coming for simplicity of install/testing.
 
 Notes
 ===========

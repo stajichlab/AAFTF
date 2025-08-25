@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+## Added new features
+
+ - unicycler as assembler for short reads
+ - default spades mode is with --isolate (to turn off use --no-isolate --careful)
+ - add menu item 'fix' / 'fix_tbl' which supports updating NCBI tbl format after fcs screening (have to run the `fcs clean genome` command)
 ## 0.5.0
 
 ### Added new features
@@ -7,8 +14,8 @@
  - NCBI fcs screening added for vector screening
  - NCBI fcs_gx screening for contamination (requires fast SSD disk or large memory)
  - Improve sourpurge to support database downloading, 3 types supported now (genbank 2017 microbial freeze, gtdb, gtdb_rep). Default for gtdb is rs214 release.
- - pilon tool renamed to polish and supports pilon, polca (masurca tool), nextpolish. Racon not yet implemented for long read based polishing.
- - aliases for menu items (eg stats->assess; pilon->polisg; asm->assemble)
+ - pilon tool renamed to polish and supports pilon, polca (masurca tool) is default, nextpolish. Racon not yet implemented for long read based polishing.
+ - aliases for menu items (eg stats->assess; pilon->polish; asm->assemble)
 
 ### Bugs fixed
 

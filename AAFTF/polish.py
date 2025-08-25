@@ -5,10 +5,13 @@ through these versions and removing temporary BAM alignment files.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
 import uuid
+
+from packaging.version import Version
 
 from AAFTF.utility import SafeRemove, line_count, printCMD, status
 
@@ -20,9 +23,10 @@ def run(parser, args):  # noqa: C901
     polishMethod = args.method
     memperthread = int(args.memory / args.cpus)
     if memperthread == 0:
-        memperthread = "500K"
-    else:
-        memperthread = f"{memperthread}G"
+        # minimum should be 1Gb
+        memperthread = "1"
+
+    memperthread = f"{memperthread}G"
 
     forReads, revReads = (None,)*2
     if args.left:
@@ -99,6 +103,9 @@ def run(parser, args):  # noqa: C901
                 n_chg = line_count(os.path.join(args.workdir, correctedBase + '.changes'))
 
                 status(f'Found {n_chg:,} changes in Pilon iteration {i}')
+                if n_chg == 0:
+                    status(f'No changes found in Pilon iteration {i}, stopping')
+                    break
             elif method == "nextpolish":
                 if not nextPolishExe:
                     nextPolishmain = shutil.which('nextPolish')
@@ -168,7 +175,8 @@ def run(parser, args):  # noqa: C901
                     if os.path.isfile(f):
                         os.remove(f)
 
-        shutil.copyfile(os.path.join(args.workdir, 'polished' + str(args.iterations)+'.fasta'),
+        # iteration count is the i in the counter above
+        shutil.copyfile(os.path.join(args.workdir, 'polished' + str(i)+'.fasta'),
                         polishedFasta)
 
         status(f'AAFTF polish completed {args.iterations} iterations.')
@@ -223,11 +231,12 @@ def make_bwa_bam(inFasta, forReads, revReads,
     BAM = ASMpref + '.bwa.bam'
     if os.path.exists(os.path.join(workdir, BAM)):
         return BAM
-    tempfiles = [f'{ASMpref}.fixmate.bam', f'{ASMpref}.markdup.bam']
+    tempfiles = [f'{ASMpref}.fixmate.bam', f'{ASMpref}.markdup.bam', f'{ASMpref}.sort.bam', f'{ASMpref}.unsorted.bam']
     DEVNULL = open(os.devnull, 'w')
     bamthreads = 4
     if cpus < 4:
         bamthreads = cpus
+
     if not os.path.isfile(os.path.join(workdir, BAM)):
         bwa_index = ['bwa', 'index', ASMname]
         printCMD(bwa_index)
@@ -240,31 +249,60 @@ def make_bwa_bam(inFasta, forReads, revReads,
         printCMD(bwa_cmd)
         p1 = subprocess.Popen(bwa_cmd, cwd=workdir,
                               stdout=subprocess.PIPE, stderr=DEVNULL)
+        # get samtools version as this varies
+        samtoolsversion = ""
+        result = subprocess.run(["samtools"], capture_output=True, text=True)
+        m = re.search(r'Version:\s+(\S+)', result.stderr)
+        if m:
+            samtoolsversion = Version(m.group(1))
 
-        samtools_cmd = ['samtools', 'fixmate', '-O', 'bam,level=1', '-m', '-', tempfiles[0]]
-        printCMD(samtools_cmd)
-        p2 = subprocess.Popen(samtools_cmd, stdin=p1.stdout, cwd=workdir)
-        p1.stdout.close()
-        p2.communicate()
+        if samtoolsversion < Version("1.0"):
+            # run fix mate after creating BAM files from from bwa output with samtools < 1.0
+            p2 = subprocess.Popen(['samtools', 'view',
+                                   '-bS', '-o', tempfiles[3], '-'], cwd=workdir,
+                                  stdout=subprocess.PIPE, stderr=DEVNULL,
+                                  stdin=p1.stdout)
+            p1.stdout.close()
+            p2.communicate()
+            samtools_cmd = ['samtools', 'fixmate', '-r', tempfiles[3], tempfiles[0]]
+            subprocess.run(samtools_cmd, cwd=workdir, stderr=DEVNULL)
 
-        # level 1
-        samtools_cmd = ['samtools', 'sort', '-l', '1',
-                        '-@', str(bamthreads), '-T', ASMpref,
-                        '-m', memperthread, tempfiles[0]]
-        printCMD(samtools_cmd)
-        p3 = subprocess.Popen(samtools_cmd, stdout=subprocess.PIPE, cwd=workdir)
+            samtools_cmd = ['samtools', 'sort', '-@', str(bamthreads),
+                            '-f', '-m', memperthread, tempfiles[0], tempfiles[1]]
+            printCMD(samtools_cmd)
+            subprocess.run(samtools_cmd, cwd=workdir, stderr=DEVNULL,)
+            # keep only paired reads
+            samtools_cmd = ['samtools', 'view', '-b', '-f', '0x2',
+                            '-@',  str(bamthreads), '-o', BAM, tempfiles[1]]
+            printCMD(samtools_cmd)
+            subprocess.run(samtools_cmd, cwd=workdir, stderr=DEVNULL,)
 
-        samtools_cmd = ['samtools', 'markdup', '-@',  str(bamthreads), '-', tempfiles[1]]
-        printCMD(samtools_cmd)
-        p4 = subprocess.Popen(samtools_cmd, stdin=p3.stdout, cwd=workdir)
-        p3.stdout.close()
-        p4.communicate()
+        else:
+            # run fix mate directly from bwa output with samtools >= 1.0
+            samtools_cmd = ['samtools', 'fixmate', '-O', 'bam,level=1', '-m', '-', tempfiles[0]]
+            p2 = subprocess.Popen(samtools_cmd, cwd=workdir,
+                                  stdout=subprocess.PIPE, stderr=DEVNULL,
+                                  stdin=p1.stdout)
+            p1.stdout.close()
+            p2.communicate()
 
-        # keep only paired reads
-        samtools_cmd = ['samtools', 'view', '-O', 'bam,level=1', '-f', '0x2',
-                        '-@',  str(bamthreads), '-o', BAM, tempfiles[1]]
-        printCMD(samtools_cmd)
-        subprocess.run(samtools_cmd, cwd=workdir)
+            # level 1
+            samtools_cmd = ['samtools', 'sort', '-l', '1',
+                            '-@', str(bamthreads), '-T', ASMpref,
+                            '-m', memperthread, tempfiles[0]]
+            printCMD(samtools_cmd)
+            p3 = subprocess.Popen(samtools_cmd, stdout=subprocess.PIPE, cwd=workdir, stderr=DEVNULL,)
+            samtools_cmd = ['samtools', 'markdup', '-@',  str(bamthreads), tempfiles[0], tempfiles[1]]
+            printCMD(samtools_cmd)
+            p4 = subprocess.Popen(samtools_cmd, stdin=p3.stdout, cwd=workdir, stderr=DEVNULL,)
+            p3.stdout.close()
+            p4.communicate()
+
+            # keep only paired reads
+            samtools_cmd = ['samtools', 'view', '-O', 'bam,level=1', '-f', '0x2',
+                            '-@',  str(bamthreads), '-o', BAM, tempfiles[1]]
+            printCMD(samtools_cmd)
+            subprocess.run(samtools_cmd, cwd=workdir)
 
         # BAM file needs to be indexed
         samtools_cmd = ['samtools', 'index', '-@', str(cpus), BAM]
@@ -272,5 +310,6 @@ def make_bwa_bam(inFasta, forReads, revReads,
         subprocess.run(samtools_cmd, cwd=workdir)
 
         for tfile in tempfiles:
-            os.remove(os.path.join(workdir, tfile))
+            if os.path.exists(os.path.join(workdir, tfile)):
+                os.remove(os.path.join(workdir, tfile))
     return BAM
