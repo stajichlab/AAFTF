@@ -46,6 +46,9 @@ def run_subtool(parser, args):
         import AAFTF.pipeline as submodule
     elif args.command == 'mito':
         import AAFTF.mito as submodule
+    elif args.command == 'fix_tbl' or args.command == 'fix':
+        import AAFTF.fix_tbl as submodule
+
     else:
         parser.parse_args('')
         return
@@ -1001,6 +1004,35 @@ def main():
         '-n', '--telomere_n_repeat', type=int, default=2,
         help='Telomere minimum number of monomer repeats. (default 2)')
 
+    #########
+    # fix tbl file from fcs trimmimg
+    ##########
+    # arguments
+    # -t / --table tbl file origina
+    # -o / --output output tbl file
+    # -r / --report NCBI FCS update report (a 5 column CSV file)
+
+    parser_fix = subparsers.add_parser(
+        'fix_tbl',
+        aliases=['fix'],
+        description="Fix NCBI tbl file from a trim report from NCBI-FCS",
+        help='Fix the TBL file offsets from trimmimg')
+
+    parser_fix.add_argument(
+        '-t', '--table', '--infile', type=ap.FileType('rt'),
+        required=True,
+        help='Table format of annotation (NCBL tbl)')
+
+    parser_fix.add_argument(
+        '-r', '--report', type=ap.FileType('rt'),
+        required=True,
+        help='FCS report (5 column CSV)')
+
+    parser_fix.add_argument(
+        '-o', '--output', type=ap.FileType('wt'),
+        required=True,
+        help='Write fixed TBL file')
+
     ##########
     # pipeline run it all
     ##########
@@ -1101,6 +1133,7 @@ def main():
         '--mincovpct', default=5, type=int,
         help="Minimum percent of N50 coverage to remove")
 
+    # done with menu options
     # set defaults
     parser.set_defaults(func=run_subtool)
 
