@@ -6,7 +6,7 @@
 
  - unicycler as assembler for short reads
  - default spades mode is with --isolate (to turn off use --no-isolate --careful)
-
+ - add menu item 'fix' / 'fix_tbl' which supports updating NCBI tbl format after fcs screening (have to run the `fcs clean genome` command)
 ## 0.5.0
 
 ### Added new features
