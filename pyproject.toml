@@ -1,0 +1,19 @@
+[project]
+name = "AAFTF"
+version = "0.6.0"
+authors = [
+  { name="Jason Stajich", email="jasonstajich.phd@gmail.com" },
+]
+description = "Automatic Assembly For The Fungi - for automating genome assembly focused on short reads with cleanup, vector trimming and contam detection, resorting contigs by size and renaming, and summary statistics including telomere detection"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/stajichlab/AAFTF"
+Issues = "https://github.com/stajichlab/AAFTF/issues"
