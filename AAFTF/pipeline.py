@@ -25,16 +25,32 @@ def run(parser, args):
     if not args.memory:
         args_dict['memory'] = str(RAM)
 
+    # Helper function to create namespace with required defaults
+    def create_namespace(options, required_args=None, **extra_args):
+        """Create a Namespace with filtered options and required arguments."""
+        namespace_dict = {k: v for (k, v) in args_dict.items() if k in options}
+        if required_args:
+            namespace_dict.update(required_args)
+        namespace_dict.update(extra_args)
+        return Namespace(**namespace_dict)
+
+    # Helper function to check step output and handle failures
+    def check_step_success(output_file, step_name):
+        """Check if step completed successfully."""
+        if not checkfile(output_file):
+            status(f'AAFTF {step_name} failed')
+            sys.exit(1)
+        return True
+
     # run trimming with bbduk
     if not checkfile(basename+'_1P.fastq.gz'):
         trimOpts = ['memory', 'left', 'right', 'basename', 'cpus',
                     'debug', 'minlen']
-        trimDict = {k: v for (k, v) in args_dict.items() if k in trimOpts}
-        trimDict['method'] = 'bbduk'
-        trimDict['pipe'] = True
-        trimDict['avgqual'] = 10
-        trimargs = Namespace(**trimDict)
-        trim.run(parser, trimargs)
+        trim_args = create_namespace(
+            trimOpts,
+            required_args={'method': 'bbduk', 'pipe': True, 'avgqual': 10}
+        )
+        trim.run(parser, trim_args)
     else:
         if args.right:
             status('AAFTF trim output found: {:} {:}'.format(
@@ -43,26 +59,26 @@ def run(parser, args):
         else:
             status('AAFTF trim output found: {:}'.format(
                 basename + '_1P.fastq.gz'))
-    if not checkfile(basename + '_1P.fastq.gz'):
-        status('AATFT trim failed')
-        sys.exit(1)
+    check_step_success(basename + '_1P.fastq.gz', 'trim')
 
     # run mitochondrial assembly on bbduk trimmed reads
     if args.right:
         if not checkfile(basename+'.mito.fasta'):
             mitoOpts = ['left', 'right', 'out', 'minlen', 'maxlen', 'seed',
                         'starting', 'workdir', 'pipe', 'reference']
-            mitoDict = {k: v for (k, v) in args_dict.items() if k in mitoOpts}
-            mitoDict['left'] = basename + '_1P.fastq.gz'
-            mitoDict['right'] = basename + '_2P.fastq.gz'
-            mitoDict['out'] = basename + '.mito.fasta'
-            mitoDict['minlen'] = 10000
-            mitoDict['maxlen'] = 100000
-            for x in mitoOpts:
-                if x not in mitoDict:
-                    mitoDict[x] = False
-            mitoargs = Namespace(**mitoDict)
-            mito.run(parser, mitoargs)
+            mito_args = create_namespace(
+                mitoOpts,
+                required_args={
+                    'left': basename + '_1P.fastq.gz',
+                    'right': basename + '_2P.fastq.gz',
+                    'out': basename + '.mito.fasta',
+                    'minlen': 10000,
+                    'maxlen': 100000,
+                    'pipe': True
+                },
+                **{x: False for x in mitoOpts if x not in args_dict}
+            )
+            mito.run(parser, mito_args)
         else:
             status('AAFTF mito output: {}'.format(
                 basename + '.mito.fasta'))
@@ -74,16 +90,19 @@ def run(parser, args):
     if not checkfile(basename+'_filtered_1.fastq.gz'):
         filterOpts = ['screen_accessions', 'screen_urls', 'basename',
                       'cpus', 'debug', 'memory', 'AAFTF_DB', 'workdir']
-        filterDict = {k: v for (k, v) in args_dict.items() if k in filterOpts}
-        filterDict['aligner'] = 'bbduk'
-        filterDict['left'] = basename + '_1P.fastq.gz'
+        filter_args = create_namespace(
+            filterOpts,
+            required_args={
+                'aligner': 'bbduk',
+                'left': basename + '_1P.fastq.gz',
+                'pipe': True
+            }
+        )
         if args.right:
-            filterDict['right'] = basename + '_2P.fastq.gz'
-        filterDict['pipe'] = True
+            filter_args.right = basename + '_2P.fastq.gz'
         if checkfile(basename + '.mito.fasta'):
-            filterDict['screen_local'] = [basename + '.mito.fasta']
-        filterargs = Namespace(**filterDict)
-        aaftf_filter.run(parser, filterargs)
+            filter_args.screen_local = [basename + '.mito.fasta']
+        aaftf_filter.run(parser, filter_args)
     else:
         if args.right:
             status('AAFTF filter output found: {:} {:}'.format(
@@ -92,131 +111,137 @@ def run(parser, args):
         else:
             status('AAFTF filter output found: {:}'.format(
                 basename+'_filtered_1.fastq.gz'))
+    check_step_success(basename+'_filtered_1.fastq.gz', 'filter')
 
-    if not checkfile(basename+'_filtered_1.fastq.gz'):
-        status('AATFT filter failed')
-        sys.exit(1)
-
-    # run assembly with spades
-    if not checkfile(basename+'.spades.fasta'):
+    # run assembly with specified method
+    assembly_method = args.method if hasattr(args, 'method') else 'spades'
+    assembly_file = basename + f'.{assembly_method}.fasta'
+    if not checkfile(assembly_file):
         assembleOpts = ['memory', 'cpus', 'debug', 'workdir', 'method',
                         'assembler_args', 'tmpdir']
-        asmDict = {k: v for (k, v) in args_dict.items() if k in assembleOpts}
-        asmDict['left'] = basename + '_filtered_1.fastq.gz'
+        asm_args = create_namespace(
+            assembleOpts,
+            required_args={
+                'left': basename + '_filtered_1.fastq.gz',
+                'out': assembly_file,
+                'pipe': True,
+                'method': assembly_method
+            }
+        )
         if args.right:
-            asmDict['right'] = basename + '_filtered_2.fastq.gz'
-        asmDict['out'] = basename + '.spades.fasta'
-        asmDict['spades_tmpdir'] = None
-        asmDict['pipe'] = True
-        asmDict['isolate'] = False
-        asmDict['careful'] = True
-        asmDict['merged'] = False
-        assembleargs = Namespace(**asmDict)
-        assemble.run(parser, assembleargs)
+            asm_args.right = basename + '_filtered_2.fastq.gz'
+        # Set assembly-specific parameters
+        if assembly_method == 'spades':
+            asm_args.spades_tmpdir = None
+            asm_args.isolate = False
+            asm_args.careful = True
+        asm_args.merged = False
+        assemble.run(parser, asm_args)
     else:
-        status('AAFTF assemble output found: {:}'.format(
-            basename + '.spades.fasta'))
-    if not checkfile(basename + '.spades.fasta'):
-        status('AATFT assemble failed')
-        sys.exit(1)
+        status('AAFTF assemble output found: {:}'.format(assembly_file))
+    check_step_success(assembly_file, 'assemble')
 
     # run vecscreen
-    if not checkfile(basename + '.vecscreen.fasta'):
+    vecscreen_file = basename + '.vecscreen.fasta'
+    if not checkfile(vecscreen_file):
         vecOpts = ['cpus', 'debug', 'workdir', 'AAFTF_DB']
-        vecDict = {k: v for (k, v) in args_dict.items() if k in vecOpts}
-        vecDict['percent_id'] = False
-        vecDict['stringency'] = 'high'
-        vecDict['infile'] = basename + '.spades.fasta'
-        vecDict['outfile'] = basename + '.vecscreen.fasta'
-        vecDict['pipe'] = True
-        vecargs = Namespace(**vecDict)
-        vecscreen.run(parser, vecargs)
+        vec_args = create_namespace(
+            vecOpts,
+            required_args={
+                'percent_id': False,
+                'stringency': 'high',
+                'infile': assembly_file,
+                'outfile': vecscreen_file,
+                'pipe': True
+            }
+        )
+        vecscreen.run(parser, vec_args)
     else:
-        status('AAFTF vecscreen output found: {:}'.format(
-            basename + '.vecscreen.fasta'))
-    if not checkfile(basename + '.vecscreen.fasta'):
-        status('AATFT vecscreen failed')
-        sys.exit(1)
+        status('AAFTF vecscreen output found: {:}'.format(vecscreen_file))
+    check_step_success(vecscreen_file, 'vecscreen')
 
     # run sourmash purge
-    if not checkfile(basename+'.sourpurge.fasta'):
+    sourpurge_file = basename + '.sourpurge.fasta'
+    if not checkfile(sourpurge_file):
         sourOpts = ['cpus', 'debug', 'workdir', 'AAFTF_DB',
                     'phylum', 'sourdb', 'mincovpct']
-        sourDict = {k: v for (k, v) in args_dict.items() if k in sourOpts}
-        sourDict['left'] = basename + '_filtered_1.fastq.gz'
+        sour_args = create_namespace(
+            sourOpts,
+            required_args={
+                'left': basename + '_filtered_1.fastq.gz',
+                'input': vecscreen_file,
+                'outfile': sourpurge_file,
+                'kmer': 31,
+                'taxonomy': False,
+                'pipe': True,
+                'sourdb_type': 'gbk'
+            }
+        )
         if args.right:
-            sourDict['right'] = basename + '_filtered_2.fastq.gz'
-        sourDict['input'] = basename + '.vecscreen.fasta'
-        sourDict['outfile'] = basename + '.sourpurge.fasta'
-        sourDict['kmer'] = 31
-        sourDict['taxonomy'] = False
-        sourDict['pipe'] = True
-        sourDict['sourdb_type'] = 'gbk'
-        sourargs = Namespace(**sourDict)
-        sourpurge.run(parser, sourargs)
+            sour_args.right = basename + '_filtered_2.fastq.gz'
+        sourpurge.run(parser, sour_args)
     else:
-        status('AAFTF sourpurge output found: {:}'.format(
-            basename + '.sourpurge.fasta'))
-    if not checkfile(basename + '.sourpurge.fasta'):
-        status('AATFT sourpurge failed')
-        sys.exit(1)
+        status('AAFTF sourpurge output found: {:}'.format(sourpurge_file))
+    check_step_success(sourpurge_file, 'sourpurge')
 
     # run remove duplicates
-    if not checkfile(basename+'.rmdup.fasta'):
+    rmdup_file = basename+'.rmdup.fasta'
+    if not checkfile(rmdup_file):
         rmdupOpts = ['cpus', 'debug', 'workdir']
-        rmdupDict = {k: v for (k, v) in args_dict.items() if k in rmdupOpts}
-        rmdupDict['input'] = basename + '.sourpurge.fasta'
-        rmdupDict['out'] = basename + '.rmdup.fasta'
-        rmdupDict['minlen'] = args_dict['mincontiglen']
-        rmdupDict['percent_id'] = 95
-        rmdupDict['percent_cov'] = 95
-        rmdupDict['exhaustive'] = False
-        rmdupDict['pipe'] = True
-        rmdupargs = Namespace(**rmdupDict)
-        rmdup.run(parser, rmdupargs)
+        rmdup_args = create_namespace(
+            rmdupOpts,
+            required_args={
+                'input': sourpurge_file,
+                'out': rmdup_file,
+                'minlen': args.mincontiglen,
+                'percent_id': 95,
+                'percent_cov': 95,
+                'exhaustive': False,
+                'pipe': True
+            }
+        )
+        rmdup.run(parser, rmdup_args)
     else:
-        status('AAFTF rmdup output found: {:}'.format(
-            basename+'.rmdup.fasta'))
-    if not checkfile(basename + '.rmdup.fasta'):
-        status('AATFT rmdup failed')
-        sys.exit(1)
+        status('AAFTF rmdup output found: {:}'.format(rmdup_file))
+    check_step_success(rmdup_file, 'rmdup')
 
     # run polish to error-correct
-    if not checkfile(basename+'.polish.fasta'):
+    polish_file = basename+'.polish.fasta'
+    if not checkfile(polish_file):
         polishOpts = ['cpus', 'debug', 'workdir', 'iterations', 'memory']
-        polishDict = {k: v for (k, v) in args_dict.items() if k in polishOpts}
-        polishDict['infile'] = basename + '.rmdup.fasta'
-        polishDict['outfile'] = basename + '.polish.fasta'
-        polishDict['left'] = basename + '_filtered_1.fastq.gz'
+        polish_args = create_namespace(
+            polishOpts,
+            required_args={
+                'infile': rmdup_file,
+                'outfile': polish_file,
+                'left': basename + '_filtered_1.fastq.gz',
+                'pipe': True
+            }
+        )
         if args.right:
-            polishDict['right'] = basename + '_filtered_2.fastq.gz'
-        polishDict['pipe'] = True
-        polishargs = Namespace(**polishDict)
-        polish.run(parser, polishargs)
+            polish_args.right = basename + '_filtered_2.fastq.gz'
+        polish.run(parser, polish_args)
     else:
-        status('AAFTF polish output found: {:}'.format(
-            basename + '.polish.fasta'))
-    if not checkfile(basename + '.polish.fasta'):
-        status('AATFT polish failed')
-        sys.exit(1)
+        status('AAFTF polish output found: {:}'.format(polish_file))
+    check_step_success(polish_file, 'polish')
 
     # sort and rename
-    if not checkfile(basename + '.final.fasta'):
-        sortDict = {'input': basename + '.polish.fasta',
-                    'out':   basename + '.final.fasta',
-                    'name':  'scaffold',
-                    'minlen': args_dict['mincontiglen']}
-        sortargs = Namespace(**sortDict)
-        aaftf_sort.run(parser, sortargs)
+    final_file = basename + '.final.fasta'
+    if not checkfile(final_file):
+        sort_args = Namespace(
+            input=polish_file,
+            out=final_file,
+            name='scaffold',
+            minlen=args.mincontiglen
+        )
+        aaftf_sort.run(parser, sort_args)
     else:
-        status('AAFTF sort output found: {:}'.format(
-            basename + '.final.fasta'))
-    if not checkfile(basename + '.final.fasta'):
-        status('AATFT sort failed')
-        sys.exit(1)
+        status('AAFTF sort output found: {:}'.format(final_file))
+    check_step_success(final_file, 'sort')
 
     # assess the assembly
-    assessDict = {'input': basename + '.final.fasta',
-                  'report': False}
-    assessargs = Namespace(**assessDict)
-    assess.run(parser, assessargs)
+    assess_args = Namespace(
+        input=final_file,
+        report=False
+    )
+    assess.run(parser, assess_args)
