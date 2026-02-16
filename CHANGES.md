@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1 (Development)
+
+### Enhanced
+
+ - **Version reporting now includes git checkout hash**: Enhanced version system to include short git commit hash (7 characters) for development installations. Version format examples:
+   - Clean working tree: `0.6.0-alpha1-7-g261967e+261967e`
+   - Dirty working tree: `0.6.0-alpha1-7-g261967e.dirty+261967e`
+   - Tagged release: `0.6.0+261967e`
+ - Version information is automatically detected from git repository for `pip install -e .` installations
+ - Maintains backward compatibility with packaged installations and PEP 440 compliance
+ - Improved development traceability and debugging support
+
 ## 0.6.0
 
 ## Added new features

@@ -22,18 +22,16 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
     else:
         seqio = SeqIO.parse(fasta_file, "fasta")
 
-    telomere_stats = {'TELOMERE FWD': 0,
-                      'TELOMERE REV': 0,
-                      'T2T SCAFFOLDS': 0}
+    telomere_stats = {"TELOMERE FWD": 0, "TELOMERE REV": 0, "T2T SCAFFOLDS": 0}
     for record in seqio:
         lengths.append(len(record))
         forward, reverse = findTelomere(record.seq, telomere_repeat, n_minimum)
         if forward:
-            telomere_stats['TELOMERE FWD'] += 1
+            telomere_stats["TELOMERE FWD"] += 1
         if reverse:
-            telomere_stats['TELOMERE REV'] += 1
+            telomere_stats["TELOMERE REV"] += 1
         if forward and reverse:
-            telomere_stats['T2T SCAFFOLDS'] += 1
+            telomere_stats["T2T SCAFFOLDS"] += 1
 
         GC += sum(record.seq.count(x) for x in ["G", "C", "g", "c", "S", "s"])
 
@@ -57,17 +55,17 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
 
         i += 1
     report = "Assembly statistics for: %s\n" % (fasta_file)
-    report += "%15s  =  %d\n" % ('CONTIG COUNT', len(lengths))
-    report += "%15s  =  %d\n" % ('TOTAL LENGTH', total_len)
-    report += "%15s  =  %d\n" % ('MIN', lengths[0])
-    report += "%15s  =  %d\n" % ('MAX', lengths[-1])
-    report += "%15s  =  %d\n" % ('MEDIAN', lengths[int(len(lengths)/2)])
-    report += "%15s  =  %.2f\n" % ('MEAN',  total_len/len(lengths))
-    report += "%15s  =  %d\n" % ('L50',  l50)
-    report += "%15s  =  %d\n" % ('N50',  n50)
-    report += "%15s  =  %d\n" % ('L90',  l90)
-    report += "%15s  =  %d\n" % ('N90',  n90)
-    report += "%15s  =  %.2f\n" % ('GC%', GC)
+    report += "%15s  =  %d\n" % ("CONTIG COUNT", len(lengths))
+    report += "%15s  =  %d\n" % ("TOTAL LENGTH", total_len)
+    report += "%15s  =  %d\n" % ("MIN", lengths[0])
+    report += "%15s  =  %d\n" % ("MAX", lengths[-1])
+    report += "%15s  =  %d\n" % ("MEDIAN", lengths[int(len(lengths) / 2)])
+    report += "%15s  =  %.2f\n" % ("MEAN", total_len / len(lengths))
+    report += "%15s  =  %d\n" % ("L50", l50)
+    report += "%15s  =  %d\n" % ("N50", n50)
+    report += "%15s  =  %d\n" % ("L90", l90)
+    report += "%15s  =  %d\n" % ("N90", n90)
+    report += "%15s  =  %.2f\n" % ("GC%", GC)
     for f in sorted(telomere_stats):
         report += "%15s  =  %d\n" % (f, telomere_stats[f])
 
@@ -116,10 +114,10 @@ def findTelomere(seq, monomer, n):
     forward, reverse = False, False
 
     # Look for the monomer repeat n number of times.
-    if re.search(monomer*2, start):
+    if re.search(monomer * 2, start):
         forward = True
     rev_monomer = revcomp(monomer)
-    if re.search(rev_monomer*n, end):
+    if re.search(rev_monomer * n, end):
         reverse = True
 
     return forward, reverse
@@ -131,8 +129,7 @@ def run(parser, args):
     This function will also attempt to find the telomere repeats and count these.
     """
     if not os.path.exists(args.input):
-        status("Inputfile %s was not readable, check parameters" % (
-            args.input))
+        status("Inputfile %s was not readable, check parameters" % (args.input))
 
     output_handle = None
 

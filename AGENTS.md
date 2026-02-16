@@ -21,14 +21,12 @@ pip install AAFTF
 
 ### Code Quality and Linting
 ```bash
-# Run flake8 for code style and linting
-flake8 AAFTF/ --max-line-length=456 --max-complexity=30
+# Run ruff for code style, linting, and import sorting (replaces flake8, isort, pyupgrade)
+ruff check AAFTF/
+ruff format AAFTF/
 
-# Run isort for import sorting
-isort AAFTF/
-
-# Run pyupgrade for Python 3.7+ compatibility
-pyupgrade --py37-plus AAFTF/
+# Run ruff with automatic fixes
+ruff check --fix AAFTF/
 
 # Run pydocstyle for documentation standards
 pydocstyle --convention=google AAFTF/
@@ -90,10 +88,10 @@ from AAFTF.resources import DB_Links
 ```python
 def calculate_n50(contig_lengths):
     """Calculate N50 statistic from a list of contig lengths.
-    
+
     Args:
         contig_lengths: List of integers representing contig lengths
-        
+
     Returns:
         Integer N50 value
     """
@@ -142,6 +140,18 @@ def calculate_n50(contig_lengths):
 - Implement efficient file parsing with BioPython iterators
 - Consider external tool memory requirements in parameter defaults
 
+### Version Handling
+- AAFTF uses a git-aware version system in `AAFTF/__version__.py`
+- The `get_version()` function automatically includes git commit hash for development installations
+- Version format includes short git hash (7 characters) for traceability:
+  - Clean working tree: `0.6.0-alpha1-7-g261967e+261967e`
+  - Dirty working tree: `0.6.0-alpha1-7-g261967e.dirty+261967e`
+  - Tagged release: `0.6.0+261967e`
+- Main application (`AAFTF_main.py`) uses `get_version()` instead of hardcoded `__version__`
+- Fallback to hardcoded version when git information is unavailable (packaged installations)
+- Version is displayed both via `--version` flag and at application startup
+- Maintains PEP 440 compatibility for Python packaging standards
+
 ## Testing Guidelines
 
 Since AAFTF primarily integrates external bioinformatics tools, testing focuses on:
@@ -168,15 +178,15 @@ def run(parser, args):
     if not checkfile(args.input):
         status("Error: Input file not found")
         return
-    
+
     # Process workflow
     status("Starting processing...")
-    
+
     # Execute external tools
     cmd = ['tool', '--input', args.input]
     printCMD(cmd)
     subprocess.run(cmd)
-    
+
     status("Processing complete")
 ```
 
