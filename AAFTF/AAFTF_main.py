@@ -70,7 +70,7 @@ class ArgumentParserWithDefaults(ap.ArgumentParser):
 
     def error(self, message):
         """Error message passing from argument passing."""
-        sys.stderr.write("error: %s\n" % message)
+        sys.stderr.write(f"error: {message}\n")
         self.print_help()
         sys.exit(2)
 

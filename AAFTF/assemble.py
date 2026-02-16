@@ -5,6 +5,7 @@ supported and can be added. There is some access to updating
 parameters but this entire package is intended to be a general
 solution for draft Illumina genome processing en masse.
 """
+
 import os
 import re
 import shutil
@@ -156,7 +157,7 @@ def run_dipspades(parser, args):
         numSeqs, assemblySize = fastastats(finalOut)
         status(f"Assembly is {numSeqs:,} scaffolds and {assemblySize:,} bp")
     else:
-        status("Spades assembly output missing -- " "check Dipspades logfile in {:}.".format(os.path.join(args.workdir, "dipspades", "dipspades.log")))
+        status("Spades assembly output missing -- check Dipspades logfile in {:}.".format(os.path.join(args.workdir, "dipspades", "dipspades.log")))
 
     if not args.pipe:
         status(f"Your next command might be:\n\tAAFTF vecscreen -i {finalOut} -c {args.cpus}\n")

@@ -3,6 +3,7 @@
 This will attempt to adjust the coordinates for features in tbl file
 after the contigs are modified.
 """
+
 import csv
 import re
 import sys

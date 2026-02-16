@@ -67,7 +67,7 @@ def run(parser, args):
         if args.memory:
             MEM = f"-Xmx{args.memory}g"
         else:
-            MEM = f"-Xmx{round(0.6*getRAM())}g"
+            MEM = f"-Xmx{round(0.6 * getRAM())}g"
 
         status("Adapter trimming using BBDuk")
         cmd = ["bbduk.sh", MEM, "ref=adapters", f"t={args.cpus}", "ktrim=r", "k=23", "mink=11", f"minlen={args.minlen}", "hdist=1", f"maq={args.avgqual}", "ftm=5", "tpe", "tbo", "overwrite=true"]
@@ -109,12 +109,12 @@ def run(parser, args):
 
         if jarfile:
             path_to_adaptors = args.trimmomatic_adaptors
-            leadingwindow = "LEADING:%d" % (args.trimmomatic_leadingwindow)
-            trailingwindow = "TRAILING:%d" % (args.trimmomatic_trailingwindow)
-            slidingwindow = "SLIDINGWINDOW:%s" % (args.trimmomatic_slidingwindow)
+            leadingwindow = f"LEADING:{args.trimmomatic_leadingwindow}"
+            trailingwindow = f"TRAILING:{args.trimmomatic_trailingwindow}"
+            slidingwindow = f"SLIDINGWINDOW:{args.trimmomatic_slidingwindow}"
 
             quality = args.trimmomatic_quality
-            quality = "-%s" % (quality)  # add leading dash
+            quality = f"-{quality}"  # add leading dash
 
             if not os.path.exists(path_to_adaptors):
                 if args.right:
@@ -143,9 +143,9 @@ def run(parser, args):
             cmd = []
 
             if args.left and args.right:
-                cmd = ["java", "-jar", jarfile, "PE", "-threads", str(args.cpus), quality, args.left, args.right, args.basename + "_1P.fastq", args.basename + "_1U.fastq", args.basename + "_2P.fastq", args.basename + "_2U.fastq", clipstr, leadingwindow, trailingwindow, slidingwindow, "MINLEN:%d" % (args.minlen)]
+                cmd = ["java", "-jar", jarfile, "PE", "-threads", str(args.cpus), quality, args.left, args.right, args.basename + "_1P.fastq", args.basename + "_1U.fastq", args.basename + "_2P.fastq", args.basename + "_2U.fastq", clipstr, leadingwindow, trailingwindow, slidingwindow, f"MINLEN:{args.minlen}"]
             elif args.left and not args.right:
-                cmd = ["java", "-jar", jarfile, "SE", "-threads", str(args.cpus), quality, args.left, args.basename + "_1U.fastq", clipstr, leadingwindow, trailingwindow, slidingwindow, "MINLEN:%d" % (args.minlen)]
+                cmd = ["java", "-jar", jarfile, "SE", "-threads", str(args.cpus), quality, args.left, args.basename + "_1U.fastq", clipstr, leadingwindow, trailingwindow, slidingwindow, f"MINLEN:{args.minlen}"]
             else:
                 status("Must provide left and right pairs or single read set")
                 return

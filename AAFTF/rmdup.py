@@ -3,6 +3,7 @@
 This uses minimap to map small contigs against the database of contigs in an
 assembly and removes those which are redundant.
 """
+
 import operator
 import os
 import sys

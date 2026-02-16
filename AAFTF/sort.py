@@ -1,4 +1,5 @@
 """This module sorts FASTA sequences by size and renames headers."""
+
 import operator
 
 from Bio import SeqIO
@@ -21,6 +22,6 @@ def run(parser, args):
     SeqRecords = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
     with open(args.out, "w") as fasta_out:
         for i, x in enumerate(orderedSeqs):
-            fasta_out.write(f">{args.name}_{i+1}\n{softwrap(str(SeqRecords[x].seq))}\n")
+            fasta_out.write(f">{args.name}_{i + 1}\n{softwrap(str(SeqRecords[x].seq))}\n")
 
     status(f"Output written to: {args.out}")

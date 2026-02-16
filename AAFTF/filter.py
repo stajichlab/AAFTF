@@ -162,16 +162,16 @@ def run(parser, args):
         if args.memory:
             MEM = f"-Xmx{args.memory}g"
         else:
-            MEM = f"-Xmx{round(0.6*getRAM())}g"
+            MEM = f"-Xmx{round(0.6 * getRAM())}g"
         cmd = ["bbduk.sh", MEM, f"t={args.cpus}", "hdist=1", "k=27", "overwrite=true"]
 
-        leftcleanfname = "%s_1.fastq.gz" % (clean_reads)
+        leftcleanfname = f"{clean_reads}_1.fastq.gz"
         if revReads:
-            cmd.extend(["in=%s" % (forReads), "out=%s_1.fastq.gz" % (clean_reads), "in2=%s" % (revReads), "out2=%s_2.fastq.gz" % (clean_reads)])
+            cmd.extend([f"in={forReads}", f"out={clean_reads}_1.fastq.gz", f"in2={revReads}", f"out2={clean_reads}_2.fastq.gz"])
         else:
-            cmd.extend(["in=%s" % (forReads), "out=%s_U.fastq.gz" % (clean_reads)])
-            leftcleanfname = "%s_U.fastq.gz" % (clean_reads)
-        cmd.extend(["ref=%s" % (",".join(refmatch_bbduk))])
+            cmd.extend([f"in={forReads}", f"out={clean_reads}_U.fastq.gz"])
+            leftcleanfname = f"{clean_reads}_U.fastq.gz"
+        cmd.extend(["ref={}".format(",".join(refmatch_bbduk))])
         # cmd.extend(['prealloc','qhdist=1'])
         printCMD(cmd)
         if args.debug:
@@ -185,7 +185,7 @@ def run(parser, args):
         clean = countfastq(leftcleanfname)
         if revReads:
             clean = clean * 2  # might want to actually count - but should be always 2x
-        status(f"{(total-clean):,} reads mapped to contamination database")
+        status(f"{(total - clean):,} reads mapped to contamination database")
         status(f"{clean:,} reads unmapped and writing to file")
 
         if revReads:

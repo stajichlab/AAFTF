@@ -1,11 +1,12 @@
 """Version reporting for the AAFTF module."""
+
 import re
 from os.path import dirname, isdir, join
 from subprocess import CalledProcessError, check_output
 
 PREFIX = "v"
 
-tag_re = re.compile(r"\btag: %s([0-9][^,]*)\b" % PREFIX)
+tag_re = re.compile(rf"\btag: {PREFIX}([0-9][^,]*)\b")
 version_re = re.compile("^Version: (.+)$", re.M)
 
 __version__ = "0.6.0"
@@ -21,7 +22,7 @@ def get_version():
 
     if isdir(join(d, ".git")):
         # Get the version using "git describe".
-        cmd = "git describe --tags --match %s[0-9]* --dirty --always" % PREFIX
+        cmd = f"git describe --tags --match {PREFIX}[0-9]* --dirty --always"
         try:
             version = check_output(cmd.split()).decode().strip()[len(PREFIX) :]
         except CalledProcessError:

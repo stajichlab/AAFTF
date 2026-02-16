@@ -175,7 +175,7 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
                     for num, y in enumerate(paired_slicer):
                         newSeq = Seq[y[0] : y[1]]
                         if len(newSeq) >= 200:
-                            output_handle.write(f">split{num+1}_{record.id}\n{softwrap(newSeq)}\n")
+                            output_handle.write(f">split{num + 1}_{record.id}\n{softwrap(newSeq)}\n")
 
     return (found_vector_seq, cleaned)
 
@@ -230,9 +230,9 @@ def run(parser, args):
         prefix = str(os.getpid())
 
     if not outfile:
-        outfile = "%s.vecscreen.fasta" % prefix
+        outfile = f"{prefix}.vecscreen.fasta"
 
-    outfile_vec = os.path.join(args.workdir, "%s.tmp_vecscreen.fasta" % (prefix))
+    outfile_vec = os.path.join(args.workdir, f"{prefix}.tmp_vecscreen.fasta")
 
     # Common Euk/Prot contaminats for blastable DB later on
     status("Building BLAST databases for contamination screen.")
@@ -266,7 +266,7 @@ def run(parser, args):
     # qaccver saccver pident length mismatch gapopen qstart qend
     # sstart send evalue bitscore
     for contam in ["CONTAM_EUKS", "CONTAM_PROKS"]:
-        status("%s Contamination Screen" % (contam))
+        status(f"{contam} Contamination Screen")
         blastreport = os.path.join(args.workdir, f"{contam}.{prefix}.blastn")
         blastnargs = ["blastn", "-query", infile, "-db", os.path.join(args.workdir, contam), "-num_threads", str(args.cpus), "-dust", "yes", "-soft_masking", "true", "-perc_identity", percentid_cutoff, "-lcase_masking", "-outfmt", "6", "-out", blastreport]
         printCMD(blastnargs)
@@ -288,7 +288,7 @@ def run(parser, args):
                         regions_to_trim[row[0]].append((start, end, contam, row[1], float(row[2])))
         status(f"{contam} screening finished")
 
-    eukCleaned = os.path.join(args.workdir, "%s.euk-prot_cleaned.fasta" % (prefix))
+    eukCleaned = os.path.join(args.workdir, f"{prefix}.euk-prot_cleaned.fasta")
     if len(regions_to_trim) > 0:
         with open(eukCleaned, "w") as cleanout:
             with open(infile) as fastain:
@@ -307,7 +307,7 @@ def run(parser, args):
                             cleanout.write(f">split{i}_{record.id}\n{softwrap(newSeq)}\n")
                             if i == len(regions) - 1:
                                 newSeq = Seq[x[1] :]
-                                cleanout.write(f">split{i+1}_{record.id}\n{softwrap(newSeq)}\n")
+                                cleanout.write(f">split{i + 1}_{record.id}\n{softwrap(newSeq)}\n")
     else:
         eukCleaned = infile
 
@@ -331,8 +331,8 @@ def run(parser, args):
     rnd = 0
     count = 1
     while count > 0:
-        filepref = "%s.r%d" % (prefix, rnd)
-        report = os.path.join(args.workdir, "%s.vecscreen.tab" % (filepref))
+        filepref = f"{prefix}.r{rnd}"
+        report = os.path.join(args.workdir, f"{filepref}.vecscreen.tab")
         if not os.path.exists(report):
             cmd = [
                 "blastn",
@@ -368,10 +368,10 @@ def run(parser, args):
             # logger.info('CMD: {:}'.format(printCMD(cmd,7)))
             call(cmd)
         # this needs to know/return the new fasta file?
-        status(f"Parsing VecScreen round {rnd+1}: {filepref} for {report}")
+        status(f"Parsing VecScreen round {rnd + 1}: {filepref} for {report}")
 
         (count, cleanfile) = parse_clean_blastn(eukCleaned, os.path.join(args.workdir, filepref), report, args.stringency)
-        status("count is %d cleanfile is %s" % (count, cleanfile))
+        status(f"count is {count} cleanfile is {cleanfile}")
         if count == 0:  # if there are no vector matches < than the pid cutoff
             status(f"copying {eukCleaned} to {outfile_vec}")
             shutil.copy(eukCleaned, outfile_vec)

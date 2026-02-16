@@ -1,4 +1,5 @@
 """Run the fcs-gx tool to look for contaminants."""
+
 import os
 import shutil
 import subprocess
