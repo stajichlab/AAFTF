@@ -1,5 +1,5 @@
 # AAFTF - Automatic Assembly For The Fungi
-* Authors: Jason Stajich and Jon Palmer*
+*Authors: Jason Stajich and Jon Palmer*
 
 ![AAFTF logo](docs/AAFTF.png)
 
@@ -13,22 +13,22 @@ Most of these can be installed via conda packages. Noting that some tools have d
 - BBTools - bbmap
 
 ## QC and trimming
-- BBTools - https://jgi.doe.gov/data-and-tools/bbtools/ - supports read-level filtering for contamination and vector/primer
-- Trimmomatic - http://www.usadellab.org/cms/?page=trimmomatic (Optional)
+- BBTools - https://bbmap.org/ - supports read-level filtering for contamination and vector/primer
+- Trimmomatic - https://github.com/usadellab/Trimmomatic (Optional)
 - fastp - alternative (preferred) read trimming and quality control https://github.com/OpenGene/fastp
 
 ## Assemblers
-- SPAdes - http://cab.spbu.ru/software/spades/
+- SPAdes - https://github.com/ablab/spades
 - megahit - https://github.com/voutcn/megahit
-- dipspades - (SPAdes 3.11.1 - note it is not part of later SPAdes packages) http://cab.spbu.ru/files/release3.11.1/dipspades_manual.html
+- dipspades - (SPAdes 3.11.1 - note it is not part of later SPAdes packages; legacy docs no longer available online)
 - NOVOplasty - https://github.com/ndierckx/NOVOPlasty for MT genome assembly
 - unicycler - https://github.com/rrwick/Unicycler (which runs spades)
 
 ## Assembly Contamination screening support
 - [sourmash](https://pubmed.ncbi.nlm.nih.gov/31508216/) (>=v3.5)- https://sourmash.readthedocs.io/ (install via conda/pip)
-- NCBI BLAST+ - ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST
+- NCBI BLAST+ - https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/
 - [ncbi-fcs](https://pubmed.ncbi.nlm.nih.gov/38409096/) (for vector screening) - https://github.com/ncbi/fcs/
-- [ncbi-fcs-gx](https://pubmed.ncbi.nlm.nih.gov/38409096/) (for contaminant filtering, alternative to sourmash, requires large memory or SSD drive) [https://github.com/ncbi/fcs/](https://github.com/ncbi/fcs-gx)
+- [ncbi-fcs-gx](https://pubmed.ncbi.nlm.nih.gov/38409096/) (for contaminant filtering, alternative to sourmash, requires large memory or SSD drive) https://github.com/ncbi/fcs-gx
 
 
 ## Assembly polishing
@@ -36,7 +36,7 @@ Most of these can be installed via conda packages. Noting that some tools have d
    * note that the polca use of samtools supports an old version and will not work with version of samtools installed by default
      To fix this apply the patch in patches/polca.patch to fix your local version or copy patches/polca.sh to replace version installed
      in your environment or system.
-- [Pilon](https://pubmed.ncbi.nlm.nih.gov/25409509/) - https://github.com/broadinstitute/pilon/wiki
+- [Pilon](https://pubmed.ncbi.nlm.nih.gov/25409509/) - https://github.com/broadinstitute/pilon
 - [NextPolish](https://pubmed.ncbi.nlm.nih.gov/31778144/) - https://github.com/Nextomics/NextPolish
 
 
@@ -82,12 +82,10 @@ To run ncbi-fcs or ncbi-fcs-gx in AAFTF through singularity will need to have th
 The fcs gx database will need to be downloaded and requires large memory machines.
 More instructions coming for simplicity of install/testing.
 
-Notes
-===========
+## Notes
 This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.
 
-Steps / Procedures
-==================
+## Steps / Procedures
 1. trim                Trim FASTQ input reads - with BBMap
 2. mito                De novo assemble mitochondrial genome
 3. filter              Filter contaminanting reads - with BBMap
