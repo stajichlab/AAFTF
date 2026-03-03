@@ -24,3 +24,14 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 AAFTF = "AAFTF.AAFTF_main:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-cov"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "unit: pure Python tests, no external tools required",
+    "integration: requires external bioinformatics tools (minimap2, samtools, mosdepth, etc.)",
+]
