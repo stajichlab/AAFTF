@@ -18,41 +18,55 @@ except Exception:
     myversion = __version__
 
 
+ALIAS_MAP = {
+    "trim_reads": "trim", "read_trim": "trim",
+    "filter_reads": "filter", "read_filter": "filter",
+    "asm": "assemble", "spades": "assemble",
+    "vectorscreen": "vecscreen", "vector_blast": "vecscreen",
+    "ncbi_fcs": "fcs_screen", "ncbi_fcs-screen": "fcs_screen",
+    "ncbi_fcs-gx": "fcs_gx_purge", "ncbi_fcs_gx": "fcs_gx_purge", "gx": "fcs_gx_purge",
+    "purge": "sourpurge",
+    "dedup": "rmdup",
+    "pilon": "polish", "polca": "polish",
+    "stats": "assess",
+    "fix": "fix_tbl",
+    "mito_asm": "mito", "mitochondria": "mito",
+}
+
+
 def run_subtool(parser, args):
     """Run the subtool of the AAFTF pipeline."""
-    if args.command == "runall":
+    command = ALIAS_MAP.get(args.command, args.command)
+    if command == "runall":
         print("runall")
-    elif args.command == "trim":
+    elif command == "trim":
         import AAFTF.trim as submodule
-    elif args.command == "filter":
+    elif command == "filter":
         import AAFTF.filter as submodule
-    elif args.command == "assemble":
+    elif command == "assemble":
         import AAFTF.assemble as submodule
-    elif args.command == "vecscreen":
+    elif command == "vecscreen":
         import AAFTF.vecscreen as submodule
-    elif args.command == "fcs_screen":
+    elif command == "fcs_screen":
         import AAFTF.fcs_screen as submodule
-    elif args.command == "fcs_gx_purge":
+    elif command == "fcs_gx_purge":
         import AAFTF.fcs_gx_purge as submodule
-    elif args.command == "sourpurge":
+    elif command == "sourpurge":
         import AAFTF.sourpurge as submodule
-    elif args.command == "rmdup":
+    elif command == "rmdup":
         import AAFTF.rmdup as submodule
-    elif args.command == "polish":
+    elif command == "polish":
         import AAFTF.polish as submodule
-    elif args.command == "pilon":
-        import AAFTF.polish as submodule
-    elif args.command == "assess":
+    elif command == "assess":
         import AAFTF.assess as submodule
-    elif args.command == "sort":
+    elif command == "sort":
         import AAFTF.sort as submodule
-    elif args.command == "pipeline":
+    elif command == "pipeline":
         import AAFTF.pipeline as submodule
-    elif args.command == "mito":
+    elif command == "mito":
         import AAFTF.mito as submodule
-    elif args.command == "fix_tbl" or args.command == "fix":
+    elif command == "fix_tbl":
         import AAFTF.fix_tbl as submodule
-
     else:
         parser.parse_args("")
         return
@@ -180,6 +194,8 @@ def main():
     parser_mito.add_argument("--reference", required=False, help="Run NOVOplasty in reference mode")
 
     parser_mito.add_argument("-w", "--workdir", "--tmpdir", type=str, dest="workdir", required=False, help="Temporary directory to store datafiles and processes in")
+
+    parser_mito.add_argument("-v", "--debug", action="store_true", help="Provide debugging messages")
 
     parser_mito.add_argument("--pipe", action="store_true", help="AAFTF is running in pipeline mode")
 
@@ -473,7 +489,7 @@ def main():
 
     parser_rmdup.add_argument("--exhaustive", action="store_true", help="Compute overlaps for every contig, " + "otherwise only process contigs for L75 and below")
 
-    parser_rmdup.add_argument("--debug", action="store_true", help="Run rmdup in debugging mode for more output")
+    parser_rmdup.add_argument("-v", "--debug", action="store_true", help="Run rmdup in debugging mode for more output")
 
     parser_rmdup.add_argument("--pipe", action="store_true", help="AAFTF is running in pipeline mode")
 
@@ -544,6 +560,10 @@ def main():
 
     parser_sort.add_argument("-n", "--name", "--basename", default="scaffold", dest="name", help="Basename to rename FASTA headers")
 
+    parser_sort.add_argument("-v", "--debug", action="store_true", help="Provide debugging messages")
+
+    parser_sort.add_argument("--pipe", action="store_true", help="AAFTF is running in pipeline mode")
+
     ##########
     # assess completeness
     ##########
@@ -562,6 +582,10 @@ def main():
     parser_assess.add_argument("-t", "--telomere_monomer", type=str, help="Telomere repeat monomer to search for. default(TAA[C]+)", default="TAA[C]+")
 
     parser_assess.add_argument("-n", "--telomere_n_repeat", type=int, default=2, help="Telomere minimum number of monomer repeats. (default 2)")
+
+    parser_assess.add_argument("-v", "--debug", action="store_true", help="Provide debugging messages")
+
+    parser_assess.add_argument("--pipe", action="store_true", help="AAFTF is running in pipeline mode")
 
     #########
     # fix tbl file from fcs trimmimg

@@ -2,6 +2,13 @@
 
 ## 0.6.1 (Development)
 
+### Fixed
+
+ - **CLI alias routing**: Added `ALIAS_MAP` to `run_subtool()` in `AAFTF_main.py` so all argparse aliases (`asm`, `stats`, `dedup`, `pilon`, `polca`, `fix`, `purge`, `gx`, `trim_reads`, `read_trim`, `filter_reads`, `read_filter`, `vectorscreen`, `vector_blast`, `ncbi_fcs`, `ncbi_fcs-screen`, `ncbi_fcs-gx`, `ncbi_fcs_gx`, `mito_asm`, `mitochondria`) correctly dispatch to their canonical submodule instead of falling through to print-help-and-exit.
+ - **`pipeline.py` assess step**: Fixed `AttributeError` — `assess_args` Namespace now includes `telomere_monomer` and `telomere_n_repeat` attributes required by `assess.run()`.
+ - **`pipeline.py` assemble step**: Removed stale `asm_args.spades_tmpdir = None` assignment (wrong attribute name; `tmpdir` is already correctly populated via `assembleOpts`).
+ - **Missing parser flags**: Added `-v/--debug` to `parser_assess`, `parser_sort`, and `parser_mito`; added `--pipe` to `parser_assess` and `parser_sort`; added `-v` shorthand to `parser_rmdup`'s `--debug` flag for consistency across all subcommands.
+
 ### Enhanced
 
  - **Version reporting now includes git checkout hash**: Enhanced version system to include short git commit hash (7 characters) for development installations. Version format examples:

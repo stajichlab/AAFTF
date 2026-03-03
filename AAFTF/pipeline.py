@@ -91,7 +91,6 @@ def run(parser, args):
             asm_args.right = basename + "_filtered_2.fastq.gz"
         # Set assembly-specific parameters
         if assembly_method == "spades":
-            asm_args.spades_tmpdir = None
             asm_args.isolate = False
             asm_args.careful = True
         asm_args.merged = False
@@ -154,5 +153,8 @@ def run(parser, args):
     check_step_success(final_file, "sort")
 
     # assess the assembly
-    assess_args = Namespace(input=final_file, report=False)
+    assess_args = Namespace(
+        input=final_file, report=False,
+        telomere_monomer="TAA[C]+", telomere_n_repeat=2
+    )
     assess.run(parser, assess_args)
