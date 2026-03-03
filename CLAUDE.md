@@ -15,6 +15,23 @@ See [AGENTS.md](AGENTS.md) for full development guidelines, code style, and comm
 - `ALIAS_MAP` in `AAFTF_main.py` maps all aliases to canonical names; update it when adding new aliases
 - When building a `Namespace` for pipeline steps, include **all** attributes the target `run()` function accesses — check the submodule source to avoid `AttributeError`
 
+## Recent Additions (2026-03-02)
+
+### `depth` subtool — coverage analysis
+
+**New file:** `AAFTF/depth.py`; registered in `AAFTF_main.py` with aliases `coverage`/`cov`.
+
+**Workflow:**
+1. Counts reads in each input FASTQ
+2. Maps Illumina reads with `minimap2 -ax sr` (default) or `bwa mem` (`--aligner bwa`); maps long reads with `minimap2 -ax map-ont` (default) / `map-pb` / `map-hifi` (`--longread_type`)
+3. Merges BAMs when both read types are provided (`samtools merge`)
+4. Runs `samtools flagstat` per read type, then `mosdepth` on the combined BAM
+5. Parses `mosdepth.summary.txt` for per-contig mean depths and `mosdepth.global.dist.txt` for coverage breadth
+6. Flags contigs with mean depth > assembly_mean + 3×SD as possible contaminants/organelles
+
+**Key `args` attributes accessed by `depth.run()`:**
+`input`, `out`, `left`, `right`, `longreads`, `illumina_preset`, `longread_preset`, `aligner`, `cpus`, `workdir`, `debug`, `pipe`
+
 ## Recent Fixes (2026-03-02)
 
 ### Prompt used to generate plan

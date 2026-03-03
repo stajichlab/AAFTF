@@ -2,6 +2,19 @@
 
 ## 0.6.1 (Development)
 
+### Added
+
+ - **New `depth` subtool** (`AAFTF/depth.py`): calculates read depth of coverage for a genome assembly.
+   Maps Illumina paired-end reads (via `minimap2 -ax sr` or `bwa mem`) and/or long reads (via `minimap2 -ax map-ont/map-pb/map-hifi`) to the assembly, then runs `mosdepth` to compute per-contig depth statistics.
+   When both read types are provided their BAMs are merged before mosdepth.
+   Writes `coverage_stats.txt` (configurable via `-o`) with three sections:
+   1. Read input summary — per-file read counts and `samtools flagstat` alignment rates per read type
+   2. Whole-assembly coverage — mean depth and % bases covered (≥1x from mosdepth global distribution)
+   3. Per-contig depth table sorted descending — contigs with mean depth > assembly_mean + 3×SD are flagged as `** OUTLIER (possible contaminant/organelle)`
+   CLI: `AAFTF depth -i genome.sorted.fasta [-l fwd.fq] [-r rev.fq] [-lr longreads.fq] [-c cpus] [-o report]`
+   Aliases: `coverage`, `cov`
+   Required external tools: `minimap2` and/or `bwa`, `samtools`, `mosdepth`
+
 ### Fixed
 
  - **CLI alias routing**: Added `ALIAS_MAP` to `run_subtool()` in `AAFTF_main.py` so all argparse aliases (`asm`, `stats`, `dedup`, `pilon`, `polca`, `fix`, `purge`, `gx`, `trim_reads`, `read_trim`, `filter_reads`, `read_filter`, `vectorscreen`, `vector_blast`, `ncbi_fcs`, `ncbi_fcs-screen`, `ncbi_fcs-gx`, `ncbi_fcs_gx`, `mito_asm`, `mitochondria`) correctly dispatch to their canonical submodule instead of falling through to print-help-and-exit.
