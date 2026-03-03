@@ -6,15 +6,15 @@
 # Requirements
 Most of these can be installed via conda packages. Noting that some tools have different samtools version expectations, which can lead to problems. In particular the bioconda install of samtools is v0.2 while the version expected for most other tools is v1.17. This can lead to some issues.
 
-## read aligners supporting
+## read aligners for polishing and depth of coverage calculation
 - bwa - https://github.com/lh3/bwa
 - minimap2 - https://github.com/lh3/minimap2
-- bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional)
-- BBTools - bbmap
+- bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional; not default)
+- BBTools - https://github.com/bbushnell/BBTools 
 
 ## QC and trimming
 - BBTools - https://bbmap.org/ - supports read-level filtering for contamination and vector/primer
-- Trimmomatic - https://github.com/usadellab/Trimmomatic (Optional)
+- Trimmomatic - https://github.com/usadellab/Trimmomatic (Optional; not default)
 - fastp - alternative (preferred) read trimming and quality control https://github.com/OpenGene/fastp
 
 ## Assemblers
