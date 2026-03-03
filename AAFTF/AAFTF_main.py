@@ -31,6 +31,7 @@ ALIAS_MAP = {
     "stats": "assess",
     "fix": "fix_tbl",
     "mito_asm": "mito", "mitochondria": "mito",
+    "coverage": "depth", "cov": "depth",
 }
 
 
@@ -67,6 +68,8 @@ def run_subtool(parser, args):
         import AAFTF.mito as submodule
     elif command == "fix_tbl":
         import AAFTF.fix_tbl as submodule
+    elif command == "depth":
+        import AAFTF.depth as submodule
     else:
         parser.parse_args("")
         return
@@ -602,6 +605,121 @@ def main():
     parser_fix.add_argument("-r", "--report", type=ap.FileType("rt"), required=True, help="FCS report (5 column CSV)")
 
     parser_fix.add_argument("-o", "--output", type=ap.FileType("wt"), required=True, help="Write fixed TBL file")
+
+    ##########
+    # depth of coverage
+    ##########
+    # arguments
+    # -i / --input: genome assembly FASTA
+    # -o / --out: output report file (default: coverage_stats.txt)
+    # -l / --left: forward Illumina reads
+    # -r / --right: reverse Illumina reads
+    # -lr / --longreads: long reads FASTQ (ONT/PacBio)
+    # --longread_type: minimap2 preset for long reads
+    # --illumina_preset: minimap2 preset for Illumina reads
+    # --aligner: minimap2 (default) or bwa for Illumina reads
+    # -c / --cpus
+    # -w / --workdir
+    # -v / --debug
+    # --pipe
+
+    parser_depth = subparsers.add_parser(
+        "depth",
+        aliases=["coverage", "cov"],
+        description=(
+            "Calculate depth of coverage by mapping Illumina and/or long reads "
+            "to a genome assembly with minimap2 (or bwa), then running mosdepth "
+            "to compute per-contig depth statistics.  Contigs with mean depth "
+            "> assembly_mean + 3*SD are flagged as possible contaminants or "
+            "organellar sequences."
+        ),
+        help="Calculate read depth of coverage for genome assembly",
+    )
+
+    parser_depth.add_argument(
+        "-i", "--input", "--infile",
+        required=True,
+        dest="input",
+        help="Input genome assembly FASTA (e.g. *.sorted.fasta)",
+    )
+
+    parser_depth.add_argument(
+        "-o", "--out", "--report",
+        type=str,
+        default="coverage_stats.txt",
+        dest="out",
+        help="Output coverage report file (default: coverage_stats.txt)",
+    )
+
+    parser_depth.add_argument(
+        "-l", "--left",
+        required=False,
+        help="Left (Forward) Illumina reads FASTQ",
+    )
+
+    parser_depth.add_argument(
+        "-r", "--right",
+        required=False,
+        help="Right (Reverse) Illumina reads FASTQ",
+    )
+
+    parser_depth.add_argument(
+        "-lr", "--longreads",
+        required=False,
+        help="Long reads FASTQ (PacBio or ONT)",
+    )
+
+    parser_depth.add_argument(
+        "--longread_type",
+        default="map-ont",
+        choices=["map-ont", "map-pb", "map-hifi"],
+        dest="longread_preset",
+        help="minimap2 preset for long reads (default: map-ont)",
+    )
+
+    parser_depth.add_argument(
+        "--illumina_preset",
+        default="sr",
+        choices=["sr", "short"],
+        dest="illumina_preset",
+        help="minimap2 preset for Illumina reads (default: sr)",
+    )
+
+    parser_depth.add_argument(
+        "--aligner",
+        default="minimap2",
+        choices=["minimap2", "bwa"],
+        help="Aligner to use for Illumina reads (default: minimap2)",
+    )
+
+    parser_depth.add_argument(
+        "-c", "--cpus",
+        type=int,
+        metavar="cpus",
+        required=False,
+        default=1,
+        help="Number of CPUs/threads to use.",
+    )
+
+    parser_depth.add_argument(
+        "-w", "--workdir", "--tmpdir",
+        type=str,
+        dest="workdir",
+        required=False,
+        help="Temporary directory to store intermediate files",
+    )
+
+    parser_depth.add_argument(
+        "-v", "--debug",
+        action="store_true",
+        help="Provide debugging messages and retain intermediate files",
+    )
+
+    parser_depth.add_argument(
+        "--pipe",
+        action="store_true",
+        help="AAFTF is running in pipeline mode",
+    )
 
     ##########
     # pipeline run it all
