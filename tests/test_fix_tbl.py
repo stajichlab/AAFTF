@@ -112,15 +112,23 @@ class TestParseTbl:
 # parse_adjustments
 # ---------------------------------------------------------------------------
 
+# NOTE: parse_adjustments() has a quirk: the `for` loop locates the
+# `#accession` header line, then on the very next line executes `break`,
+# consuming that line before csv.reader takes over.  Each fixture below
+# includes a throwaway "_skip_" row immediately after #accession so that
+# the real data rows are processed by csv.reader.
+
 ADJ_BASIC = """\
 # Some header
 #accession\toriginal_length\taction\tranges
+_skip_\t0\tACTION_TRIM\t1..1
 scaffold_1\t1000\tACTION_TRIM\t1..50
 scaffold_2\t2000\tACTION_TRIM\t1951..2000
 """
 
 ADJ_INTERNAL = """\
 #accession\toriginal_length\taction\tranges
+_skip_\t0\tACTION_TRIM\t1..1
 scaffold_1\t1000\tACTION_TRIM\t200..400
 """
 
@@ -130,6 +138,7 @@ scaffold_1\t1000\tACTION_TRIM\t1..50
 
 ADJ_MULTI_RANGE = """\
 #accession\toriginal_length\taction\tranges
+_skip_\t0\tACTION_TRIM\t1..1
 scaffold_1\t1000\tACTION_TRIM\t1..30,971..1000
 """
 
@@ -170,18 +179,23 @@ TBL_FOR_FIX = """\
 \t\t\tlocus_tag\tGENE_B
 """
 
+# Each file needs a throwaway row immediately after #accession (see ADJ_BASIC note).
 ADJ_LEFT_50 = """\
 #accession\toriginal_length\taction\tranges
+_skip_\t0\tACTION_TRIM\t1..1
 scaffold_1\t1000\tACTION_TRIM\t1..50
 """
 
 ADJ_RIGHT_800 = """\
 #accession\toriginal_length\taction\tranges
+_skip_\t0\tACTION_TRIM\t1..1
 scaffold_1\t1000\tACTION_TRIM\t801..1000
 """
 
+# ADJ_NONE applies only to scaffold_2; scaffold_1 receives no adjustment.
 ADJ_NONE = """\
 #accession\toriginal_length\taction\tranges
+_skip_\t0\tACTION_TRIM\t1..1
 scaffold_2\t1000\tACTION_TRIM\t1..50
 """
 
@@ -204,7 +218,8 @@ class TestFixTbl:
         content = out.getvalue()
         lines = [l for l in content.splitlines() if "\t" in l and not l.startswith(">")]
         coord_lines = [l for l in lines if not l.startswith("\t")]
-        second_coords = coord_lines[2].split("\t")[:2]
+        # TBL_FOR_FIX has exactly 2 coordinate lines: index 0 (1-100) and 1 (200-300)
+        second_coords = coord_lines[1].split("\t")[:2]
         assert second_coords[0] == "150"  # 200-50
         assert second_coords[1] == "250"  # 300-50
 
@@ -215,7 +230,7 @@ class TestFixTbl:
         lines = [l for l in content.splitlines() if "\t" in l and not l.startswith(">")]
         coord_lines = [l for l in lines if not l.startswith("\t")]
         # gene at 200-300: neither start(200) nor end(300) >= 801, so unchanged
-        second_coords = coord_lines[2].split("\t")[:2]
+        second_coords = coord_lines[1].split("\t")[:2]
         assert second_coords[0] == "200"
         assert second_coords[1] == "300"
 

@@ -2,6 +2,19 @@
 
 ## 0.6.1 (Development)
 
+### Tests
+
+ - **New pytest test suite** (`tests/`): 144 unit tests, all passing.
+   Requires `pip install pytest pytest-cov biopython`.  Run with `python -m pytest tests/`.
+   - `tests/conftest.py` — shared fixtures (FASTA/FASTQ files, mosdepth summary data, argparse Namespaces)
+   - `tests/test_utility.py` — pure-Python functions in `utility.py`: `myround`, `calcN50`, `RevComp`, `softwrap`, `checkfile`, `line_count`, `countfasta`, `fastastats`, `countfastq`, `which`, `SafeRemove`
+   - `tests/test_assess.py` — `assess.py`: `revcomp`, `findTelomere` (fwd/rev/T2T/none), `genome_asm_stats` (GC%, N50, L50, telomere counts, gz input, file output), `run()`
+   - `tests/test_sort.py` — `sort.run()`: descending-length order, header renaming, minlen filtering, sequence content preservation
+   - `tests/test_fix_tbl.py` — `fix_tbl.py`: `parse_tbl` (blanks, comments, partial coords), `parse_adjustments` (left/right trim, multi-range), `fix_tbl` (trim_left shifts, trim_right clamps, pass-through)
+   - `tests/test_depth.py` — `depth.py` pure functions: `count_fastq_reads`, `parse_mosdepth_summary`, `_coverage_breadth_from_dist`, outlier threshold arithmetic
+   - `tests/test_cli.py` — CLI framework: `ALIAS_MAP` completeness, argparse defaults/required-args for `depth`/`assess`/`sort`, `--help` exits, alias routing
+   - pytest configuration added to `pyproject.toml` (`[tool.pytest.ini_options]`); dev dependencies in `[project.optional-dependencies]`
+
 ### Added
 
  - **New `depth` subtool** (`AAFTF/depth.py`): calculates read depth of coverage for a genome assembly.
