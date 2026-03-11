@@ -28,7 +28,7 @@ def run(parser, args):
     elif "AAFTF_DB" in os.environ:
         DB = os.environ["AAFTF_DB"]
     else:
-        DB = 'AAFTF_DB'
+        DB = "AAFTF_DB"
         if not os.path.exists(DB):
             os.mkdir(DB)
         status("No AAFTF_DB environ variable please see setup instructions. Creating locally.")
@@ -42,37 +42,37 @@ def run(parser, args):
     custom_workdir = 1
     if not args.workdir:
         custom_workdir = 0
-        args.workdir = 'aaftf-fcsscreen_'+str(uuid.uuid4())[:8]
+        args.workdir = "aaftf-fcsscreen_" + str(uuid.uuid4())[:8]
 
     if not os.path.exists(args.workdir):
         os.mkdir(args.workdir)
 
     fcsexe = args.fcs_script
     if fcsexe is None:
-        fcsexe = shutil.which('run_fcsadaptor.sh')
+        fcsexe = shutil.which("run_fcsadaptor.sh")
     if fcsexe is None:
-        fcsexe = os.path.join(os.path.join(DB, 'run_fcsadaptor.sh'))
+        fcsexe = os.path.join(os.path.join(DB, "run_fcsadaptor.sh"))
         #  This will help download the fcs-adaptor shell script rather than re-implementing it here
         if not os.path.exists(fcsexe):
-            url = os.path.join(FCSADAPTOR['EXEURL'] % (FCSADAPTOR['VERSION']))
+            url = os.path.join(FCSADAPTOR["EXEURL"] % (FCSADAPTOR["VERSION"]))
             if args.debug:
-                status(f'url {url} download to {fcsexe}')
+                status(f"url {url} download to {fcsexe}")
             urllib.request.urlretrieve(url, fcsexe)
             os.chmod(fcsexe, 0o444)
     if image is None:
-        image = os.path.join(DB, FCSADAPTOR['SIFLOCAL'] % (FCSADAPTOR['VERSION']))
+        image = os.path.join(DB, FCSADAPTOR["SIFLOCAL"] % (FCSADAPTOR["VERSION"]))
         if not os.path.exists(image):
-            url = os.path.join(FCSADAPTOR['SIFURL'], FCSADAPTOR['VERSION'], FCSADAPTOR['SIF'])
+            url = os.path.join(FCSADAPTOR["SIFURL"], FCSADAPTOR["VERSION"], FCSADAPTOR["SIF"])
             if args.debug:
-                status(f'url {url} download to {image}')
+                status(f"url {url} download to {image}")
             urllib.request.urlretrieve(url, image)
 
-    cmd = [fcsexe, '--fasta-input', args.infile, '--output-dir', args.workdir, tax]
+    cmd = [fcsexe, "--fasta-input", args.infile, "--output-dir", args.workdir, tax]
 
     if containerengine == "singularity":
-        cmd += ['--container-engine', 'singularity', '--image', image]
+        cmd += ["--container-engine", "singularity", "--image", image]
     printCMD(cmd)
-    DEVNULL = open(os.devnull, 'w')
+    DEVNULL = open(os.devnull, "w")
     try:
         if args.debug:
             call(cmd)
@@ -82,13 +82,13 @@ def run(parser, args):
     except NameError:
         print(f"error in calling executable {cmd}")
 
-    cleanresult = os.path.join(args.workdir, 'cleaned_sequences', infilename)
+    cleanresult = os.path.join(args.workdir, "cleaned_sequences", infilename)
     if args.debug:
-        status(f'copy from: {cleanresult} -> {args.outfile}')
+        status(f"copy from: {cleanresult} -> {args.outfile}")
     os.rename(cleanresult, args.outfile)
-    fcsreport = os.path.join(args.workdir, 'fcs_adaptor_report.txt')
+    fcsreport = os.path.join(args.workdir, "fcs_adaptor_report.txt")
     with open(fcsreport) as fh:
-        status('FCS report:')
+        status("FCS report:")
         for line in fh:
             print(line, end="")
     # make a copy of the report to show

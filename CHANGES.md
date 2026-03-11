@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.6.1 (Development)
+
+### Tests
+
+ - **New pytest test suite** (`tests/`): 144 unit tests, all passing.
+   Requires `pip install pytest pytest-cov biopython`.  Run with `python -m pytest tests/`.
+   - `tests/conftest.py` — shared fixtures (FASTA/FASTQ files, mosdepth summary data, argparse Namespaces)
+   - `tests/test_utility.py` — pure-Python functions in `utility.py`: `myround`, `calcN50`, `RevComp`, `softwrap`, `checkfile`, `line_count`, `countfasta`, `fastastats`, `countfastq`, `which`, `SafeRemove`
+   - `tests/test_assess.py` — `assess.py`: `revcomp`, `findTelomere` (fwd/rev/T2T/none), `genome_asm_stats` (GC%, N50, L50, telomere counts, gz input, file output), `run()`
+   - `tests/test_sort.py` — `sort.run()`: descending-length order, header renaming, minlen filtering, sequence content preservation
+   - `tests/test_fix_tbl.py` — `fix_tbl.py`: `parse_tbl` (blanks, comments, partial coords), `parse_adjustments` (left/right trim, multi-range), `fix_tbl` (trim_left shifts, trim_right clamps, pass-through)
+   - `tests/test_depth.py` — `depth.py` pure functions: `count_fastq_reads`, `parse_mosdepth_summary`, `_coverage_breadth_from_dist`, outlier threshold arithmetic
+   - `tests/test_cli.py` — CLI framework: `ALIAS_MAP` completeness, argparse defaults/required-args for `depth`/`assess`/`sort`, `--help` exits, alias routing
+   - pytest configuration added to `pyproject.toml` (`[tool.pytest.ini_options]`); dev dependencies in `[project.optional-dependencies]`
+
+### Added
+
+ - **New `depth` subtool** (`AAFTF/depth.py`): calculates read depth of coverage for a genome assembly.
+   Maps Illumina paired-end reads (via `minimap2 -ax sr` or `bwa mem`) and/or long reads (via `minimap2 -ax map-ont/map-pb/map-hifi`) to the assembly, then runs `mosdepth` to compute per-contig depth statistics.
+   When both read types are provided their BAMs are merged before mosdepth.
+   Writes `coverage_stats.txt` (configurable via `-o`) with three sections:
+   1. Read input summary — per-file read counts and `samtools flagstat` alignment rates per read type
+   2. Whole-assembly coverage — mean depth and % bases covered (≥1x from mosdepth global distribution)
+   3. Per-contig depth table sorted descending — contigs with mean depth > assembly_mean + 3×SD are flagged as `** OUTLIER (possible contaminant/organelle)`
+   CLI: `AAFTF depth -i genome.sorted.fasta [-l fwd.fq] [-r rev.fq] [-lr longreads.fq] [-c cpus] [-o report]`
+   Aliases: `coverage`, `cov`
+   Required external tools: `minimap2` and/or `bwa`, `samtools`, `mosdepth`
+
+### Fixed
+
+ - **CLI alias routing**: Added `ALIAS_MAP` to `run_subtool()` in `AAFTF_main.py` so all argparse aliases (`asm`, `stats`, `dedup`, `pilon`, `polca`, `fix`, `purge`, `gx`, `trim_reads`, `read_trim`, `filter_reads`, `read_filter`, `vectorscreen`, `vector_blast`, `ncbi_fcs`, `ncbi_fcs-screen`, `ncbi_fcs-gx`, `ncbi_fcs_gx`, `mito_asm`, `mitochondria`) correctly dispatch to their canonical submodule instead of falling through to print-help-and-exit.
+ - **`pipeline.py` assess step**: Fixed `AttributeError` — `assess_args` Namespace now includes `telomere_monomer` and `telomere_n_repeat` attributes required by `assess.run()`.
+ - **`pipeline.py` assemble step**: Removed stale `asm_args.spades_tmpdir = None` assignment (wrong attribute name; `tmpdir` is already correctly populated via `assembleOpts`).
+ - **Missing parser flags**: Added `-v/--debug` to `parser_assess`, `parser_sort`, and `parser_mito`; added `--pipe` to `parser_assess` and `parser_sort`; added `-v` shorthand to `parser_rmdup`'s `--debug` flag for consistency across all subcommands.
+
+### Enhanced
+
+ - **Version reporting now includes git checkout hash**: Enhanced version system to include short git commit hash (7 characters) for development installations. Version format examples:
+   - Clean working tree: `0.6.0-alpha1-7-g261967e+261967e`
+   - Dirty working tree: `0.6.0-alpha1-7-g261967e.dirty+261967e`
+   - Tagged release: `0.6.0+261967e`
+ - Version information is automatically detected from git repository for `pip install -e .` installations
+ - Maintains backward compatibility with packaged installations and PEP 440 compliance
+ - Improved development traceability and debugging support
+
 ## 0.6.0
 
 ## Added new features
