@@ -8,7 +8,7 @@ No external bioinformatics tools are invoked.
 
 import sys
 from argparse import Namespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -70,21 +70,17 @@ class TestAliasMap:
 
     def test_all_expected_aliases_present(self):
         for alias, canonical in EXPECTED_ALIASES.items():
-            assert ALIAS_MAP.get(alias) == canonical, (
-                f"Alias '{alias}' should map to '{canonical}', "
-                f"got '{ALIAS_MAP.get(alias)}'"
-            )
+            assert ALIAS_MAP.get(alias) == canonical, f"Alias '{alias}' should map to '{canonical}', " f"got '{ALIAS_MAP.get(alias)}'"
 
     def test_no_alias_maps_to_itself(self):
         for alias, canonical in ALIAS_MAP.items():
-            assert alias != canonical, (
-                f"Alias '{alias}' maps to itself — should be a canonical name"
-            )
+            assert alias != canonical, f"Alias '{alias}' maps to itself — should be a canonical name"
 
 
 # ---------------------------------------------------------------------------
 # run_subtool dispatcher
 # ---------------------------------------------------------------------------
+
 
 class TestRunSubtool:
     """Verify run_subtool() resolves aliases and handles unknown commands.
@@ -118,6 +114,7 @@ class TestRunSubtool:
 # ---------------------------------------------------------------------------
 # Subcommand help (argparse –– no tool execution)
 # ---------------------------------------------------------------------------
+
 
 def _parse_with_main(argv):
     """Run main() with sys.argv patched, intercept run_subtool before it fires."""
@@ -162,96 +159,66 @@ class TestSubcommandRegistration:
 # depth parser — argument parsing and defaults
 # ---------------------------------------------------------------------------
 
+
 class TestDepthParser:
     def test_parses_input_flag(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "genome.fa", "-l", "left.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "genome.fa", "-l", "left.fq"])
         assert args.input == "genome.fa"
 
     def test_parses_left_reads(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "left.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "left.fq"])
         assert args.left == "left.fq"
 
     def test_parses_right_reads(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-r", "r.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-r", "r.fq"])
         assert args.right == "r.fq"
 
     def test_parses_longreads(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-lr", "lr.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-lr", "lr.fq"])
         assert args.longreads == "lr.fq"
 
     def test_default_out(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
         assert args.out == "coverage_stats.txt"
 
     def test_custom_out(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-o", "my_report.txt"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-o", "my_report.txt"])
         assert args.out == "my_report.txt"
 
     def test_default_cpus(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
         assert args.cpus == 1
 
     def test_custom_cpus(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-c", "8"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-c", "8"])
         assert args.cpus == 8
 
     def test_default_aligner(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
         assert args.aligner == "minimap2"
 
     def test_bwa_aligner(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--aligner", "bwa"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--aligner", "bwa"])
         assert args.aligner == "bwa"
 
     def test_default_longread_preset(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-lr", "lr.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-lr", "lr.fq"])
         assert args.longread_preset == "map-ont"
 
     def test_longread_preset_map_pb(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-lr", "lr.fq",
-             "--longread_type", "map-pb"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-lr", "lr.fq", "--longread_type", "map-pb"])
         assert args.longread_preset == "map-pb"
 
     def test_debug_flag_false_by_default(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
         assert args.debug is False
 
     def test_debug_flag_set(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-v"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "-v"])
         assert args.debug is True
 
     def test_pipe_flag_false_by_default(self):
-        args = _parse_with_main(
-            ["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
         assert args.pipe is False
 
     def test_missing_input_exits_nonzero(self):
@@ -261,9 +228,7 @@ class TestDepthParser:
         assert exc.value.code != 0
 
     def test_coverage_alias_parses(self):
-        args = _parse_with_main(
-            ["AAFTF", "coverage", "-i", "g.fa", "-l", "l.fq"]
-        )
+        args = _parse_with_main(["AAFTF", "coverage", "-i", "g.fa", "-l", "l.fq"])
         # alias 'coverage' routes to depth; same Namespace structure
         assert args.input == "g.fa"
 
@@ -271,6 +236,7 @@ class TestDepthParser:
 # ---------------------------------------------------------------------------
 # assess parser — common flags present
 # ---------------------------------------------------------------------------
+
 
 class TestAssessParser:
     def test_has_debug_flag(self):
@@ -294,21 +260,74 @@ class TestAssessParser:
 # sort parser — common flags present
 # ---------------------------------------------------------------------------
 
+
 class TestSortParser:
     def test_has_debug_flag(self):
-        args = _parse_with_main(
-            ["AAFTF", "sort", "-i", "in.fa", "-o", "out.fa", "-v"]
-        )
+        args = _parse_with_main(["AAFTF", "sort", "-i", "in.fa", "-o", "out.fa", "-v"])
         assert args.debug is True
 
     def test_has_pipe_flag(self):
-        args = _parse_with_main(
-            ["AAFTF", "sort", "-i", "in.fa", "-o", "out.fa", "--pipe"]
-        )
+        args = _parse_with_main(["AAFTF", "sort", "-i", "in.fa", "-o", "out.fa", "--pipe"])
         assert args.pipe is True
 
     def test_default_name_prefix(self):
-        args = _parse_with_main(
-            ["AAFTF", "sort", "-i", "in.fa", "-o", "out.fa"]
-        )
+        args = _parse_with_main(["AAFTF", "sort", "-i", "in.fa", "-o", "out.fa"])
         assert args.name == "scaffold"
+
+
+# ---------------------------------------------------------------------------
+# fix_tbl parser — common flags present (added in audit 2026-05-02)
+# ---------------------------------------------------------------------------
+
+
+class TestFixTblParser:
+    def test_has_debug_flag(self, tmp_path):
+        tbl = tmp_path / "in.tbl"
+        rpt = tmp_path / "rpt.csv"
+        out = tmp_path / "out.tbl"
+        tbl.write_text("")
+        rpt.write_text("")
+        args = _parse_with_main(["AAFTF", "fix_tbl", "-t", str(tbl), "-r", str(rpt), "-o", str(out), "-v"])
+        assert args.debug is True
+
+    def test_has_pipe_flag(self, tmp_path):
+        tbl = tmp_path / "in.tbl"
+        rpt = tmp_path / "rpt.csv"
+        out = tmp_path / "out.tbl"
+        tbl.write_text("")
+        rpt.write_text("")
+        args = _parse_with_main(["AAFTF", "fix_tbl", "-t", str(tbl), "-r", str(rpt), "-o", str(out), "--pipe"])
+        assert args.pipe is True
+
+    def test_debug_false_by_default(self, tmp_path):
+        tbl = tmp_path / "in.tbl"
+        rpt = tmp_path / "rpt.csv"
+        out = tmp_path / "out.tbl"
+        tbl.write_text("")
+        rpt.write_text("")
+        args = _parse_with_main(["AAFTF", "fix_tbl", "-t", str(tbl), "-r", str(rpt), "-o", str(out)])
+        assert args.debug is False
+
+    def test_pipe_false_by_default(self, tmp_path):
+        tbl = tmp_path / "in.tbl"
+        rpt = tmp_path / "rpt.csv"
+        out = tmp_path / "out.tbl"
+        tbl.write_text("")
+        rpt.write_text("")
+        args = _parse_with_main(["AAFTF", "fix_tbl", "-t", str(tbl), "-r", str(rpt), "-o", str(out)])
+        assert args.pipe is False
+
+
+# ---------------------------------------------------------------------------
+# assess parser — telomere_window argument (added in audit 2026-05-02)
+# ---------------------------------------------------------------------------
+
+
+class TestAssessWindowParser:
+    def test_default_telomere_window(self):
+        args = _parse_with_main(["AAFTF", "assess", "-i", "g.fa"])
+        assert args.telomere_window == 200
+
+    def test_custom_telomere_window(self):
+        args = _parse_with_main(["AAFTF", "assess", "-i", "g.fa", "--telomere_window", "500"])
+        assert args.telomere_window == 500

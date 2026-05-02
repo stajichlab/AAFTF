@@ -132,7 +132,10 @@ def run(parser, args):
                             else:
                                 path_to_adaptors = os.path.join(findpath, "/share/trimmomatic", TRIMMOMATIC_TRUSEQSE)
                             break
-                        findpath = dirname(findpath)
+                        new_path = dirname(findpath)
+                        if new_path == findpath:  # reached filesystem root
+                            break
+                        findpath = new_path
 
                 if not os.path.exists(path_to_adaptors):
                     status("Cannot find adaptors file please specify manually")

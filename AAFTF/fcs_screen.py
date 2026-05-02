@@ -12,6 +12,7 @@ and include common Euk, Prok, and MITO contaminants.
 
 import os
 import shutil
+import sys
 import urllib.request
 import uuid
 from subprocess import call
@@ -22,16 +23,13 @@ from AAFTF.utility import SafeRemove, printCMD, status
 
 def run(parser, args):
     """Perform vector trimming via the fcs screening tool."""
-    DB = args.AAFTF_DB
     if args.AAFTF_DB:
         DB = args.AAFTF_DB
     elif "AAFTF_DB" in os.environ:
         DB = os.environ["AAFTF_DB"]
     else:
-        DB = "AAFTF_DB"
-        if not os.path.exists(DB):
-            os.mkdir(DB)
-        status("No AAFTF_DB environ variable please see setup instructions. Creating locally.")
+        status("ERROR: AAFTF_DB not set. Provide --AAFTF_DB or set the $AAFTF_DB environment variable.")
+        sys.exit(1)
 
     containerengine = args.container_engine
     infilename = os.path.basename(os.path.realpath(args.infile))

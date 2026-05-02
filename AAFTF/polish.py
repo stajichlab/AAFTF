@@ -68,6 +68,9 @@ def run(parser, args):  # noqa: C901
     nextPolishExe = None
     polish_log = f"{method}.log"
     if method == "pilon" or method == "nextpolish":
+        if args.iterations < 1:
+            status("ERROR: --iterations must be >= 1")
+            sys.exit(1)
         for i in range(1, args.iterations + 1):
             status(f"Starting {method} polishing iteration {i}")
             correctedBase = f"polished{i}"
@@ -79,7 +82,6 @@ def run(parser, args):  # noqa: C901
                 initialFasta = os.path.join(args.workdir, "polished" + str(i - 1) + ".fasta")
             BAMfile = make_bwa_bam(initialFasta, forReads, revReads, args.workdir, args.cpus, memperthread)
             run_cmd = []
-            polish_log = None
             dirty = []
             if method == "pilon":
                 # run Pilon

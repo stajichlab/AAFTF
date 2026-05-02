@@ -110,7 +110,7 @@ def run(parser, args):
                 Taxonomy[cols[0]] = cols[idx + 1 :]
                 taxClean = [x for x in cols[idx + 1 :] if x]
                 UniqueTax.append("{:}".format(";".join(taxClean)))
-            elif "nomatch" in cols:
+            elif cols[1].strip() == "nomatch":
                 idx = cols.index("nomatch")
                 Taxonomy[cols[0]] = cols[idx + 1 :]
     UniqueTax = set(UniqueTax)

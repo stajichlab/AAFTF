@@ -57,7 +57,7 @@ def group(lst, n):
 
 
 # flake8: noqa: C901
-def parse_clean_blastn(fastafile, prefix, blastn, stringent):
+def parse_clean_blastn(fastafile, prefix, blastn, stringent, contigs_to_remove=None):
     """Parse the BLASTN report to get the hits from vector searching.
 
     The Input file will have format:
@@ -68,6 +68,8 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent):
     cleaned = prefix + ".clean.fsa"
     #    logging = prefix + ".parse.log"
 
+    if contigs_to_remove is None:
+        contigs_to_remove = {}
     VecHits = {}
     found_vector_seq = 0
     with open(blastn) as vectab:
@@ -259,7 +261,6 @@ def run(parser, args):
                         shutil.copyfileobj(infa, outfa)
         make_blastdb("nucl", outfile, os.path.join(args.workdir, d))
 
-    global contigs_to_remove
     contigs_to_remove = {}
     regions_to_trim = {}
 
@@ -276,13 +277,8 @@ def run(parser, args):
             colparser = csv.reader(report, delimiter="\t")
             for row in colparser:
                 if (float(row[2]) >= 98.0 and int(row[3]) >= 50) or (float(row[2]) >= 94.0 and int(row[3]) >= 100) or (float(row[2]) >= 90.0 and int(row[3]) >= 200):
+                    start, end = sorted([int(row[6]), int(row[7])])
                     if row[0] not in regions_to_trim:
-                        if int(row[6]) < int(row[7]):
-                            start = int(row[6])
-                            end = int(row[7])
-                        else:
-                            start = int(row[7])
-                            end = int(row[6])
                         regions_to_trim[row[0]] = [(start, end, contam, row[1], float(row[2]))]
                     else:
                         regions_to_trim[row[0]].append((start, end, contam, row[1], float(row[2])))
@@ -370,7 +366,7 @@ def run(parser, args):
         # this needs to know/return the new fasta file?
         status(f"Parsing VecScreen round {rnd + 1}: {filepref} for {report}")
 
-        (count, cleanfile) = parse_clean_blastn(eukCleaned, os.path.join(args.workdir, filepref), report, args.stringency)
+        (count, cleanfile) = parse_clean_blastn(eukCleaned, os.path.join(args.workdir, filepref), report, args.stringency, contigs_to_remove)
         status(f"count is {count} cleanfile is {cleanfile}")
         if count == 0:  # if there are no vector matches < than the pid cutoff
             status(f"copying {eukCleaned} to {outfile_vec}")

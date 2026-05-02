@@ -7,7 +7,6 @@ are required.
 
 import gzip
 import math
-import os
 
 import pytest
 
@@ -16,8 +15,7 @@ from AAFTF.depth import (
     count_fastq_reads,
     parse_mosdepth_summary,
 )
-
-from tests.conftest import MOSDEPTH_DIST, MOSDEPTH_SUMMARY, make_fastq_text
+from tests.conftest import make_fastq_text
 
 pytestmark = pytest.mark.unit
 
@@ -25,6 +23,7 @@ pytestmark = pytest.mark.unit
 # ---------------------------------------------------------------------------
 # count_fastq_reads
 # ---------------------------------------------------------------------------
+
 
 class TestCountFastqReads:
     def test_plain_fastq(self, fastq_file):
@@ -61,6 +60,7 @@ class TestCountFastqReads:
 # parse_mosdepth_summary
 # ---------------------------------------------------------------------------
 
+
 class TestParseMosdepthSummary:
     def test_contig_count(self, mosdepth_summary_file):
         total, contigs = parse_mosdepth_summary(str(mosdepth_summary_file))
@@ -82,8 +82,7 @@ class TestParseMosdepthSummary:
 
     def test_nuclear_contig_mean(self, mosdepth_summary_file):
         total, contigs = parse_mosdepth_summary(str(mosdepth_summary_file))
-        nuclear = [c for c in contigs if c["chrom"].startswith("scaffold_")
-                   and c["chrom"] != "scaffold_outlier"]
+        nuclear = [c for c in contigs if c["chrom"].startswith("scaffold_") and c["chrom"] != "scaffold_outlier"]
         assert all(abs(c["mean"] - 10.0) < 0.01 for c in nuclear)
 
     def test_outlier_contig_mean(self, mosdepth_summary_file):
@@ -97,10 +96,7 @@ class TestParseMosdepthSummary:
 
     def test_handles_missing_total_row(self, tmp_path):
         # Summary with no 'total' line
-        content = (
-            "chrom\tlength\tbases\tmean\tmin\tmax\n"
-            "scaffold_1\t1000\t50000\t50.0\t0\t100\n"
-        )
+        content = "chrom\tlength\tbases\tmean\tmin\tmax\n" "scaffold_1\t1000\t50000\t50.0\t0\t100\n"
         p = tmp_path / "no_total.txt"
         p.write_text(content)
         total, contigs = parse_mosdepth_summary(str(p))
@@ -111,6 +107,7 @@ class TestParseMosdepthSummary:
 # ---------------------------------------------------------------------------
 # _coverage_breadth_from_dist
 # ---------------------------------------------------------------------------
+
 
 class TestCoverageBreadthFromDist:
     def test_returns_correct_fraction(self, mosdepth_dist_file):
@@ -135,13 +132,13 @@ class TestCoverageBreadthFromDist:
 # Outlier detection arithmetic (mirrors logic in depth.run())
 # ---------------------------------------------------------------------------
 
+
 class TestOutlierDetectionMath:
     """Verify the SD-based flagging formula used in depth.run()."""
 
     def _compute(self, depths, mean_depth):
-        sd = math.sqrt(
-            sum((d - mean_depth) ** 2 for d in depths) / len(depths)
-        )
+        # Uses population SD — contigs are the full population, not a sample.
+        sd = math.sqrt(sum((d - mean_depth) ** 2 for d in depths) / len(depths))
         threshold = mean_depth + 3.0 * sd
         outliers = [d for d in depths if d > threshold]
         return sd, threshold, outliers
@@ -150,7 +147,7 @@ class TestOutlierDetectionMath:
         # Use the test fixture data: 9 × 10x, 1 × 1000x, mean=20.88
         total, contigs = parse_mosdepth_summary(str(mosdepth_summary_file))
         depths = [c["mean"] for c in contigs]
-        mean_depth = total["mean"]   # 20.88 (length-weighted)
+        mean_depth = total["mean"]  # 20.88 (length-weighted)
         sd, threshold, outliers = self._compute(depths, mean_depth)
         # scaffold_outlier (1000x) must be above the threshold
         assert 1000.0 in outliers
@@ -166,7 +163,7 @@ class TestOutlierDetectionMath:
         depths = [10.0] * 9 + [1000.0]
         mean = 10.0
         sd, threshold, outliers = self._compute(depths, mean)
-        expected_sd = math.sqrt((9 * 0 + 990 ** 2) / 10)
+        expected_sd = math.sqrt((9 * 0 + 990**2) / 10)
         assert abs(sd - expected_sd) < 0.01
         assert threshold == pytest.approx(mean + 3 * expected_sd)
         assert 1000.0 in outliers
