@@ -1,6 +1,6 @@
 [project]
 name = "AAFTF"
-version = "0.6.1"
+version = "0.6.2"
 authors = [
   { name="Jason Stajich", email="jasonstajich.phd@gmail.com" },
 ]

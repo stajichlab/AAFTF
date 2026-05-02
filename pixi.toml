@@ -1,0 +1,32 @@
+[workspace]
+authors = ["Jason Stajich <jasonstajich.phd@gmail.com>"]
+channels = ["bioconda", "conda-forge"]
+name = "AAFTF"
+platforms = ["linux-64"]
+version = "0.6.2"
+
+[tasks]
+
+[dependencies]
+python = "3.10.*"
+biopython = "*"
+samtools = "*"
+bwa = "*"
+minimap2 = "*"
+pilon = "*"
+blast = "*"
+diamond = "*"
+sourmash = "*"
+bowtie2 = "*"
+trimmomatic = "*"
+spades = "*"
+fastp = "*"
+novoplasty = "*"
+bbmap = "*"
+ncbi-fcs-gx = "*"
+masurca = "*"
+nextpolish = "*"
+pip = "*"
+
+[pypi-dependencies]
+aaftf = "*"
