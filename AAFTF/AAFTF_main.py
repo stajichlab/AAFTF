@@ -747,6 +747,36 @@ def main():
         help="Minimum contig length to include in depth outlier analysis (default: 500)",
     )
 
+    parser_depth.add_argument(
+        "--plot-format",
+        choices=["pdf", "svg", "png"],
+        default="pdf",
+        dest="plot_format",
+        help="Output format for coverage plots (default: pdf; requires matplotlib)",
+    )
+
+    parser_depth.add_argument(
+        "--no-plot",
+        action="store_true",
+        dest="no_plot",
+        help="Disable coverage plot generation",
+    )
+
+    parser_depth.add_argument(
+        "--quantize",
+        default="0:1:4:100:200:",
+        dest="quantize",
+        help="mosdepth quantize bin boundaries, colon-separated with trailing colon " "(default: 0:1:4:100:200:)",
+    )
+
+    parser_depth.add_argument(
+        "--quantize-labels",
+        default=None,
+        dest="quantize_labels",
+        metavar="LABELS",
+        help="Comma-separated labels for quantize bins " "(default: NO_COVERAGE,LOW_COVERAGE,CALLABLE,HIGH_COVERAGE,VERY_HIGH_COVERAGE " "for the default bins)",
+    )
+
     ##########
     # pipeline run it all
     ##########

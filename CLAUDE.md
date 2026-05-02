@@ -50,7 +50,7 @@ Key `args` attributes accessed by each `run()` function:
 - **polish**: `method`, `memory`, `cpus`, `left`, `right`, `longreads`, `workdir`, `infile`, `outfile`, `iterations`, `debug`, `diploid`, `ploidy`, `pipe`, `polca`, `trimmomatic`
 - **sort**: `input`, `minlen`, `out`, `name`
 - **assess**: `input`, `report`, `telomere_monomer`, `telomere_n_repeat`, `telomere_window`
-- **depth**: `input`, `out`, `left`, `right`, `longreads`, `illumina_preset`, `longread_preset`, `aligner`, `cpus`, `workdir`, `debug`, `pipe`, `min_contig_len`
+- **depth**: `input`, `out`, `left`, `right`, `longreads`, `illumina_preset`, `longread_preset`, `aligner`, `cpus`, `workdir`, `debug`, `pipe`, `min_contig_len`, `no_plot`, `plot_format`, `quantize`, `quantize_labels`
 - **mito**: `workdir`, `left`, `right`, `seed`, `reference`, `minlen`, `maxlen`, `out`, `starting`, `pipe`
 - **fix_tbl**: `table`, `report`, `output`, `debug`, `pipe`
 
@@ -111,7 +111,7 @@ Expected inputs/outputs per step:
 5. Parses `mosdepth.summary.txt` for per-contig mean depths and `mosdepth.global.dist.txt` for coverage breadth
 6. Flags contigs with mean depth > assembly_mean + 3×SD as possible contaminants/organelles (uses population SD; contigs are the full assembly population, not a sample)
 
-**Key `args` attributes:** `input`, `out`, `left`, `right`, `longreads`, `illumina_preset`, `longread_preset`, `aligner`, `cpus`, `workdir`, `debug`, `pipe`, `min_contig_len`
+**Key `args` attributes:** `input`, `out`, `left`, `right`, `longreads`, `illumina_preset`, `longread_preset`, `aligner`, `cpus`, `workdir`, `debug`, `pipe`, `min_contig_len`, `no_plot`, `plot_format`, `quantize`, `quantize_labels`
 
 ## Audit Fixes (2026-05-02)
 
