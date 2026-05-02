@@ -34,6 +34,7 @@
  - **`pipeline.py` assess step**: Fixed `AttributeError` — `assess_args` Namespace now includes `telomere_monomer` and `telomere_n_repeat` attributes required by `assess.run()`.
  - **`pipeline.py` assemble step**: Removed stale `asm_args.spades_tmpdir = None` assignment (wrong attribute name; `tmpdir` is already correctly populated via `assembleOpts`).
  - **Missing parser flags**: Added `-v/--debug` to `parser_assess`, `parser_sort`, and `parser_mito`; added `--pipe` to `parser_assess` and `parser_sort`; added `-v` shorthand to `parser_rmdup`'s `--debug` flag for consistency across all subcommands.
+ - fcs_gx seemed like it was writing reports in the input fasta folder not the targeted output folder, should be fixed
 
 ### Enhanced
 

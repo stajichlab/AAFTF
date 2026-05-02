@@ -88,12 +88,11 @@ def run(parser, args):
         nextOut = f"{args.outfile}.rmdup.fasta"
 
     if checkfile(fcsgxTSV):
-        baseinput = os.path.basename(args.input)
-        basedir = os.path.dirname(args.input)
-        if "." in baseinput:
-            baseinput = baseinput.rsplit(".", 1)[0]
-
-        shutil.copy(fcsgxTSV, os.path.join(basedir, f"{baseinput}.fcs_gx-taxonomy.tsv"))
+        outbase = os.path.basename(args.outfile)
+        basedir = os.path.dirname(os.path.realpath(args.outfile))
+        if "." in outbase:
+            outbase = outbase.rsplit(".", 1)[0]
+        shutil.copy(fcsgxTSV, os.path.join(basedir, f"{outbase}.fcs_gx-taxonomy.tsv"))
 
     if not args.debug:
         SafeRemove(args.workdir)

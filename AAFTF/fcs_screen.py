@@ -82,6 +82,7 @@ def run(parser, args):
     except NameError:
         print(f"error in calling executable {cmd}")
 
+    os.mkdir(os.path.join(args.workdir, "cleaned_sequences"))
     cleanresult = os.path.join(args.workdir, "cleaned_sequences", infilename)
     if args.debug:
         status(f"copy from: {cleanresult} -> {args.outfile}")
