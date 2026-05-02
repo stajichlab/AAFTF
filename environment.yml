@@ -18,6 +18,8 @@ dependencies:
   - fastp
   - novoplasty
   - bbmap
+  - mosdepth
+  - matplotlib
   - ncbi-fcs-gx
   - masurca
   - nextpolish

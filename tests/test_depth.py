@@ -1,17 +1,21 @@
 """Unit tests for pure-Python functions in AAFTF/depth.py.
 
-Tests cover FASTQ counting, mosdepth output parsing, and the outlier
-detection arithmetic.  No external tools (minimap2, samtools, mosdepth)
-are required.
+Tests cover FASTQ counting, mosdepth output parsing, outlier detection
+arithmetic, quantize bin parsing, plot prefix derivation, and quantized
+BED reading.  No external tools (minimap2, samtools, mosdepth) are required.
 """
 
 import gzip
 import math
+import os
 
 import pytest
 
 from AAFTF.depth import (
     _coverage_breadth_from_dist,
+    _get_plot_prefix,
+    _parse_quantize_bins,
+    _read_quantized_bed,
     count_fastq_reads,
     parse_mosdepth_summary,
 )
@@ -167,3 +171,170 @@ class TestOutlierDetectionMath:
         assert abs(sd - expected_sd) < 0.01
         assert threshold == pytest.approx(mean + 3 * expected_sd)
         assert 1000.0 in outliers
+
+
+# ---------------------------------------------------------------------------
+# _parse_quantize_bins
+# ---------------------------------------------------------------------------
+
+
+class TestParseQuantizeBins:
+    def test_default_bins_returns_five_labels(self):
+        labels, env_dict = _parse_quantize_bins("0:1:4:100:200:")
+        assert len(labels) == 5
+
+    def test_default_bins_uses_canonical_names(self):
+        labels, _ = _parse_quantize_bins("0:1:4:100:200:")
+        assert labels[0] == "NO_COVERAGE"
+        assert labels[2] == "CALLABLE"
+        assert labels[4] == "VERY_HIGH_COVERAGE"
+
+    def test_env_dict_keys_are_mosdepth_q_vars(self):
+        _, env_dict = _parse_quantize_bins("0:1:4:100:200:")
+        assert set(env_dict.keys()) == {"MOSDEPTH_Q0", "MOSDEPTH_Q1", "MOSDEPTH_Q2", "MOSDEPTH_Q3", "MOSDEPTH_Q4"}
+
+    def test_env_dict_values_match_labels(self):
+        labels, env_dict = _parse_quantize_bins("0:1:4:100:200:")
+        for i, lbl in enumerate(labels):
+            assert env_dict[f"MOSDEPTH_Q{i}"] == lbl
+
+    def test_custom_bins_auto_named(self):
+        labels, _ = _parse_quantize_bins("0:5:50:")
+        assert labels == ["BIN_0", "BIN_1", "BIN_2"]
+
+    def test_custom_labels_override(self):
+        labels, _ = _parse_quantize_bins("0:5:50:", labels_str="NONE,LOW,HIGH")
+        assert labels == ["NONE", "LOW", "HIGH"]
+
+    def test_too_few_custom_labels_get_padded(self):
+        labels, _ = _parse_quantize_bins("0:1:4:100:200:", labels_str="A,B")
+        assert len(labels) == 5
+        assert labels[0] == "A"
+        assert labels[1] == "B"
+        assert labels[2] == "BIN_2"
+
+    def test_too_many_custom_labels_get_truncated(self):
+        labels, _ = _parse_quantize_bins("0:5:", labels_str="X,Y,Z,W")
+        assert labels == ["X", "Y"]
+
+    def test_trailing_colon_not_counted_as_bin(self):
+        labels, _ = _parse_quantize_bins("0:1:")
+        assert len(labels) == 2
+
+    def test_three_bin_custom_string(self):
+        labels, env_dict = _parse_quantize_bins("0:10:100:")
+        assert len(labels) == 3
+        assert "MOSDEPTH_Q2" in env_dict
+
+
+# ---------------------------------------------------------------------------
+# _get_plot_prefix
+# ---------------------------------------------------------------------------
+
+
+class TestGetPlotPrefix:
+    def test_strips_fasta_extension(self, tmp_path):
+        report = str(tmp_path / "coverage_stats.txt")
+        prefix = _get_plot_prefix("genome.fasta", report)
+        assert os.path.basename(prefix) == "genome"
+
+    def test_strips_fa_extension(self, tmp_path):
+        report = str(tmp_path / "coverage_stats.txt")
+        prefix = _get_plot_prefix("assembly.fa", report)
+        assert os.path.basename(prefix) == "assembly"
+
+    def test_strips_fasta_gz_extension(self, tmp_path):
+        report = str(tmp_path / "coverage_stats.txt")
+        prefix = _get_plot_prefix("genome.fasta.gz", report)
+        assert os.path.basename(prefix) == "genome"
+
+    def test_prefix_dir_matches_report_dir(self, tmp_path):
+        report = str(tmp_path / "results" / "coverage_stats.txt")
+        os.makedirs(str(tmp_path / "results"), exist_ok=True)
+        prefix = _get_plot_prefix("genome.fasta", report)
+        assert os.path.dirname(prefix) == str(tmp_path / "results")
+
+    def test_dotted_name_preserves_stem(self, tmp_path):
+        report = str(tmp_path / "coverage_stats.txt")
+        prefix = _get_plot_prefix("strain.final.sorted.fasta", report)
+        assert os.path.basename(prefix) == "strain.final.sorted"
+
+
+# ---------------------------------------------------------------------------
+# _read_quantized_bed
+# ---------------------------------------------------------------------------
+
+
+class TestReadQuantizedBed:
+    def _write_bed(self, path, lines, gz=True):
+        content = "\n".join(lines) + "\n"
+        if gz:
+            with gzip.open(path, "wt") as fh:
+                fh.write(content)
+        else:
+            with open(path, "w") as fh:
+                fh.write(content)
+
+    def test_reads_gzipped_bed(self, tmp_path):
+        bed = str(tmp_path / "test.quantized.bed.gz")
+        self._write_bed(
+            bed,
+            [
+                "scaffold_1\t0\t5000\tNO_COVERAGE",
+                "scaffold_1\t5000\t100000\tCALLABLE",
+                "scaffold_2\t0\t200000\tCALLABLE",
+            ],
+        )
+        data = _read_quantized_bed(bed)
+        assert "scaffold_1" in data
+        assert "scaffold_2" in data
+        assert len(data["scaffold_1"]) == 2
+
+    def test_reads_plain_bed(self, tmp_path):
+        bed = str(tmp_path / "test.quantized.bed")
+        self._write_bed(
+            bed,
+            [
+                "scf1\t0\t1000\tNO_COVERAGE",
+                "scf1\t1000\t5000\tCALLABLE",
+            ],
+            gz=False,
+        )
+        data = _read_quantized_bed(bed)
+        assert len(data["scf1"]) == 2
+
+    def test_interval_fields_parsed_correctly(self, tmp_path):
+        bed = str(tmp_path / "test.quantized.bed.gz")
+        self._write_bed(bed, ["scaffold_1\t100\t500\tHIGH_COVERAGE"])
+        data = _read_quantized_bed(bed)
+        start, end, label = data["scaffold_1"][0]
+        assert start == 100
+        assert end == 500
+        assert label == "HIGH_COVERAGE"
+
+    def test_multiple_contigs_separated(self, tmp_path):
+        bed = str(tmp_path / "test.quantized.bed.gz")
+        self._write_bed(
+            bed,
+            [
+                "chr1\t0\t1000\tCALLABLE",
+                "chr2\t0\t2000\tLOW_COVERAGE",
+                "chr1\t1000\t3000\tHIGH_COVERAGE",
+            ],
+        )
+        data = _read_quantized_bed(bed)
+        assert len(data["chr1"]) == 2
+        assert len(data["chr2"]) == 1
+
+    def test_short_lines_skipped(self, tmp_path):
+        bed = str(tmp_path / "test.quantized.bed.gz")
+        self._write_bed(
+            bed,
+            [
+                "scaffold_1\t0\t1000\tCALLABLE",
+                "bad_line",
+                "scaffold_1\t1000\t2000\tHIGH_COVERAGE",
+            ],
+        )
+        data = _read_quantized_bed(bed)
+        assert len(data["scaffold_1"]) == 2

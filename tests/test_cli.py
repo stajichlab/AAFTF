@@ -232,6 +232,42 @@ class TestDepthParser:
         # alias 'coverage' routes to depth; same Namespace structure
         assert args.input == "g.fa"
 
+    def test_default_plot_format_is_pdf(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
+        assert args.plot_format == "pdf"
+
+    def test_plot_format_svg(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--plot-format", "svg"])
+        assert args.plot_format == "svg"
+
+    def test_plot_format_png(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--plot-format", "png"])
+        assert args.plot_format == "png"
+
+    def test_no_plot_false_by_default(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
+        assert args.no_plot is False
+
+    def test_no_plot_flag(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--no-plot"])
+        assert args.no_plot is True
+
+    def test_default_quantize(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
+        assert args.quantize == "0:1:4:100:200:"
+
+    def test_custom_quantize(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--quantize", "0:5:50:"])
+        assert args.quantize == "0:5:50:"
+
+    def test_quantize_labels_none_by_default(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq"])
+        assert args.quantize_labels is None
+
+    def test_custom_quantize_labels(self):
+        args = _parse_with_main(["AAFTF", "depth", "-i", "g.fa", "-l", "l.fq", "--quantize-labels", "NONE,LOW,HIGH"])
+        assert args.quantize_labels == "NONE,LOW,HIGH"
+
 
 # ---------------------------------------------------------------------------
 # assess parser — common flags present
