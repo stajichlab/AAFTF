@@ -86,14 +86,13 @@ def run(parser, args):
     assembly_file = basename + f".{assembly_method}.fasta"
     if not checkfile(assembly_file):
         assembleOpts = ["memory", "cpus", "debug", "workdir", "method", "assembler_args", "tmpdir"]
-        asm_args = create_namespace(assembleOpts, required_args={"left": basename + "_filtered_1.fastq.gz", "out": assembly_file, "pipe": True, "method": assembly_method})
+        asm_extra = {"left": basename + "_filtered_1.fastq.gz", "out": assembly_file, "pipe": True, "method": assembly_method, "merged": False}
+        if assembly_method == "spades":
+            asm_extra["isolate"] = False
+            asm_extra["careful"] = True
+        asm_args = create_namespace(assembleOpts, required_args=asm_extra)
         if args.right:
             asm_args.right = basename + "_filtered_2.fastq.gz"
-        # Set assembly-specific parameters
-        if assembly_method == "spades":
-            asm_args.isolate = False
-            asm_args.careful = True
-        asm_args.merged = False
         assemble.run(parser, asm_args)
     else:
         status(f"AAFTF assemble output found: {assembly_file}")
@@ -146,15 +145,14 @@ def run(parser, args):
     # sort and rename
     final_file = basename + ".final.fasta"
     if not checkfile(final_file):
-        sort_args = Namespace(input=polish_file, out=final_file, name="scaffold", minlen=args.mincontiglen)
+        sortOpts = ["debug"]
+        sort_args = create_namespace(sortOpts, required_args={"input": polish_file, "out": final_file, "name": "scaffold", "minlen": args.mincontiglen, "pipe": True})
         aaftf_sort.run(parser, sort_args)
     else:
         status(f"AAFTF sort output found: {final_file}")
     check_step_success(final_file, "sort")
 
     # assess the assembly
-    assess_args = Namespace(
-        input=final_file, report=False,
-        telomere_monomer="TAA[C]+", telomere_n_repeat=2
-    )
+    assessOpts = ["debug"]
+    assess_args = create_namespace(assessOpts, required_args={"input": final_file, "report": False, "telomere_monomer": "TAA[C]+", "telomere_n_repeat": 2, "pipe": True})
     assess.run(parser, assess_args)

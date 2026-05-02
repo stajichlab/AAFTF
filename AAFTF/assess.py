@@ -13,11 +13,13 @@ from Bio import SeqIO
 from AAFTF.utility import status
 
 
-def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
+def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum, telomere_window=200):
     """Calculate genome assembly statistics."""
     lengths = []
     # could be smart here and handle compressed files?
     GC = 0
+    total_Ns = 0
+    n_gap_count = 0
     if fasta_file.endswith(".gz"):
         seqio = SeqIO.parse(gzip.open(fasta_file, mode="rt"), "fasta")
     else:
@@ -26,7 +28,7 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
     telomere_stats = {"TELOMERE FWD": 0, "TELOMERE REV": 0, "T2T SCAFFOLDS": 0}
     for record in seqio:
         lengths.append(len(record))
-        forward, reverse = findTelomere(record.seq, telomere_repeat, n_minimum)
+        forward, reverse = findTelomere(record.seq, telomere_repeat, n_minimum, telomere_window)
         if forward:
             telomere_stats["TELOMERE FWD"] += 1
         if reverse:
@@ -34,7 +36,10 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
         if forward and reverse:
             telomere_stats["T2T SCAFFOLDS"] += 1
 
-        GC += sum(record.seq.count(x) for x in ["G", "C", "g", "c", "S", "s"])
+        seq_upper = str(record.seq).upper()
+        GC += sum(seq_upper.count(x) for x in ["G", "C", "S"])
+        total_Ns += seq_upper.count("N")
+        n_gap_count += len(re.findall(r"N+", seq_upper))
 
     lengths.sort()
     total_len = sum(lengths)
@@ -67,6 +72,8 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum):
     report += f"{'L90':>15}  =  {l90}\n"
     report += f"{'N90':>15}  =  {n90}\n"
     report += f"{'GC%':>15}  =  {GC:.2f}\n"
+    report += f"{'N GAP COUNT':>15}  =  {n_gap_count}\n"
+    report += f"{'TOTAL N BASES':>15}  =  {total_Ns}\n"
     for f in sorted(telomere_stats):
         report += f"{f:>15}  =  {telomere_stats[f]}\n"
 
@@ -102,15 +109,14 @@ def revcomp(seq):
     return "".join(revcomped_seq)
 
 
-def findTelomere(seq, monomer, n):
+def findTelomere(seq, monomer, n, window=200):
     """Takes nucleotide sequence and checks if the sequence contains telomere repeats.
 
     Using code based on find_telomeres.py from Markus Hiltunen.
     https://github.com/markhilt/genome_analysis_tools
     """
-    # Look within first and last 200 bp for repeats
-    start = str(seq[:100]).upper()
-    end = str(seq[-100:]).upper()
+    start = str(seq[:window]).upper()
+    end = str(seq[-window:]).upper()
 
     forward, reverse = False, False
 
@@ -136,4 +142,5 @@ def run(parser, args):
 
     if args.report:
         output_handle = open(args.report, "w")
-    genome_asm_stats(args.input, output_handle, args.telomere_monomer, args.telomere_n_repeat)
+    window = getattr(args, "telomere_window", 200)
+    genome_asm_stats(args.input, output_handle, args.telomere_monomer, args.telomere_n_repeat, window)

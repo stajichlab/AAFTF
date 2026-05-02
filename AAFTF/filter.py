@@ -154,7 +154,7 @@ def run(parser, args):
     if m:
         samtoolsversion = Version(m.group(1))
     alignBAM = os.path.join(args.workdir, args.basename + "_contam_db.bam")
-    tempfiles = ["unsorted.bam"]  # For backwards compatibility with samtools < 1.0
+    unsorted_bam = os.path.join(args.workdir, args.basename + "_contam.unsorted.bam")
     clean_reads = args.basename + "_filtered"
     refmatch_bbduk = [contamdb, "phix", "artifacts", "lambda"]
     if args.aligner == "bbduk":
@@ -222,7 +222,7 @@ def run(parser, args):
 
             p1 = subprocess.Popen(bowtie_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             if samtoolsversion >= Version("1.0"):
-                p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", tempfiles[3], "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+                p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", unsorted_bam, "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
                 p1.stdout.close()
                 p2.communicate()
             else:
@@ -248,7 +248,7 @@ def run(parser, args):
             printCMD(bwa_cmd)
             p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             if samtoolsversion >= Version("1.0"):
-                p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", tempfiles[3], "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+                p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", unsorted_bam, "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
                 p1.stdout.close()
                 p2.communicate()
             else:
@@ -270,7 +270,7 @@ def run(parser, args):
             printCMD(minimap2_cmd)
             p1 = subprocess.Popen(minimap2_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
             if samtoolsversion >= Version("1.0"):
-                p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", tempfiles[3], "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+                p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", unsorted_bam, "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
                 p1.stdout.close()
                 p2.communicate()
             else:

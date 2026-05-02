@@ -19,28 +19,36 @@ except Exception:
 
 
 ALIAS_MAP = {
-    "trim_reads": "trim", "read_trim": "trim",
-    "filter_reads": "filter", "read_filter": "filter",
-    "asm": "assemble", "spades": "assemble",
-    "vectorscreen": "vecscreen", "vector_blast": "vecscreen",
-    "ncbi_fcs": "fcs_screen", "ncbi_fcs-screen": "fcs_screen",
-    "ncbi_fcs-gx": "fcs_gx_purge", "ncbi_fcs_gx": "fcs_gx_purge", "gx": "fcs_gx_purge",
+    "trim_reads": "trim",
+    "read_trim": "trim",
+    "filter_reads": "filter",
+    "read_filter": "filter",
+    "asm": "assemble",
+    "spades": "assemble",
+    "vectorscreen": "vecscreen",
+    "vector_blast": "vecscreen",
+    "ncbi_fcs": "fcs_screen",
+    "ncbi_fcs-screen": "fcs_screen",
+    "ncbi_fcs-gx": "fcs_gx_purge",
+    "ncbi_fcs_gx": "fcs_gx_purge",
+    "gx": "fcs_gx_purge",
     "purge": "sourpurge",
     "dedup": "rmdup",
-    "pilon": "polish", "polca": "polish",
+    "pilon": "polish",
+    "polca": "polish",
     "stats": "assess",
     "fix": "fix_tbl",
-    "mito_asm": "mito", "mitochondria": "mito",
-    "coverage": "depth", "cov": "depth",
+    "mito_asm": "mito",
+    "mitochondria": "mito",
+    "coverage": "depth",
+    "cov": "depth",
 }
 
 
 def run_subtool(parser, args):
     """Run the subtool of the AAFTF pipeline."""
     command = ALIAS_MAP.get(args.command, args.command)
-    if command == "runall":
-        print("runall")
-    elif command == "trim":
+    if command == "trim":
         import AAFTF.trim as submodule
     elif command == "filter":
         import AAFTF.filter as submodule
@@ -260,7 +268,7 @@ def main():
 
     parser_asm = subparsers.add_parser("assemble", aliases=["asm", "spades"], description="Run assembler on cleaned reads", help="Assemble reads")
 
-    parser_asm.add_argument("--method", type=str, choices=["spades", "dipspades", "megahit", "unicycler"], required=False, default="spades", help="Assembly method: spades, dipspades, megahit, unicycler. Default: unicycler")
+    parser_asm.add_argument("--method", type=str, choices=["spades", "dipspades", "megahit", "unicycler"], required=False, default="spades", help="Assembly method: spades, dipspades, megahit, unicycler. Default: spades")
 
     parser_asm.add_argument(
         "-o",
@@ -586,6 +594,8 @@ def main():
 
     parser_assess.add_argument("-n", "--telomere_n_repeat", type=int, default=2, help="Telomere minimum number of monomer repeats. (default 2)")
 
+    parser_assess.add_argument("--telomere_window", type=int, default=200, help="Number of bp to scan at each end for telomere repeats. (default 200)")
+
     parser_assess.add_argument("-v", "--debug", action="store_true", help="Provide debugging messages")
 
     parser_assess.add_argument("--pipe", action="store_true", help="AAFTF is running in pipeline mode")
@@ -605,6 +615,10 @@ def main():
     parser_fix.add_argument("-r", "--report", type=ap.FileType("rt"), required=True, help="FCS report (5 column CSV)")
 
     parser_fix.add_argument("-o", "--output", type=ap.FileType("wt"), required=True, help="Write fixed TBL file")
+
+    parser_fix.add_argument("--pipe", action="store_true", default=False, help="AAFTF is running in pipeline mode")
+
+    parser_fix.add_argument("-v", "--debug", action="store_true", dest="debug", default=False, help="Verbose/debug mode")
 
     ##########
     # depth of coverage
@@ -626,25 +640,23 @@ def main():
     parser_depth = subparsers.add_parser(
         "depth",
         aliases=["coverage", "cov"],
-        description=(
-            "Calculate depth of coverage by mapping Illumina and/or long reads "
-            "to a genome assembly with minimap2 (or bwa), then running mosdepth "
-            "to compute per-contig depth statistics.  Contigs with mean depth "
-            "> assembly_mean + 3*SD are flagged as possible contaminants or "
-            "organellar sequences."
-        ),
+        description=("Calculate depth of coverage by mapping Illumina and/or long reads " "to a genome assembly with minimap2 (or bwa), then running mosdepth " "to compute per-contig depth statistics.  Contigs with mean depth " "> assembly_mean + 3*SD are flagged as possible contaminants or " "organellar sequences."),
         help="Calculate read depth of coverage for genome assembly",
     )
 
     parser_depth.add_argument(
-        "-i", "--input", "--infile",
+        "-i",
+        "--input",
+        "--infile",
         required=True,
         dest="input",
         help="Input genome assembly FASTA (e.g. *.sorted.fasta)",
     )
 
     parser_depth.add_argument(
-        "-o", "--out", "--report",
+        "-o",
+        "--out",
+        "--report",
         type=str,
         default="coverage_stats.txt",
         dest="out",
@@ -652,19 +664,22 @@ def main():
     )
 
     parser_depth.add_argument(
-        "-l", "--left",
+        "-l",
+        "--left",
         required=False,
         help="Left (Forward) Illumina reads FASTQ",
     )
 
     parser_depth.add_argument(
-        "-r", "--right",
+        "-r",
+        "--right",
         required=False,
         help="Right (Reverse) Illumina reads FASTQ",
     )
 
     parser_depth.add_argument(
-        "-lr", "--longreads",
+        "-lr",
+        "--longreads",
         required=False,
         help="Long reads FASTQ (PacBio or ONT)",
     )
@@ -693,7 +708,8 @@ def main():
     )
 
     parser_depth.add_argument(
-        "-c", "--cpus",
+        "-c",
+        "--cpus",
         type=int,
         metavar="cpus",
         required=False,
@@ -702,7 +718,9 @@ def main():
     )
 
     parser_depth.add_argument(
-        "-w", "--workdir", "--tmpdir",
+        "-w",
+        "--workdir",
+        "--tmpdir",
         type=str,
         dest="workdir",
         required=False,
@@ -710,7 +728,8 @@ def main():
     )
 
     parser_depth.add_argument(
-        "-v", "--debug",
+        "-v",
+        "--debug",
         action="store_true",
         help="Provide debugging messages and retain intermediate files",
     )
@@ -719,6 +738,13 @@ def main():
         "--pipe",
         action="store_true",
         help="AAFTF is running in pipeline mode",
+    )
+
+    parser_depth.add_argument(
+        "--min_contig_len",
+        type=int,
+        default=500,
+        help="Minimum contig length to include in depth outlier analysis (default: 500)",
     )
 
     ##########
@@ -766,6 +792,8 @@ def main():
     parser_pipeline.add_argument("--sourdb", required=False, help="SourMash LCA k-31 taxonomy database")
 
     parser_pipeline.add_argument("--mincovpct", default=5, type=int, help="Minimum percent of N50 coverage to remove")
+
+    parser_pipeline.add_argument("--pipe", action="store_true", default=False, help="AAFTF is running in pipeline mode")
 
     # done with menu options
     # set defaults

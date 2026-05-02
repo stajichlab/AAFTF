@@ -63,8 +63,9 @@ def run(parser, args):
         # trunk-ignore(ruff/B007)
         for Header, Seq in SimpleFastaParser(infile):
             fasta_lengths.append(len(Seq))
-    n50 = calcN50(fasta_lengths, num=0.75)
-    status(f"Assembly is {numSeqs:,} contigs; {assemblySize:,} bp; and N75 is {n50:,} bp")
+    n50 = calcN50(fasta_lengths, num=0.50)
+    n75 = calcN50(fasta_lengths, num=0.75)
+    status(f"Assembly is {numSeqs:,} contigs; {assemblySize:,} bp; N50 is {n50:,} bp; N75 is {n75:,} bp")
 
     # get list of tuples of sequences sorted by size (shortest --> longest)
     AllSeqs = {}
@@ -74,9 +75,9 @@ def run(parser, args):
                 AllSeqs[Header] = len(Seq)
     sortSeqs = sorted(AllSeqs.items(), key=operator.itemgetter(1), reverse=False)
     if args.exhaustive:
-        n50 = sortSeqs[-1][1]
-    those2check = [x for x in sortSeqs if x[1] < n50]
-    status(f"Will check {len(those2check):,} contigs for duplication --> those that are < {n50:,} && > {args.minlen:,}")
+        n75 = sortSeqs[-1][1]
+    those2check = [x for x in sortSeqs if x[1] < n75]
+    status(f"Will check {len(those2check):,} contigs for duplication --> those that are < {n75:,} && > {args.minlen:,}")
     # loop through sorted list of tuples
     ignore = []
     for i, x in enumerate(sortSeqs):
@@ -84,7 +85,7 @@ def run(parser, args):
         if x[1] < args.minlen:
             ignore.append(x[0])
             continue
-        if x[1] > n50:
+        if x[1] > n75:
             sys.stdout.flush()
             sys.stdout.write("\n")
             break
