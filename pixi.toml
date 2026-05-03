@@ -1,6 +1,6 @@
 [workspace]
 authors = ["Jason Stajich <jasonstajich.phd@gmail.com>"]
-channels = ["bioconda", "conda-forge"]
+channels = ["conda-forge", "bioconda"]
 name = "AAFTF"
 platforms = ["linux-64"]
 version = "0.6.2"
@@ -9,8 +9,8 @@ version = "0.6.2"
 
 [dependencies]
 python = "3.10.*"
+samtools = ">=1.23,<2"
 biopython = "*"
-samtools = "*"
 bwa = "*"
 minimap2 = "*"
 pilon = "*"
@@ -22,11 +22,12 @@ trimmomatic = "*"
 spades = "*"
 fastp = "*"
 novoplasty = "*"
-bbmap = "*"
 ncbi-fcs-gx = "*"
-masurca = "*"
-nextpolish = "*"
+mosdepth = "*"
+matplotlib = "*"
 pip = "*"
+bbmap = ">=39.80,<40"
+masurca = ">=4.1.4,<5"
 
 [pypi-dependencies]
-aaftf = "*"
+aaftf = { path = ".", editable = true}
