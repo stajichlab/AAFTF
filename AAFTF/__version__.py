@@ -9,7 +9,7 @@ PREFIX = "v"
 tag_re = re.compile(rf"\btag: {PREFIX}([0-9][^,]*)\b")
 version_re = re.compile("^Version: (.+)$", re.M)
 
-__version__ = "0.6.0"
+__version__ = "0.6.2"
 
 
 def get_version():
