@@ -2,6 +2,8 @@ Release notes for AAFTF
 =======================
 
 # Automatic Assembly For The Fungi
+* v0.6.2 (Stable)
+  1. Release with updated tools and checking for pipeline.
 
 * v0.6.1 (Development)
    **Tests**
@@ -12,9 +14,13 @@ Release notes for AAFTF
 
    **Added**
    1. New `depth` subtool - calculates read depth of coverage for genome assemblies
-      - Maps Illumina paired-end reads via minimap2 or bwa
-      - Supports long reads via minimap2 (map-ont/map-pb/map-hifi)
-      - Generates coverage_stats.txt with per-contig depth statistics and outlier detection
+      - Maps Illumina paired-end reads via minimap2 (default) or bwa; long reads via minimap2 map-ont/map-pb/map-hifi
+      - Mapper output is piped directly to `samtools sort` — no intermediate SAM files written to disk
+      - Generates a coverage report with per-contig depth statistics and two outlier tiers:
+        - `** OUTLIER`: mean depth > assembly mean + 3 SD (likely contaminant or organelle)
+        - `ELEVATED`: mean depth 2–3 SD above mean (candidates worth inspecting)
+      - Reports two mean depth estimates: mosdepth global (length-weighted) and per-contig arithmetic mean
+      - Optional matplotlib coverage plots: per-scaffold heatmap, stacked bar chart, and depth histogram
       - Aliases: `coverage`, `cov`
       - Requires: minimap2 and/or bwa, samtools, mosdepth
 

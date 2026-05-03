@@ -10,7 +10,7 @@ Most of these can be installed via conda packages. Noting that some tools have d
 - bwa - https://github.com/lh3/bwa
 - minimap2 - https://github.com/lh3/minimap2
 - bowtie2 - http://bowtie-bio.sourceforge.net/bowtie2/index.shtml (Optional; not default)
-- BBTools - https://github.com/bbushnell/BBTools 
+- BBTools - https://github.com/bbushnell/BBTools
 
 ## QC and trimming
 - BBTools - https://bbmap.org/ - supports read-level filtering for contamination and vector/primer
@@ -94,10 +94,11 @@ This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/ja
 6a. sourpurge          Purge contigs based on sourmash results - with sourmash
 6b. fcs_gx_purge       Purge contigs based on NCBI fcs-gx tool. Note this runs MUCH faster with large memory.
 7. rmdup               Remove duplicate contigs - using minimap2 to find duplicates
-8. pilon               Polish contig sequences with Pilon - uses Pilon
+8. polish              Polish contig sequences - uses POLCA, Pilon, or NextPolish
 9. sort                Sort contigs by length and rename FASTA headers
 10. assess             Assess completeness of genome assembly
-11. pipeline           Run AAFTF pipeline all in one go.
+11. depth              Calculate read depth of coverage across assembled contigs
+12. pipeline           Run AAFTF pipeline all in one go.
 
 
 # Typical runs
@@ -239,3 +240,37 @@ VECTRIM=$OUTDIR/${BASE}.vecscreen.fasta
 mkdir -p $WORKDIR $OUTDIR
 AAFTF vecscreen -c $CPU -i $ASMFILE -o $VECTRIM
 ```
+
+## Depth of Coverage
+
+The `depth` subtool (aliases: `coverage`, `cov`) maps reads to the final assembly and
+computes per-contig depth statistics using mosdepth.  It requires `samtools` and `mosdepth`
+plus at least one of `minimap2` (default for both Illumina and long reads) or `bwa`.
+
+```
+AAFTF depth -i genome.final.fasta \
+    --left reads_1P.fastq.gz --right reads_2P.fastq.gz \
+    -c $CPU -o coverage_report.txt
+```
+
+Long reads can be added alongside or instead of Illumina reads:
+
+```
+AAFTF depth -i genome.final.fasta \
+    --left reads_1P.fastq.gz --right reads_2P.fastq.gz \
+    --longreads nanopore.fastq.gz \
+    -c $CPU -o coverage_report.txt
+```
+
+The report (`coverage_stats.txt` by default) contains three sections:
+
+1. **Read input summary** — per-file read counts and `samtools flagstat` alignment rates
+2. **Whole-assembly coverage** — two mean depth estimates:
+   - *mosdepth global* (length-weighted: total bases covered ÷ assembly length)
+   - *per-contig arithmetic mean* (unweighted mean of per-contig means)
+   — plus percentage of bases covered at ≥1x
+3. **Per-contig depth table** (sorted by depth, descending) — each contig is flagged:
+   - `** OUTLIER` — mean depth > assembly mean + 3 SD (likely contaminant or organelle)
+   - `ELEVATED`  — mean depth between 2 SD and 3 SD above mean (worth inspecting)
+
+When matplotlib is available, three coverage plots are also produced alongside the report.

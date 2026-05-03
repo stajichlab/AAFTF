@@ -18,12 +18,12 @@
 ### Added
 
  - **New `depth` subtool** (`AAFTF/depth.py`): calculates read depth of coverage for a genome assembly.
-   Maps Illumina paired-end reads (via `minimap2 -ax sr` or `bwa mem`) and/or long reads (via `minimap2 -ax map-ont/map-pb/map-hifi`) to the assembly, then runs `mosdepth` to compute per-contig depth statistics.
+   Maps Illumina paired-end reads (via `minimap2 -ax sr` or `bwa mem`) and/or long reads (via `minimap2 -ax map-ont/map-pb/map-hifi`) to the assembly using a pipe chain (mapper stdout → `samtools sort`; no intermediate SAM files written to disk), then runs `mosdepth` to compute per-contig depth statistics.
    When both read types are provided their BAMs are merged before mosdepth.
    Writes `coverage_stats.txt` (configurable via `-o`) with three sections:
    1. Read input summary — per-file read counts and `samtools flagstat` alignment rates per read type
-   2. Whole-assembly coverage — mean depth and % bases covered (≥1x from mosdepth global distribution)
-   3. Per-contig depth table sorted descending — contigs with mean depth > assembly_mean + 3×SD are flagged as `** OUTLIER (possible contaminant/organelle)`
+   2. Whole-assembly coverage — two mean depth estimates: mosdepth global (length-weighted) and per-contig arithmetic mean; plus % bases covered ≥1x
+   3. Per-contig depth table sorted descending — two outlier tiers: `** OUTLIER` (mean > assembly mean + 3×SD, likely contaminant/organelle) and `ELEVATED` (2–3 SD above mean, worth inspecting)
    CLI: `AAFTF depth -i genome.sorted.fasta [-l fwd.fq] [-r rev.fq] [-lr longreads.fq] [-c cpus] [-o report]`
    Aliases: `coverage`, `cov`
    Required external tools: `minimap2` and/or `bwa`, `samtools`, `mosdepth`
