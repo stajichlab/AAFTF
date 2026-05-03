@@ -1,21 +1,22 @@
 """Utility scripts for parsing fasta and downloading datasets."""
 
 import datetime
+import errno
 import gzip
 import os
+import re
 import shutil
 import subprocess
 import textwrap
 
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
+from packaging.version import Version
 
 try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
-
-import errno
 
 
 def download(url, file_name):
@@ -162,6 +163,98 @@ def softwrap(string, every=80):
     for i in range(0, len(string), every):
         lines.append(string[i : i + every])
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# samtools version detection and version-aware command builders
+# ---------------------------------------------------------------------------
+
+_SAMTOOLS_VERSION_CACHE = None
+
+
+def get_samtools_version():
+    """Return the installed samtools version as a packaging.version.Version.
+
+    The result is cached after the first call so that subsequent calls within
+    the same process incur no subprocess overhead.  Returns Version("0.0") if
+    samtools is not found or the version string cannot be parsed.
+    """
+    global _SAMTOOLS_VERSION_CACHE
+    if _SAMTOOLS_VERSION_CACHE is not None:
+        return _SAMTOOLS_VERSION_CACHE
+    result = subprocess.run(["samtools"], capture_output=True, text=True)
+    m = re.search(r"Version:\s+(\S+)", result.stderr)
+    _SAMTOOLS_VERSION_CACHE = Version(m.group(1)) if m else Version("0.0")
+    return _SAMTOOLS_VERSION_CACHE
+
+
+def samtools_sort_cmd(input_file, output_bam, threads=1, memory_per_thread=None, tmp_prefix=None):
+    """Return a samtools sort command list compatible with the installed version.
+
+    Key version boundaries:
+      < 1.0  : no -@ threads flag; sort uses positional ``infile outprefix``
+      1.0-1.2: -@ threads added; output still positional prefix
+      >= 1.3 : -o outfile flag available (replaces positional prefix)
+      >= 1.21: -f flag removed — code that used -f breaks on this version
+
+    Args:
+        input_file: Path to input SAM/BAM, or ``'-'`` to read from stdin.
+        output_bam: Destination sorted BAM path.
+        threads: Number of sort threads.
+        memory_per_thread: Memory per thread string, e.g. ``'1G'``.
+        tmp_prefix: Prefix for temporary sort files (passed as -T).
+
+    Returns:
+        List of strings suitable for subprocess.run / subprocess.Popen.
+    """
+    ver = get_samtools_version()
+    cmd = ["samtools", "sort"]
+    if ver >= Version("1.0"):
+        cmd += ["-@", str(threads)]
+    if memory_per_thread:
+        cmd += ["-m", str(memory_per_thread)]
+    if ver >= Version("1.3"):
+        # Modern syntax: samtools sort [-@ N] [-m mem] [-T pfx] -o out.bam in
+        cmd += ["-o", output_bam]
+        if tmp_prefix:
+            cmd += ["-T", tmp_prefix]
+        cmd.append(input_file)
+    else:
+        # Pre-1.3 (and the -f flag removed in 1.21 lives only in this branch,
+        # which is unreachable on 1.21): samtools sort [opts] -f in.bam out.bam
+        cmd += ["-f", input_file, output_bam]
+    return cmd
+
+
+def samtools_view_bam_cmd(input_file, output_bam, threads=1, include_flags=None):
+    """Return a samtools view command list that produces a sorted BAM file.
+
+    Key version boundaries:
+      < 1.0  : no -@ flag; needs explicit -S to declare SAM input
+      1.0-1.5: -@ flag; -b for BAM output; -S ignored (auto-detect format)
+      >= 1.6 : -O bam,level=1 for compressed BAM output
+
+    Args:
+        input_file: Path to input file, or ``'-'`` for stdin.
+        output_bam: Destination BAM path.
+        threads: Number of threads.
+        include_flags: Optional SAM flag mask for ``-f`` (integer or string).
+
+    Returns:
+        List of strings suitable for subprocess.run / subprocess.Popen.
+    """
+    ver = get_samtools_version()
+    if ver >= Version("1.6"):
+        cmd = ["samtools", "view", "-O", "bam,level=1", "-@", str(threads), "-o", output_bam]
+    elif ver >= Version("1.0"):
+        cmd = ["samtools", "view", "-b", "-@", str(threads), "-o", output_bam]
+    else:
+        # Pre-1.0: no threads flag; need -S to declare SAM input
+        cmd = ["samtools", "view", "-bS", "-o", output_bam]
+    if include_flags is not None:
+        cmd += ["-f", str(include_flags)]
+    cmd.append(input_file)
+    return cmd
 
 
 def bam_read_count(bamfile):
