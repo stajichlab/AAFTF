@@ -1,7 +1,6 @@
 """Run the sourmash fast matching kmer tool to look for obvious contaminants."""
 
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -12,7 +11,7 @@ from Bio import SeqIO
 from packaging.version import Version
 
 from AAFTF.resources import DB_Links
-from AAFTF.utility import SafeRemove, calcN50, checkfile, execute, fastastats, printCMD, status
+from AAFTF.utility import SafeRemove, calcN50, checkfile, execute, fastastats, get_samtools_version, printCMD, samtools_sort_cmd, samtools_view_bam_cmd, status
 
 
 # logging - we may need to think about whether this has
@@ -158,29 +157,26 @@ def run(parser, args):
                 bwa_cmd.append(revReads)
 
                 # run BWA and pipe to samtools sort
-                result = subprocess.run(["samtools"], capture_output=True, text=True)
-                m = re.search(r"Version:\s+(\S+)", result.stderr)
-                if m:
-                    samtoolsversion = Version(m.group(1))
-                status(f"samtools version: {samtoolsversion}")
                 status("Aligning reads to assembly with BWA")
                 printCMD(bwa_cmd)
                 p1 = subprocess.Popen(bwa_cmd, cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL)
-
-                # this needs samtools > 1.0
-                # we need to do some checks on the version number and swap this out to other cmd if it isn't
-                if samtoolsversion < Version("1.0"):
-                    unsortBAM = "unsorted.bam"
-                    p2 = subprocess.Popen(["samtools", "view", "-bS", "-o", unsortBAM, "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+                if get_samtools_version() >= Version("1.3"):
+                    # Modern samtools sort reads SAM directly from stdin
+                    sort_cmd = samtools_sort_cmd("-", os.path.join(args.workdir, blobBAM), bamthreads)
+                    printCMD(sort_cmd)
+                    p2 = subprocess.Popen(sort_cmd, stdin=p1.stdout, stderr=DEVNULL)
                     p1.stdout.close()
                     p2.communicate()
-                    subprocess.run(["samtools", "sort", "-@", str(bamthreads), "-f", unsortBAM, blobBAM], cwd=args.workdir)
                 else:
-                    p2 = subprocess.Popen(["samtools", "sort", "--threads", str(bamthreads), "-o", blobBAM, "-"], cwd=args.workdir, stdout=subprocess.PIPE, stderr=DEVNULL, stdin=p1.stdout)
+                    # Older samtools: convert SAM→BAM first, then sort
+                    unsortBAM = os.path.join(args.workdir, "unsorted.bam")
+                    p2 = subprocess.Popen(samtools_view_bam_cmd("-", unsortBAM, bamthreads), cwd=args.workdir, stdin=p1.stdout, stderr=DEVNULL)
                     p1.stdout.close()
                     p2.communicate()
+                    subprocess.run(samtools_sort_cmd(unsortBAM, os.path.join(args.workdir, blobBAM), bamthreads), stderr=DEVNULL)
+                    SafeRemove(unsortBAM)
 
-                subprocess.run(["samtools", "index", blobBAM], cwd=args.workdir)
+                subprocess.run(["samtools", "index", os.path.join(args.workdir, blobBAM)], stderr=DEVNULL)
 
         # now calculate coverage from BAM file
         status("Calculating read coverage per contig")
