@@ -33,7 +33,9 @@ try:
 except ImportError:
     HAS_MATPLOTLIB = False
 
-from AAFTF.utility import SafeRemove, checkfile, printCMD, status, which
+from packaging.version import Version
+
+from AAFTF.utility import SafeRemove, checkfile, get_samtools_version, printCMD, samtools_sort_cmd, status, which
 
 # ---------------------------------------------------------------------------
 # Constants for quantized coverage classes
@@ -120,6 +122,40 @@ def map_reads(genome, reads_left, reads_right, longreads, workdir, cpus, illumin
     bam_illumina = None
     bam_longreads = None
 
+    _pipe_sort = get_samtools_version() >= Version("1.19")
+
+    def _map_and_sort(map_cmd, bam_out):
+        """Run mapper and produce a sorted BAM.
+
+        On samtools >= 1.19 the mapper's stdout is piped directly into
+        samtools sort (no intermediate file).  On older versions the SAM is
+        written to a temp file first, sorted, then removed.
+        """
+        printCMD(map_cmd)
+        if _pipe_sort:
+            sort_cmd = samtools_sort_cmd("-", bam_out, cpus)
+            printCMD(sort_cmd)
+            p1 = subprocess.Popen(map_cmd, stdout=subprocess.PIPE, stderr=stderr_dest)
+            p2 = subprocess.Popen(sort_cmd, stdin=p1.stdout, stderr=stderr_dest)
+            p1.stdout.close()
+            p2.communicate()
+            if p1.wait() != 0 or p2.returncode != 0:
+                status(f"ERROR: mapping/sorting pipeline failed for {bam_out}")
+                sys.exit(1)
+        else:
+            sam_out = bam_out.replace(".bam", ".sam")
+            ret = subprocess.run(map_cmd + ["-o", sam_out], stderr=stderr_dest)
+            if ret.returncode != 0:
+                status(f"ERROR: mapping failed for {bam_out}")
+                sys.exit(1)
+            sort_cmd = samtools_sort_cmd(sam_out, bam_out, cpus)
+            printCMD(sort_cmd)
+            ret = subprocess.run(sort_cmd, stderr=stderr_dest)
+            if ret.returncode != 0:
+                status(f"ERROR: samtools sort failed for {bam_out}")
+                sys.exit(1)
+            SafeRemove(sam_out)
+
     # --- Illumina reads ---
     if reads_left:
         bam_illumina = os.path.join(workdir, "illumina.sorted.bam")
@@ -129,51 +165,26 @@ def map_reads(genome, reads_left, reads_right, longreads, workdir, cpus, illumin
             shutil.copyfile(genome, genome_local)
             bwa_index_cmd = ["bwa", "index", genome_local]
             printCMD(bwa_index_cmd)
-            subprocess.run(bwa_index_cmd, stderr=stderr_dest)
+            ret = subprocess.run(bwa_index_cmd, stderr=stderr_dest)
+            if ret.returncode != 0:
+                status("ERROR: bwa index failed")
+                sys.exit(1)
             map_cmd = ["bwa", "mem", "-t", str(cpus), genome_local, reads_left]
             if reads_right:
                 map_cmd.append(reads_right)
         else:
-            map_cmd = [
-                "minimap2",
-                "-ax",
-                illumina_preset,
-                "-t",
-                str(cpus),
-                genome,
-                reads_left,
-            ]
+            map_cmd = ["minimap2", "-ax", illumina_preset, "-t", str(cpus), genome, reads_left]
             if reads_right:
                 map_cmd.append(reads_right)
 
-        printCMD(map_cmd)
-        p1 = subprocess.Popen(map_cmd, stdout=subprocess.PIPE, stderr=stderr_dest)
-        sort_cmd = ["samtools", "sort", "-@", str(cpus), "-o", bam_illumina, "-"]
-        printCMD(sort_cmd)
-        p2 = subprocess.Popen(sort_cmd, stdin=p1.stdout, stderr=stderr_dest)
-        p1.stdout.close()
-        p2.communicate()
+        _map_and_sort(map_cmd, bam_illumina)
         subprocess.run(["samtools", "index", bam_illumina], stderr=stderr_dest)
 
     # --- Long reads ---
     if longreads:
         bam_longreads = os.path.join(workdir, "longreads.sorted.bam")
-        map_cmd = [
-            "minimap2",
-            "-ax",
-            longread_preset,
-            "-t",
-            str(cpus),
-            genome,
-            longreads,
-        ]
-        printCMD(map_cmd)
-        p1 = subprocess.Popen(map_cmd, stdout=subprocess.PIPE, stderr=stderr_dest)
-        sort_cmd = ["samtools", "sort", "-@", str(cpus), "-o", bam_longreads, "-"]
-        printCMD(sort_cmd)
-        p2 = subprocess.Popen(sort_cmd, stdin=p1.stdout, stderr=stderr_dest)
-        p1.stdout.close()
-        p2.communicate()
+        map_cmd = ["minimap2", "-ax", longread_preset, "-t", str(cpus), genome, longreads]
+        _map_and_sort(map_cmd, bam_longreads)
         subprocess.run(["samtools", "index", bam_longreads], stderr=stderr_dest)
 
     devnull.close()
@@ -238,6 +249,7 @@ def run_mosdepth(bam_file, workdir, cpus, prefix="coverage", debug=False):
     mosdepth_prefix = os.path.join(os.path.abspath(workdir), prefix)
     cmd = [
         "mosdepth",
+        "-n",
         "--threads",
         str(cpus),
         "--no-abbrev",
@@ -372,7 +384,6 @@ def run_mosdepth_quantized(bam_file, workdir, cpus, quantize_str, env_dict, pref
         "mosdepth",
         "--threads",
         str(cpus),
-        "--no-abbrev",
         "-n",
         "--quantize",
         quantize_str,
@@ -827,21 +838,31 @@ def run(parser, args):
     # ------------------------------------------------------------------
     min_contig_len = getattr(args, "min_contig_len", 500)
     analysis_rows = [c for c in contig_rows if c.get("length", 0) >= min_contig_len]
+    # mosdepth global mean: bases covered / assembly length (length-weighted)
+    mosdepth_mean_depth = total_row["mean"] if total_row else None
     if analysis_rows:
         depths = [c["mean"] for c in analysis_rows]
-        mean_depth = total_row["mean"] if total_row else (sum(depths) / len(depths))
+        # Per-contig arithmetic mean (unweighted)
+        contig_arith_mean = sum(depths) / len(depths)
+        # Use mosdepth global mean for outlier threshold when available; it is
+        # the more accurate estimate because it weights by contig length.
+        mean_depth = mosdepth_mean_depth if mosdepth_mean_depth is not None else contig_arith_mean
         # Population SD is intentional: the contigs ARE the full assembly
         # (not a sample). Sample SD would systematically push the threshold
         # above any single outlier, defeating outlier detection on small sets.
         sd_depth = math.sqrt(sum((d - mean_depth) ** 2 for d in depths) / len(depths))
-        threshold = mean_depth + 3.0 * sd_depth
+        threshold_2sd = mean_depth + 2.0 * sd_depth
+        threshold_3sd = mean_depth + 3.0 * sd_depth
     else:
-        mean_depth = total_row["mean"] if total_row else 0.0
+        contig_arith_mean = mosdepth_mean_depth if mosdepth_mean_depth is not None else 0.0
+        mean_depth = contig_arith_mean
         sd_depth = 0.0
-        threshold = 0.0
+        threshold_2sd = 0.0
+        threshold_3sd = 0.0
 
     contig_rows_sorted = sorted(contig_rows, key=lambda x: x["mean"], reverse=True)
-    n_outliers = sum(1 for c in contig_rows if c["mean"] > threshold)
+    n_outliers_2sd = sum(1 for c in contig_rows if threshold_2sd < c["mean"] <= threshold_3sd)
+    n_outliers_3sd = sum(1 for c in contig_rows if c["mean"] > threshold_3sd)
 
     # ------------------------------------------------------------------
     # Write report
@@ -881,24 +902,35 @@ def run(parser, args):
         # --- Section 2: Whole-Assembly Coverage ---
         fout.write("=== 2. Whole-Assembly Coverage ===\n")
         if total_row:
-            fout.write(f"  Mean depth:            {mean_depth:.2f}x\n")
+            fout.write(f"  Mean depth (mosdepth global, length-weighted): {mosdepth_mean_depth:.2f}x\n")
+            fout.write(f"  Mean depth (per-contig arithmetic mean):        {contig_arith_mean:.2f}x\n")
             fout.write(f"  Total assembly length: {total_row['length']:,} bp\n")
             if coverage_breadth is not None:
-                fout.write(f"  Bases covered (>=1x):  " f"{coverage_breadth * 100:.2f}%\n")
+                fout.write(f"  Bases covered (>=1x):  {coverage_breadth * 100:.2f}%\n")
+        else:
+            fout.write(f"  Mean depth (per-contig arithmetic mean): {contig_arith_mean:.2f}x\n")
         fout.write("\n")
 
         # --- Section 3: Per-Contig Coverage ---
         fout.write("=== 3. Per-Contig Coverage (sorted by depth, descending) ===\n")
         fout.write(f"  Assembly mean: {mean_depth:.2f}x   SD: {sd_depth:.2f}x\n")
-        fout.write(f"  Outlier threshold (mean + 3*SD): {threshold:.2f}x  " f"({n_outliers} contigs flagged)\n")
-        fout.write("  Flagged contigs are possible contaminants or organellar sequences.\n\n")
+        fout.write(f"  Elevated threshold  (mean + 2*SD): {threshold_2sd:.2f}x  ({n_outliers_2sd} contigs)\n")
+        fout.write(f"  Outlier threshold   (mean + 3*SD): {threshold_3sd:.2f}x  ({n_outliers_3sd} contigs)\n")
+        fout.write("  OUTLIER contigs are likely contaminants or organellar sequences.\n")
+        fout.write("  ELEVATED contigs are candidates worth inspecting (2–3 SD above mean).\n\n")
 
         cw = (40, 14, 12)
         header = f"  {'Contig':<{cw[0]}} " f"{'Length (bp)':>{cw[1]}} " f"{'Mean Depth':>{cw[2]}}  Flag\n"
         fout.write(header)
         fout.write("  " + "-" * (sum(cw) + 10) + "\n")
         for c in contig_rows_sorted:
-            flag = "** OUTLIER (possible contaminant/organelle)" if c["mean"] > threshold else ""
+            depth = c["mean"]
+            if depth > threshold_3sd:
+                flag = "** OUTLIER (possible contaminant/organelle)"
+            elif depth > threshold_2sd:
+                flag = "   ELEVATED (inspect — 2–3 SD above mean)"
+            else:
+                flag = ""
             fout.write(f"  {c['chrom']:<{cw[0]}} " f"{c['length']:>{cw[1]},} " f"{c['mean']:>{cw[2]}.2f}  {flag}\n")
 
     status(f"Coverage report written to: {report_file}")
