@@ -123,7 +123,7 @@ fi
 if [ ! -e $BASM.map.success ];then
   log "Aligning reads to $ASM"
   rm -f $BASM.sort.success
-  zcat -f $(echo $READS) | $BWA mem -SP -t $NUM_THREADS $BASM.bwa /dev/stdin 1>$BASM.unSorted.sam 2>>bwa.err && \
+  zcat -f $(echo $READS) | $BWA mem -SP -t $NUM_THREADS $BASM.bwa /dev/stdin 2>>bwa.err | $SAMTOOLS view -bhS /dev/stdin > $BASM.unSorted.bam && \
   touch $BASM.map.success
   if [ ! -e $BASM.map.success ];then
     error_exit "Aligning reads to $ASM failed"
@@ -133,11 +133,10 @@ fi
 if [ ! -e $BASM.sort.success ];then
   log "Sorting and indexing alignment file"
   rm -f $BASM.vc.success
-  $SAMTOOLS sort -m $MEM -T $BASM -@ $NUM_THREADS $BASM.unSorted.sam -o $BASM.alignSorted.bam 2>>samtools.err && \
+  $SAMTOOLS sort -m $MEM -@ $NUM_THREADS $BASM.unSorted.bam -o $BASM.alignSorted 2>>samtools.err && \
   $SAMTOOLS index $BASM.alignSorted.bam 2>>samtools.err && \
   $SAMTOOLS faidx $ASM  2>>samtools.err && \
   touch  $BASM.sort.success
-
   if [ ! -e $BASM.sort.success ];then
     error_exit "Sorting and indexing alignment file failed"
   fi
