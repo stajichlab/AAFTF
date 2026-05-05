@@ -85,6 +85,8 @@ More instructions coming for simplicity of install/testing.
 ## Notes
 This is partially a python re-write of [JAAWS](https://github.com/nextgenusfs/jaaws) which was a unix shell based cleanup and assembly tool written by Jon.
 
+the polca.sh that comes with masurca expects an old version samtools. To solve this you can copy the patches/polca.sh to your installed polca.sh and it corrects one bug to use `-o outfile` option for BAM saving from the `samtools sort` step.
+
 ## Steps / Procedures
 1. trim                Trim FASTQ input reads - with BBMap
 2. mito                De novo assemble mitochondrial genome
