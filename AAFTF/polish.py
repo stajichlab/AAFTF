@@ -162,14 +162,35 @@ def run(parser, args):  # noqa: C901
         else:
             nextOut = polishedFasta + ".final.fasta"
     elif args.method.lower() == "polca" or args.method.lower() == "masurca":
+        # Warn early if the system samtools is incompatible with polca.sh
+        samtoolsver = get_samtools_version()
+        if samtoolsver >= Version("1.21") and not getattr(args, "polca_samtools", None):
+            status(f"WARNING: samtools {samtoolsver} detected; polca.sh uses 'samtools sort -f' " "which was removed in samtools 1.21+. " "Use --polca_samtools to point to a compatible samtools (< 1.21), " "or switch to --method pilon.")
+
+        # Build the subprocess environment, optionally injecting a compatible samtools
+        polca_env = os.environ.copy()
+        polca_samtools = getattr(args, "polca_samtools", None)
+        if polca_samtools:
+            polca_samtools = os.path.abspath(polca_samtools)
+            # Most polca.sh builds honour the SAMTOOLS variable; also prepend its
+            # directory to PATH as a belt-and-suspenders fallback.
+            polca_env["SAMTOOLS"] = polca_samtools
+            polca_env["PATH"] = os.path.dirname(polca_samtools) + ":" + polca_env.get("PATH", "")
+
         initialFasta = os.path.basename(args.infile)
         shutil.copyfile(args.infile, os.path.join(args.workdir, initialFasta))
         polca_cmd = [args.polca, "-a", initialFasta, "-r", f"{forReads} {revReads}", "-t", str(args.cpus), "-m", memperthread]
         printCMD(polca_cmd)
         # run the polca polishing
         with open(os.path.join(args.workdir, polish_log), "w") as logfile:
-            subprocess.run(polca_cmd, cwd=args.workdir, stderr=logfile, stdout=logfile)
-        shutil.copyfile(os.path.join(args.workdir, f"{initialFasta}.PolcaCorrected.fa"), polishedFasta)
+            ret = subprocess.run(polca_cmd, cwd=args.workdir, stderr=logfile, stdout=logfile, env=polca_env)
+        polca_out = os.path.join(args.workdir, f"{initialFasta}.PolcaCorrected.fa")
+        if ret.returncode != 0 or not os.path.exists(polca_out):
+            status(f"ERROR: polca failed (exit {ret.returncode}); check log: {os.path.join(args.workdir, polish_log)}")
+            if samtoolsver >= Version("1.21") and not polca_samtools:
+                status(f"NOTE: samtools {samtoolsver} is installed; polca.sh uses 'samtools sort -f' " "which was removed in samtools 1.21+. " "Re-run with --polca_samtools /path/to/old/samtools (< 1.21) " "or switch to --method pilon.")
+            sys.exit(1)
+        shutil.copyfile(polca_out, polishedFasta)
         shutil.copyfile(os.path.join(args.workdir, f"{initialFasta}.vcf"), f"{polishedFasta}.vcf")
         shutil.copyfile(os.path.join(args.workdir, f"{initialFasta}.report"), f"{polishedFasta}.polca_report.txt")
         status("AAFTF polish completed.")

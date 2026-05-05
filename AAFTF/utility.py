@@ -182,8 +182,11 @@ def get_samtools_version():
     global _SAMTOOLS_VERSION_CACHE
     if _SAMTOOLS_VERSION_CACHE is not None:
         return _SAMTOOLS_VERSION_CACHE
-    result = subprocess.run(["samtools"], capture_output=True, text=True)
-    m = re.search(r"Version:\s+(\S+)", result.stderr)
+    try:
+        result = subprocess.run(["samtools"], capture_output=True, text=True)
+        m = re.search(r"Version:\s+(\S+)", result.stderr or "")
+    except (FileNotFoundError, OSError):
+        m = None
     _SAMTOOLS_VERSION_CACHE = Version(m.group(1)) if m else Version("0.0")
     return _SAMTOOLS_VERSION_CACHE
 

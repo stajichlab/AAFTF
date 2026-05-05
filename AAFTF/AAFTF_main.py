@@ -538,6 +538,8 @@ def main():
 
     parser_polish.add_argument("--polca", type=str, default="polca.sh", help="polca exe path - provide full path to deal with samtools mismatch in masurca")
 
+    parser_polish.add_argument("--polca_samtools", type=str, default=None, metavar="SAMTOOLS_PATH", help="Path to a samtools binary compatible with polca.sh (e.g. samtools < 1.21). polca.sh uses 'samtools sort -f' which was removed in 1.21+; set this to an older samtools when the system default is >= 1.21.")
+
     parser_polish.add_argument("-l", "--left", type=str, required=False, help="The name of the left/forward Illumina reads of paired-end " + "FASTQ formatted reads.")
 
     parser_polish.add_argument("-r", "--right", type=str, required=False, help="The name of the right/reverse Illumina reads of paired-end " + "FASTQ formatted reads.")
