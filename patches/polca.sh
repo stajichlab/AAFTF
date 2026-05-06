@@ -133,7 +133,7 @@ fi
 if [ ! -e $BASM.sort.success ];then
   log "Sorting and indexing alignment file"
   rm -f $BASM.vc.success
-  $SAMTOOLS sort -m $MEM -@ $NUM_THREADS $BASM.unSorted.bam -o $BASM.alignSorted 2>>samtools.err && \
+  $SAMTOOLS sort -m $MEM -@ $NUM_THREADS $BASM.unSorted.bam -o $BASM.alignSorted.bam 2>>samtools.err && \
   $SAMTOOLS index $BASM.alignSorted.bam 2>>samtools.err && \
   $SAMTOOLS faidx $ASM  2>>samtools.err && \
   touch  $BASM.sort.success
