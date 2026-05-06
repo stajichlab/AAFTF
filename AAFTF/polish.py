@@ -26,7 +26,7 @@ def run(parser, args):  # noqa: C901
         memperthread = "1"
 
     memperthread = f"{memperthread}G"
-
+    status(f"calling {polishMethod} with memoryper thread as {memperthread}, input memory is {args.memory}GB and num cpus is {args.cpus}")
     forReads, revReads = (None,) * 2
     if args.left:
         forReads = os.path.abspath(args.left)
@@ -165,7 +165,7 @@ def run(parser, args):  # noqa: C901
         # Warn early if the system samtools is incompatible with polca.sh
         samtoolsver = get_samtools_version()
         if samtoolsver >= Version("1.21") and not getattr(args, "polca_samtools", None):
-            status(f"WARNING: samtools {samtoolsver} detected; polca.sh uses 'samtools sort -f' " "which was removed in samtools 1.21+. " "Use --polca_samtools to point to a compatible samtools (< 1.21), " "or switch to --method pilon.")
+            status(f"(this may be red herring now) WARNING: samtools {samtoolsver} detected; polca.sh uses 'samtools sort -f' " "which was removed in samtools 1.21+. " "Use --polca_samtools to point to a compatible samtools (< 1.21), " "or switch to --method pilon.")
 
         # Build the subprocess environment, optionally injecting a compatible samtools
         polca_env = os.environ.copy()
