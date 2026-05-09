@@ -42,6 +42,10 @@ ALIAS_MAP = {
     "mitochondria": "mito",
     "coverage": "depth",
     "cov": "depth",
+    "configure": "download",
+    "install": "download",
+    "download_db": "download",
+    "setup": "download",
 }
 
 
@@ -78,6 +82,8 @@ def run_subtool(parser, args):
         import AAFTF.fix_tbl as submodule
     elif command == "depth":
         import AAFTF.depth as submodule
+    elif command == "download":
+        import AAFTF.setup as submodule
     else:
         parser.parse_args("")
         return
@@ -110,6 +116,50 @@ def main():
     parser.add_argument("-v", "--version", help="Installed AAFTF version", action="version", version="%(prog)s " + str(myversion))
 
     subparsers = parser.add_subparsers(title="[sub-commands]", dest="command", parser_class=ArgumentParserWithDefaults)
+
+    #########################################
+    # setup / database download
+    #########################################
+    parser_download = subparsers.add_parser(
+        "download",
+        aliases=["configure", "install", "download_db", "setup"],
+        description="Download reference databases to a persistent directory.",
+        help="Download AAFTF reference databases",
+    )
+    parser_download.add_argument(
+        "--AAFTF_DB",
+        type=str,
+        required=False,
+        help="Path to AAFTF database directory. Defaults to $AAFTF_DB environment variable.",
+    )
+    parser_download.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-download files even if they already exist",
+    )
+    parser_download.add_argument(
+        "--skip-core",
+        action="store_true",
+        help="Skip downloading core contamination databases (UniVec, PhiX, contaminants, mitochondria)",
+    )
+    parser_download.add_argument(
+        "--skip-sourmash",
+        action="store_true",
+        help="Skip downloading sourmash taxonomy databases",
+    )
+    parser_download.add_argument(
+        "--sourdb-type",
+        type=str,
+        default="all",
+        choices=["gbk", "gtdb", "gtdbrep", "all"],
+        dest="sourdb_type",
+        help="Which sourmash database(s) to download (default: all)",
+    )
+    parser_download.add_argument(
+        "--skip-fcs",
+        action="store_true",
+        help="Skip downloading NCBI FCS-adaptor resources",
+    )
 
     #########################################
     # create the individual tool parsers

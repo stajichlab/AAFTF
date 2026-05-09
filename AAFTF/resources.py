@@ -13,13 +13,11 @@ DB_Links = {
     "sourmash_gbk": [{"version": "2017.11.07", "filename": "genbank-k31.lca.json.gz", "url": "https://osf.io/4f8n3/download"}],
     # first in list is default, will fix someday to allow choosing the version
     "sourmash_gtdbrep": [
-        {"version": "rs214", "filename": "tdb-rs214-reps.k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs214/gtdb-rs214-reps.k31.lca.json.gz"},  # noqa: E501
-        {"version": "rs207", "filename": "gtdb-rs207-genomic-reps.dna.k31.lca.json.gz", "url": "https://osf.io/p9ezm/download"},
+        {"version": "rs220", "filename": "gtdb-rs220-reps.k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db.new/gtdb-rs220/gtdb-reps-rs220-k31.dna.zip"},  # noqa: E501
     ],
     # first in list is default, will fix someday to allow choosing the version
     "sourmash_gtdb": [
-        {"version": "rs214", "filename": "gtdb-rs214-k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs214/gtdb-rs214-k31.lca.json.gz"},  # noqa: E501
-        {"version": "rs207", "filename": "gtdb-rs207.genomic.k31.lca.json.gz", "url": "https://osf.io/tf3ah/download"},
+        {"version": "rs220", "filename": "gtdb-rs220-k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db.new/gtdb-rs220/gtdb-rs220-k31.dna.zip"},  # noqa: E501
     ],
 }
 
