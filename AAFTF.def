@@ -1,0 +1,121 @@
+Bootstrap: docker
+From: debian:bookworm-slim
+
+# =============================================================================
+# AAFTF - Automatic Assembly For The Fungi
+# Singularity/Apptainer definition file
+#
+# Build:
+#   singularity build AAFTF.sif AAFTF.def
+#
+# Build with database download:
+#   singularity build AAFTF.sif AAFTF.def
+#
+# Run:
+#   singularity exec AAFTF.sif AAFTF --help
+#   singularity run --bind /path/to/data:/data AAFTF.sif
+# =============================================================================
+
+%labels
+    Author Jason Stajich <jasonstajich.phd@gmail.com>
+    Description AAFTF: Automatic Assembly For The Fungi
+    Version 0.6.2
+    URL https://github.com/stajichlab/AAFTF
+
+%help
+    AAFTF (Automatic Assembly For The Fungi) provides a unified workflow for
+    fungal genome assembly, cleanup, mitochondrial assembly, and polishing.
+
+    Usage:
+        singularity exec AAFTF.sif AAFTF --help
+        singularity exec --bind /path/to/data:/data AAFTF.sif AAFTF trim --left R1.fq.gz --right R2.fq.gz
+
+    The database directory is at /opt/aaftf_db (set AAFTF_DB to override).
+
+%environment
+    source /opt/aaftf_activate.sh
+    export AAFTF_DB="/opt/aaftf_db"
+
+%setup
+    # Runs on the HOST before %post; nothing needed here.
+    true
+
+%post
+    set -e
+
+    # -------------------------------------------------------------------------
+    # 1. System dependencies
+    # -------------------------------------------------------------------------
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        wget \
+        bzip2 \
+        perl \
+        libgomp1 \
+        procps \
+        git \
+        tar \
+	pigz \
+	aria2 \
+	rsync
+    rm -rf /var/lib/apt/lists/*
+
+    # -------------------------------------------------------------------------
+    # 2. Install pixi
+    # -------------------------------------------------------------------------
+    export PIXI_HOME=/opt/pixi
+    curl -fsSL https://pixi.sh/install.sh | bash
+    export PATH="${PIXI_HOME}/bin:/opt/build/AAFTF/.pixi/envs/default/bin:${PATH}"
+
+    # -------------------------------------------------------------------------
+    # 3. Clone fresh AAFTF repository from GitHub
+    # -------------------------------------------------------------------------
+    git clone https://github.com/stajichlab/AAFTF.git /opt/build/AAFTF
+    export AAFTF_DB=/opt/aaftf_db
+
+    # -------------------------------------------------------------------------
+    # 4. Resolve & install conda + PyPI dependencies via pixi
+    # -------------------------------------------------------------------------
+    cd /opt/build/AAFTF
+    pixi install --locked --frozen
+    pixi shell-hook --shell bash > /opt/aaftf_activate.sh
+    pixi clean cache --yes
+    # -------------------------------------------------------------------------
+    # 5. Apply polca.sh patch
+    #    Replace MaSuRCAs bundled polca.sh with the version from patches/
+    #    that is compatible with newer samtools (-o flag removed from sort).
+    # -------------------------------------------------------------------------
+    POLCA_INSTALLED=$(find .pixi/envs/default -name "polca.sh" | head -1)
+    if [ -n "$POLCA_INSTALLED" ]; then
+        echo "Replacing $POLCA_INSTALLED with patched version"
+        cp patches/polca.sh "$POLCA_INSTALLED"
+        chmod +x "$POLCA_INSTALLED"
+    else
+        echo "WARNING: polca.sh not found in installed environment"
+    fi
+
+    # -------------------------------------------------------------------------
+    # 6. Database download (optional)
+    mkdir -p $AAFTF_DB
+    source /opt/aaftf_activate.sh
+
+    AAFTF download --AAFTF_DB $AAFTF_DB --sourdb-type gbk
+
+    # -------------------------------------------------------------------------
+    # 7. Cleanup build artefacts to reduce image size
+    # -------------------------------------------------------------------------
+    AAFTF --version || true
+    rm -rf /opt/pixi
+    rm -rf /root/.cache
+
+    # Verify the install
+    AAFTF --version || true
+    echo $PATH
+%runscript
+    exec AAFTF "$@"
+
+%test
+    # Basic smoke test: print version
+    AAFTF --version
