@@ -2,7 +2,7 @@
 
 import re
 from os.path import dirname, isdir, join
-from subprocess import CalledProcessError, check_output
+from subprocess import DEVNULL, CalledProcessError, check_output
 
 PREFIX = "v"
 
@@ -24,13 +24,13 @@ def get_version():
         # Get the version using "git describe".
         cmd = f"git describe --tags --match {PREFIX}[0-9]* --dirty --always"
         try:
-            version = check_output(cmd.split(), cwd=d).decode().strip()[len(PREFIX) :]
+            version = check_output(cmd.split(), cwd=d, stderr=DEVNULL).decode().strip()[len(PREFIX) :]
         except CalledProcessError:
-            raise RuntimeError("Unable to get version number from git tags")
+            return __version__
 
         # Get the short commit hash (7 characters)
         try:
-            short_hash = check_output(["git", "rev-parse", "--short=7", "HEAD"], cwd=d).decode().strip()
+            short_hash = check_output(["git", "rev-parse", "--short=7", "HEAD"], cwd=d, stderr=DEVNULL).decode().strip()
         except CalledProcessError:
             short_hash = "unknown"
 
