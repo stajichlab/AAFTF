@@ -24,13 +24,13 @@ def get_version():
         # Get the version using "git describe".
         cmd = f"git describe --tags --match {PREFIX}[0-9]* --dirty --always"
         try:
-            version = check_output(cmd.split()).decode().strip()[len(PREFIX) :]
+            version = check_output(cmd.split(), cwd=d).decode().strip()[len(PREFIX) :]
         except CalledProcessError:
             raise RuntimeError("Unable to get version number from git tags")
 
         # Get the short commit hash (7 characters)
         try:
-            short_hash = check_output(["git", "rev-parse", "--short=7", "HEAD"]).decode().strip()
+            short_hash = check_output(["git", "rev-parse", "--short=7", "HEAD"], cwd=d).decode().strip()
         except CalledProcessError:
             short_hash = "unknown"
 
