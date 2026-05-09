@@ -303,10 +303,13 @@ class TestPolishPolcaFailure:
             (workdir / "asm.fa.report").write_text("")
             return mock_result
 
+        from packaging.version import Version
+
         from AAFTF.polish import run
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
-            run(None, args)
+            with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
+                run(None, args)
 
         assert (tmp_path / "polished.fasta").exists()
 
@@ -323,10 +326,13 @@ class TestPolishPolcaFailure:
             (workdir / "asm.fa.report").write_text("")
             return mock_result
 
+        from packaging.version import Version
+
         from AAFTF.polish import run
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
-            run(None, args)
+            with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
+                run(None, args)
 
         assert (tmp_path / "polished.fasta.vcf").exists()
 
@@ -343,10 +349,13 @@ class TestPolishPolcaFailure:
             (workdir / "asm.fa.report").write_text("POLCA report\n")
             return mock_result
 
+        from packaging.version import Version
+
         from AAFTF.polish import run
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
-            run(None, args)
+            with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
+                run(None, args)
 
         assert (tmp_path / "polished.fasta.polca_report.txt").exists()
 
@@ -366,10 +375,13 @@ class TestPolishPolcaFailure:
             (workdir / "asm.fa.report").write_text("")
             return mock_result
 
+        from packaging.version import Version
+
         from AAFTF.polish import run
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
-            run(None, args)
+            with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
+                run(None, args)
 
         polca_cmd = captured_cmds[0]
         reads_arg = next((polca_cmd[i + 1] for i, a in enumerate(polca_cmd) if a == "-r"), None)
