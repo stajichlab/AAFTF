@@ -16,13 +16,22 @@ from AAFTF.resources import FCSADAPTOR, Contaminant_Accessions, DB_Links
 from AAFTF.utility import SafeRemove, status
 
 
+class _Redirect308Handler(urllib.request.HTTPRedirectHandler):
+    """Extend urllib's redirect handler to also follow HTTP 308."""
+
+    def http_error_308(self, req, fp, code, msg, headers):
+        return self.http_error_302(req, fp, code, msg, headers)
+
+
+_opener = urllib.request.build_opener(_Redirect308Handler())
+
+
 def _download(url, dest, force=False):
     """Download ``url`` to ``dest`` if it does not already exist.
 
-    This implementation follows HTTP 3xx redirects (e.g. OSF, Google
-    Drive, CDNs) by querying the redirected URL with
-    :func:`urllib.request.urlopen` and streaming the response body to
-    disk.
+    Writes to a temporary file first and renames atomically on success so
+    that an interrupted download never leaves a partial file that would be
+    mistaken for a complete one on the next run.
 
     Args:
         url: Remote URL to download.
@@ -39,21 +48,20 @@ def _download(url, dest, force=False):
     status(f"  Downloading {os.path.basename(dest)} ...")
     os.makedirs(os.path.dirname(dest), exist_ok=True)
 
+    tmp = dest + ".tmp"
     try:
-        # Follow redirects explicitly – some storage hosts (OSF, etc.)
-        # emit a 302 chain that urlretrieve mishandles.
         req = urllib.request.Request(url, headers={"User-Agent": "AAFTF/1.0"})
-        with urllib.request.urlopen(req, timeout=300) as response:
-            # Report final URL after redirect chain for debugging
+        with _opener.open(req, timeout=300) as response:
             final_url = response.geturl()
             if final_url != url:
                 status(f"  Redirected to {final_url}")
-            with open(dest, "wb") as outfh:
+            with open(tmp, "wb") as outfh:
                 shutil.copyfileobj(response, outfh)
+        os.rename(tmp, dest)
     except Exception as e:
         status(f"  ERROR downloading {url}: {e}")
-        if os.path.exists(dest):
-            SafeRemove(dest)
+        if os.path.exists(tmp):
+            SafeRemove(tmp)
         raise
 
     status(f"  Saved {dest}")
