@@ -515,7 +515,7 @@ def main():
     # --longreads: long reads (ONT/PACBIO) fastq
     # -rp / --reads-prefix: input/outfile reads prefix
     # --method pilon
-    # --memory: default 4
+    # --memory: default 16
     # --iterations: default 5
     # --tmpdir
     # --debug
