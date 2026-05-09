@@ -17,7 +17,18 @@ from AAFTF.utility import SafeRemove, status
 
 
 class _Redirect308Handler(urllib.request.HTTPRedirectHandler):
-    """Extend urllib's redirect handler to also follow HTTP 308."""
+    """Extend urllib's redirect handler to also follow HTTP 308.
+
+    Python < 3.11 does not handle 308 (Permanent Redirect).  The base
+    class ``redirect_request()`` hard-codes the allowed set to
+    {301,302,303,307} and raises HTTPError for anything else, so we must
+    override both that method and add the http_error_308 dispatcher.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if code == 308:
+            code = 307  # method-preserving permanent redirect
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
     def http_error_308(self, req, fp, code, msg, headers):
         return self.http_error_302(req, fp, code, msg, headers)
