@@ -33,14 +33,14 @@ From: debian:bookworm-slim
     The database directory is at /opt/aaftf_db (set AAFTF_DB to override).
 
 %environment
-    source /opt/aaftf_activate.sh
+    . /opt/aaftf_activate.sh
     export AAFTF_DB="/opt/aaftf_db"
 
 %setup
     # Runs on the HOST before %post; nothing needed here.
     true
 
-%post
+%post -c /bin/bash
     set -e
 
     # -------------------------------------------------------------------------
@@ -80,7 +80,8 @@ From: debian:bookworm-slim
     # -------------------------------------------------------------------------
     cd /opt/build/AAFTF
     pixi install --locked --frozen
-    pixi shell-hook --shell bash > /opt/aaftf_activate.sh
+    pixi shell-hook --shell bash | grep '^export ' > /opt/aaftf_activate.sh
+    chmod +x /opt/aaftf_activate.sh
     pixi clean cache --yes
     # -------------------------------------------------------------------------
     # 5. Apply polca.sh patch
@@ -99,7 +100,7 @@ From: debian:bookworm-slim
     # -------------------------------------------------------------------------
     # 6. Database download (optional)
     mkdir -p $AAFTF_DB
-    source /opt/aaftf_activate.sh
+    . /opt/aaftf_activate.sh
 
     AAFTF download --AAFTF_DB $AAFTF_DB --sourdb-type gbk
 
