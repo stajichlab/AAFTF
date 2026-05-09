@@ -83,7 +83,7 @@ def run_subtool(parser, args):
     elif command == "depth":
         import AAFTF.depth as submodule
     elif command == "download":
-        import AAFTF.setup as submodule
+        import AAFTF.download as submodule
     else:
         parser.parse_args("")
         return
