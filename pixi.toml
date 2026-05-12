@@ -29,6 +29,7 @@ pip = "*"
 bbmap = ">=39.80,<40"
 masurca = ">=4.1.4,<5"
 pytest = ">=9.0.3,<10"
+taxonkit = ">=0.20.0,<0.21"
 
 [pypi-dependencies]
 aaftf = { path = ".", editable = true}
