@@ -99,7 +99,7 @@ From: debian:bookworm-slim
 
     # -------------------------------------------------------------------------
     # 6. Database download (optional)
-    mkdir -p $AAFTF_DB
+    mkdir -p $AAFTF_DB 
     . /opt/aaftf_activate.sh
 
     AAFTF download --AAFTF_DB $AAFTF_DB --sourdb-type gbk
@@ -120,3 +120,4 @@ From: debian:bookworm-slim
 %test
     # Basic smoke test: print version
     AAFTF --version
+
