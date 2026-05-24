@@ -25,6 +25,7 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum, telo
     else:
         seqio = SeqIO.parse(fasta_file, "fasta")
 
+    total_masked = 0
     telomere_stats = {"TELOMERE FWD": 0, "TELOMERE REV": 0, "T2T SCAFFOLDS": 0}
     for record in seqio:
         lengths.append(len(record))
@@ -36,7 +37,9 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum, telo
         if forward and reverse:
             telomere_stats["T2T SCAFFOLDS"] += 1
 
-        seq_upper = str(record.seq).upper()
+        seq_str = str(record.seq)
+        total_masked += sum(1 for c in seq_str if c.islower())
+        seq_upper = seq_str.upper()
         GC += sum(seq_upper.count(x) for x in ["G", "C", "S"])
         total_Ns += seq_upper.count("N")
         n_gap_count += len(re.findall(r"N+", seq_upper))
@@ -74,6 +77,9 @@ def genome_asm_stats(fasta_file, output_handle, telomere_repeat, n_minimum, telo
     report += f"{'GC%':>15}  =  {GC:.2f}\n"
     report += f"{'N GAP COUNT':>15}  =  {n_gap_count}\n"
     report += f"{'TOTAL N BASES':>15}  =  {total_Ns}\n"
+    if total_masked < total_len:
+        report += f"{'BASES MASKED':>15}  =  {total_masked}\n"
+        report += f"{'PERCENT MASKED':>15}  =  {100.0 * total_masked / total_len:.2f}\n"
     for f in sorted(telomere_stats):
         report += f"{f:>15}  =  {telomere_stats[f]}\n"
 
