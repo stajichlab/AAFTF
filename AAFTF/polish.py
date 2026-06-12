@@ -80,6 +80,9 @@ def run(parser, args):  # noqa: C901
             else:
                 initialFasta = os.path.join(args.workdir, "polished" + str(i - 1) + ".fasta")
             BAMfile = make_bwa_bam(initialFasta, forReads, revReads, args.workdir, args.cpus, memperthread)
+            if not os.path.exists(os.path.join(args.workdir, BAMfile)):
+                status(f"BAMfile {BAMfile} did not get created for {forReads} {revReads} in {args.workdir}")
+                sys.exit(1)
             run_cmd = []
             dirty = []
             if method == "pilon":
@@ -248,9 +251,9 @@ def make_bwa_bam(inFasta, forReads, revReads, workdir, cpus, memperthread):
             printCMD(samtools_cmd)
             subprocess.run(samtools_cmd, cwd=workdir, stderr=DEVNULL)
             # keep only paired reads
-            samtools_cmd = samtools_view_bam_cmd(tempfiles[1], os.path.join(workdir, BAM), bamthreads, include_flags="0x2")
+            samtools_cmd = samtools_view_bam_cmd(tempfiles[1], BAM, bamthreads, include_flags="0x2")
             printCMD(samtools_cmd)
-            subprocess.run(samtools_cmd, stderr=DEVNULL)
+            subprocess.run(samtools_cmd, cwd=workdir, stderr=DEVNULL)
 
         else:
             # run fix mate directly from bwa output with samtools >= 1.0
@@ -271,9 +274,9 @@ def make_bwa_bam(inFasta, forReads, revReads, workdir, cpus, memperthread):
             p4.communicate()
 
             # keep only paired reads
-            samtools_cmd = samtools_view_bam_cmd(tempfiles[1], os.path.join(workdir, BAM), bamthreads, include_flags="0x2")
+            samtools_cmd = samtools_view_bam_cmd(tempfiles[1], BAM, bamthreads, include_flags="0x2")
             printCMD(samtools_cmd)
-            subprocess.run(samtools_cmd, stderr=DEVNULL)
+            subprocess.run(samtools_cmd, cwd=workdir, stderr=DEVNULL)
 
         # BAM file needs to be indexed
         samtools_cmd = ["samtools", "index", "-@", str(cpus), BAM]
