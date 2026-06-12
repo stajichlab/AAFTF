@@ -1,3 +1,4 @@
-version.py  export-subst
+# Let setuptools-scm/hatch-vcs recover the version from `git archive` tarballs.
+.git_archival.txt  export-subst
 # SCM syntax highlighting & preventing 3-way merges
 pixi.lock merge=binary linguist-language=YAML linguist-generated=true -diff

@@ -1,6 +1,6 @@
 [project]
 name = "AAFTF"
-version = "0.6.2"
+dynamic = ["version"]
 authors = [
   { name="Jason Stajich", email="jasonstajich.phd@gmail.com" },
 ]
@@ -19,11 +19,24 @@ Homepage = "https://github.com/stajichlab/AAFTF"
 Issues = "https://github.com/stajichlab/AAFTF/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project.scripts]
 AAFTF = "AAFTF.AAFTF_main:main"
+
+# Version is derived from git tags (vX.Y.Z) plus the short commit hash.
+# hatch-vcs (setuptools-scm under the hood) writes the resolved version into
+# AAFTF/_version.py at build time, so installed packages carry a static version.
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "guess-next-dev", local_scheme = "node-and-date" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "AAFTF/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["AAFTF", "scripts"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pytest-cov"]

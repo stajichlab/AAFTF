@@ -1,71 +1,116 @@
-"""Version reporting for the AAFTF module."""
+"""Version reporting for the AAFTF module.
 
-import re
+The authoritative version is derived from git release tags (``vX.Y.Z``) by
+hatch-vcs at build time, which writes the resolved string into
+``AAFTF/_version.py``. Resolution order at runtime:
+
+1. ``git describe`` when running from a source checkout (``.git`` present),
+   so the live working tree wins over any stale baked file or installed
+   metadata.
+2. ``AAFTF/_version.py`` written by hatch-vcs into built/installed packages.
+3. Installed package metadata (``pip``/``conda`` installs without a baked file).
+4. A static fallback so imports never fail.
+"""
+
 from os.path import dirname, isdir, join
 from subprocess import DEVNULL, CalledProcessError, check_output
 
 PREFIX = "v"
 
-tag_re = re.compile(rf"\btag: {PREFIX}([0-9][^,]*)\b")
-version_re = re.compile("^Version: (.+)$", re.M)
+# Static fallback, used only when no build-time version file, installed
+# package metadata, or git checkout is available. Keep roughly in sync with
+# the latest release tag; it is not the source of truth.
+__fallback_version__ = "0.6.2"
 
-__version__ = "0.6.2"
+
+def _version_from_file():
+    """Return the version baked in by hatch-vcs, if present."""
+    try:
+        from AAFTF._version import __version__ as v  # type: ignore
+
+        return v
+    except Exception:
+        return None
+
+
+def _version_from_metadata():
+    """Return the installed-package version from importlib.metadata, if present."""
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("AAFTF")
+    except PackageNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def _normalize_tag(tag):
+    """Strip the ``v`` prefix and normalize a tag to a PEP 440 release string."""
+    if tag.startswith(PREFIX):
+        tag = tag[len(PREFIX) :]
+    try:
+        # Normalize e.g. "0.6.1-alpha2" -> "0.6.1a2" when packaging is available.
+        from packaging.version import Version
+
+        return str(Version(tag))
+    except Exception:
+        return tag
+
+
+def _version_from_git():
+    """Build a PEP 440 version from git tags + short hash for a source checkout."""
+    d = dirname(dirname(__file__))
+    if not isdir(join(d, ".git")):
+        return None
+    try:
+        described = (
+            check_output(
+                ["git", "describe", "--tags", "--long", "--always", "--dirty", "--match", f"{PREFIX}[0-9]*"],
+                cwd=d,
+                stderr=DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    except (CalledProcessError, OSError):
+        return None
+
+    dirty = described.endswith("-dirty")
+    if dirty:
+        described = described[: -len("-dirty")]
+
+    # With --long the form is "<tag>-<distance>-g<hash>"; with --always and no
+    # tags it is just "<hash>".
+    parts = described.rsplit("-", 2)
+    if len(parts) == 3 and parts[2].startswith("g"):
+        tag, distance, ghash = parts
+        base = _normalize_tag(tag)
+        short = ghash[1:]  # drop leading 'g'
+        if int(distance) == 0 and not dirty:
+            return base
+        local = short + (".dirty" if dirty else "")
+        return f"{base}.dev{distance}+{local}"
+
+    # No tags reachable: just the abbreviated hash (already a node string).
+    local = described + (".dirty" if dirty else "")
+    return f"0.0.0+{local}"
 
 
 def get_version():
-    """Return the version if it has been injected into the file by git-archive."""
-    version = tag_re.search("$Format:%D$")
-    if version:
-        return version.group(1)
+    """Return the best available version string.
 
-    d = dirname(dirname(__file__))
+    In a source checkout the live ``git describe`` wins so the working tree's
+    state (including ``-dirty``) is always reflected, even if a stale
+    ``AAFTF/_version.py`` was left behind by a previous local build. When
+    there is no ``.git`` (or no git binary), ``_version_from_git`` returns
+    ``None`` and resolution falls through to the baked file / installed
+    metadata used by real installs.
+    """
+    return _version_from_git() or _version_from_file() or _version_from_metadata() or __fallback_version__
 
-    if isdir(join(d, ".git")):
-        # Get the version using "git describe".
-        cmd = f"git describe --tags --match {PREFIX}[0-9]* --dirty --always"
-        try:
-            version = check_output(cmd.split(), cwd=d, stderr=DEVNULL).decode().strip()[len(PREFIX) :]
-        except CalledProcessError:
-            return __version__
 
-        # Get the short commit hash (7 characters)
-        try:
-            short_hash = check_output(["git", "rev-parse", "--short=7", "HEAD"], cwd=d, stderr=DEVNULL).decode().strip()
-        except CalledProcessError:
-            short_hash = "unknown"
-
-        # PEP 440 compatibility
-        if "-" in version:
-            if version.endswith("-dirty"):
-                # Include short hash for dirty trees
-                version = version.replace("-dirty", f".dirty+{short_hash}")
-            else:
-                # The git describe already includes a short hash, but let's ensure consistency
-                # by replacing it with our explicitly requested 7-char hash
-                parts = version.split("-")
-                if len(parts) >= 3 and parts[-1].startswith("g"):
-                    # Replace the existing git hash with our consistent 7-char hash
-                    parts[-1] = f"g{short_hash}"
-                    version = "-".join(parts)
-                version = ".post".join(version.split("-")[:2]) + f"+{short_hash}"
-        else:
-            # If no additional commits, still add the short commit hash
-            version = f"{version}+{short_hash}"
-
-    else:
-        # Extract the version from the PKG-INFO file.
-        try:
-            with open(join(d, "PKG-INFO")) as f:
-                match = version_re.search(f.read())
-                if match:
-                    version = match.group(1)
-                else:
-                    version = __version__
-        except FileNotFoundError:
-            # Fallback to hardcoded version if PKG-INFO is not available
-            version = __version__
-
-    return version
+__version__ = get_version()
 
 
 if __name__ == "__main__":

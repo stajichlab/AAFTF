@@ -66,6 +66,25 @@ def run(parser, args):  # noqa: C901
     method = args.method.lower()
     nextPolishExe = None
     polish_log = f"{method}.log"
+
+    # Preflight: make sure the external tools this method needs are on PATH.
+    # bwa is used by make_bwa_bam() for every short-read method.
+    # For polca/masurca, honour a user-supplied --polca path/name rather than
+    # assuming the executable is literally "polca.sh".
+    polca_exe = getattr(args, "polca", None) or "polca.sh"
+    required_exes = {
+        "pilon": ["bwa", "samtools", "pilon"],
+        "nextpolish": ["bwa", "samtools", "nextPolish"],
+        "polca": ["bwa", "samtools", polca_exe],
+        "masurca": ["bwa", "samtools", polca_exe],
+    }.get(method, [])
+    # shutil.which() resolves both bare names on PATH and explicit paths.
+    missing = [exe for exe in required_exes if shutil.which(exe) is None]
+    if missing:
+        status(f"ERROR: required executable(s) not found on PATH for --method {method}: {', '.join(missing)}")
+        status("Install the missing tool(s) (e.g. `pixi add pilon` / `conda install -c bioconda pilon`) and ensure the correct environment is activated.")
+        sys.exit(1)
+
     if method == "pilon" or method == "nextpolish":
         if args.iterations < 1:
             status("ERROR: --iterations must be >= 1")
