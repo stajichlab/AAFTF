@@ -28,6 +28,8 @@ AAFTF = "AAFTF.AAFTF_main:main"
 # Version is derived from git tags (vX.Y.Z) plus the short commit hash.
 # hatch-vcs (setuptools-scm under the hood) writes the resolved version into
 # AAFTF/_version.py at build time, so installed packages carry a static version.
+# NOTE: version_scheme/local_scheme here MUST match VERSION_SCHEME/LOCAL_SCHEME
+# in AAFTF/__version__.py so a source checkout reports the identical string.
 [tool.hatch.version]
 source = "vcs"
 raw-options = { version_scheme = "guess-next-dev", local_scheme = "node-and-date" }
@@ -39,7 +41,9 @@ version-file = "AAFTF/_version.py"
 packages = ["AAFTF", "scripts"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-cov"]
+# setuptools-scm lets a source checkout report the exact same version string
+# that hatch-vcs bakes at build time (see AAFTF/__version__.py resolution order).
+dev = ["pytest>=7", "pytest-cov", "setuptools-scm>=8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
