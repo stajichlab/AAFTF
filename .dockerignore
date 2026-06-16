@@ -1,0 +1,43 @@
+# --- Version control ---
+.git
+.gitignore
+.gitattributes
+.github
+
+# --- pixi local environment (can be huge) ---
+.pixi/
+
+# --- Python build artefacts ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.whl
+*.egg
+
+# --- Test artefacts ---
+.pytest_cache/
+.coverage
+htmlcov/
+tests/__pycache__/
+
+# --- Editor / OS files ---
+.DS_Store
+*.swp
+*.swo
+*~
+
+# --- CI / pre-commit config (not needed inside image) ---
+.pre-commit-config.yaml
+
+# --- Docs (not needed at runtime) ---
+docs/
+
+# --- Singularity definition (not needed in Docker build context) ---
+AAFTF.def
+
+# --- Temporary files ---
+*.tmp
+*.log
+tmp/

@@ -1,0 +1,37 @@
+# docker-compose.yml — convenience wrapper for AAFTF Docker image.
+#
+# Usage:
+#   docker compose run --rm aaftf AAFTF --help
+#   docker compose run --rm aaftf AAFTF trim --left /data/R1.fq.gz --right /data/R2.fq.gz
+#
+# Environment variables (override on the command line or in a .env file):
+#   DATA_DIR   — host path to your FASTQ / assembly data  (default: ./data)
+#   AAFTF_DB   — host path to the AAFTF databases         (default: ./aaftf_db)
+#   IMAGE_TAG  — Docker image tag to use                  (default: latest)
+#
+# To download the AAFTF databases into ./aaftf_db:
+#   docker compose run --rm aaftf AAFTF download --AAFTF_DB /opt/aaftf_db --sourdb-type gbk
+
+services:
+  aaftf:
+    image: "ghcr.io/stajichlab/aaftf:${IMAGE_TAG:-latest}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Change to "release" to install the tag-pinned version instead of
+        # the local editable checkout.
+        PIXI_ENV: "${PIXI_ENV:-default}"
+    volumes:
+      # Input / output data directory
+      - "${DATA_DIR:-./data}:/data"
+      # External AAFTF database directory (vector DB, sourdough LCA, etc.)
+      - "${AAFTF_DB:-./aaftf_db}:/opt/aaftf_db"
+    working_dir: /data
+    environment:
+      AAFTF_DB: /opt/aaftf_db
+    # Remove container after each run by default; override with
+    #   docker compose run --no-rm aaftf ...
+    # if you want to inspect logs after the command finishes.
+    stdin_open: true
+    tty: true
