@@ -74,7 +74,7 @@ COPY . .
 # ---------------------------------------------------------------------------
 # 4. Install conda + PyPI dependencies via pixi (locked / reproducible)
 # ---------------------------------------------------------------------------
-RUN pixi install --environment "${PIXI_ENV}" --locked --frozen && \
+RUN pixi install --environment "${PIXI_ENV}" --locked && \
     # Export activation env-vars so every subsequent CMD can use them.
     pixi shell-hook --environment "${PIXI_ENV}" --shell bash \
         | grep '^export ' > /opt/aaftf_activate.sh && \
@@ -101,13 +101,15 @@ RUN source /opt/aaftf_activate.sh && AAFTF --version
 
 # ---------------------------------------------------------------------------
 # 7. Cleanup build artefacts to reduce image size
+#    Keep /opt/pixi intact — pixi manages the conda env and removing it can
+#    break activation.  Only purge the download cache.
 # ---------------------------------------------------------------------------
-RUN rm -rf /opt/pixi /root/.cache
+RUN rm -rf /root/.cache
 
 # ---------------------------------------------------------------------------
 # 8. Entrypoint: source the activation script then exec the user command
 # ---------------------------------------------------------------------------
-RUN printf '#!/bin/bash\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \
+RUN printf '#!/bin/bash\nset -e\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \
         > /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh
 
