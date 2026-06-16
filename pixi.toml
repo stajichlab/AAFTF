@@ -30,5 +30,22 @@ bbmap = ">=39.80,<40"
 masurca = ">=4.1.4,<5"
 pytest = ">=9.0.3,<10"
 
+# Default (dev): install AAFTF as an editable package from the local checkout.
 [pypi-dependencies]
-aaftf = { path = ".", editable = true}
+aaftf = { path = ".", editable = true }
+
+# ---------------------------------------------------------------------------
+# "release" environment — installs a pinned tagged version from GitHub.
+# Used by:  pixi install --environment release
+#           docker build --build-arg PIXI_ENV=release ...
+# To update the pinned tag, change the `tag` value below and run:
+#   pixi install --environment release  (regenerates pixi.lock for that env)
+# ---------------------------------------------------------------------------
+[feature.release.pypi-dependencies]
+aaftf = { git = "https://github.com/stajichlab/AAFTF", tag = "v0.6.2" }
+
+[environments]
+# "default" uses the local editable install (for development / CI).
+default = { features = [], solve-group = "default" }
+# "release" installs the pinned tagged release from GitHub.
+release = { features = ["release"], solve-group = "default" }
