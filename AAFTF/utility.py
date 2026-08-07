@@ -398,28 +398,23 @@ WHICH_PIGZ = which("pigz")
 
 def open_gz(filename, mode="r", buff=1024 * 1024, external=PARALLEL):
     """Open a gzip file using processes (gzip/pigz) or native library."""
-    import subprocess
+    import gzip
+
+    if "w" in mode:
+        return gzip.open(filename, mode)
 
     if external is None or external == NORMAL:
-        import gzip
-
         return gzip.GzipFile(filename, mode, buff)
     elif external == PROCESS:
         if not WHICH_GZIP:
             return open_gz(filename, mode, buff, NORMAL)
         if "r" in mode:
             return open_pipe([WHICH_GZIP, "-dc", filename], mode, buff)
-        elif "w" in mode:
-            outfh = open(filename, "wb")
-            return subprocess.Popen([WHICH_GZIP], shell=False, bufsize=buff, stdin=subprocess.PIPE, stdout=outfh).stdin
     elif external == PARALLEL:
         if not WHICH_PIGZ:
             return open_gz(filename, mode, buff, PROCESS)
         if "r" in mode:
             return open_pipe([WHICH_PIGZ, "-dc", filename], mode, buff)
-        elif "w" in mode:
-            outfh = open(filename, "wb")
-            return subprocess.Popen([WHICH_PIGZ], shell=False, bufsize=buff, stdin=subprocess.PIPE, stdout=outfh).stdin
     return None
 
 
