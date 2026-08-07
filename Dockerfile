@@ -2,11 +2,17 @@
 # AAFTF - Automatic Assembly For The Fungi
 # Docker image built with pixi-managed conda + PyPI dependencies.
 #
-# Build (from source, dev/editable install):
-#   docker build -t aaftf:latest .
+# Build (from source, dev/editable install). AAFTF_VERSION must be supplied
+# explicitly: .dockerignore excludes .git from the build context, so
+# setuptools-scm cannot derive the version inside the image the way it does
+# in a real source checkout (see AAFTF/__version__.py) — pass the host's
+# git-derived version through instead:
+#   docker build --build-arg AAFTF_VERSION=$(git describe --tags --always) \
+#       -t aaftf:latest .
 #
 # Build for a specific tagged release (uses the "release" pixi environment):
-#   docker build --build-arg PIXI_ENV=release -t aaftf:v0.6.2 .
+#   docker build --build-arg PIXI_ENV=release --build-arg AAFTF_VERSION=0.6.2 \
+#       -t aaftf:v0.6.2 .
 #
 # Run:
 #   docker run --rm aaftf:latest AAFTF --help
@@ -23,6 +29,11 @@ FROM debian:bookworm-slim
 # Which pixi environment to activate (default = editable local install).
 # Pass --build-arg PIXI_ENV=release to install from the pinned git tag instead.
 ARG PIXI_ENV=default
+
+# setuptools-scm can't see git history inside the build context (.git is
+# excluded via .dockerignore), so the version must be supplied explicitly.
+ARG AAFTF_VERSION=0.0.0+unknown
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF=${AAFTF_VERSION}
 
 LABEL org.opencontainers.image.title="AAFTF"
 LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
@@ -119,4 +130,3 @@ ENV AAFTF_DB="/opt/aaftf_db"
 WORKDIR /data
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["AAFTF", "--help"]
-
