@@ -21,9 +21,6 @@ import pytest
 
 from AAFTF.AAFTF_main import main
 
-pytestmark = pytest.mark.unit
-
-
 # ---------------------------------------------------------------------------
 # Helper: parse 'AAFTF polish ...' without executing the tool
 # ---------------------------------------------------------------------------
@@ -74,6 +71,7 @@ def _make_args(tmp_path, method="pilon", **overrides):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestPolishParser:
     def test_debug_false_by_default(self):
         args = _parse_polish(["AAFTF", "polish", "-i", "asm.fa", "-l", "R1.fq"])
@@ -189,6 +187,7 @@ class TestPolishParser:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestPolishRunGuards:
     def test_racon_without_longreads_exits(self, tmp_path):
         args = _make_args(tmp_path, method="racon", longreads=None, left=None, right=None)
@@ -256,6 +255,7 @@ def _setup_polca_run(tmp_path, outfile=None):
     )
 
 
+@pytest.mark.unit
 class TestPolishPolcaFailure:
     def test_nonzero_exit_raises_systemexit(self, tmp_path):
         args = _setup_polca_run(tmp_path)
@@ -395,6 +395,7 @@ class TestPolishPolcaFailure:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestPolishPilonConvergence:
     def test_stops_after_zero_changes(self, tmp_path):
         """Pilon loop breaks at iteration 1 when the .changes file is empty."""
@@ -426,10 +427,14 @@ class TestPolishPilonConvergence:
             (workdir / "polished1.changes").write_text("")
             return mock_result
 
+        def _fake_make_bwa_bam(*a, **kw):
+            (workdir / "asm.bwa.bam").write_text("")
+            return "asm.bwa.bam"
+
         from AAFTF.polish import run
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
-            with patch("AAFTF.polish.make_bwa_bam", return_value="asm.bwa.bam"):
+            with patch("AAFTF.polish.make_bwa_bam", side_effect=_fake_make_bwa_bam):
                 run(None, args)
 
         # Only one pilon invocation — converged at iteration 1
@@ -469,10 +474,14 @@ class TestPolishPilonConvergence:
             (workdir / f"polished{i}.changes").write_text("change\n" * n_changes)
             return mock_result
 
+        def _fake_make_bwa_bam(*a, **kw):
+            (workdir / "asm.bwa.bam").write_text("")
+            return "asm.bwa.bam"
+
         from AAFTF.polish import run
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
-            with patch("AAFTF.polish.make_bwa_bam", return_value="asm.bwa.bam"):
+            with patch("AAFTF.polish.make_bwa_bam", side_effect=_fake_make_bwa_bam):
                 run(None, args)
 
         assert call_count[0] == 2

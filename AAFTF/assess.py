@@ -127,7 +127,7 @@ def findTelomere(seq, monomer, n, window=200):
     forward, reverse = False, False
 
     # Look for the monomer repeat n number of times.
-    if re.search(monomer * 2, start):
+    if re.search(monomer * n, start):
         forward = True
     rev_monomer = revcomp(monomer)
     if re.search(rev_monomer * n, end):

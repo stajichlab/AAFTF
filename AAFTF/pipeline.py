@@ -68,11 +68,16 @@ def run(parser, args):
     # run filtering with bbduk
     if not checkfile(basename + "_filtered_1.fastq.gz"):
         filterOpts = ["screen_accessions", "screen_urls", "basename", "cpus", "debug", "memory", "AAFTF_DB", "workdir"]
-        filter_args = create_namespace(filterOpts, required_args={"aligner": "bbduk", "left": basename + "_1P.fastq.gz", "pipe": True})
-        if args.right:
-            filter_args.right = basename + "_2P.fastq.gz"
-        if checkfile(basename + ".mito.fasta"):
-            filter_args.screen_local = [basename + ".mito.fasta"]
+        filter_args = create_namespace(
+            filterOpts,
+            required_args={
+                "aligner": "bbduk",
+                "left": basename + "_1P.fastq.gz",
+                "right": basename + "_2P.fastq.gz" if args.right else None,
+                "screen_local": [basename + ".mito.fasta"] if checkfile(basename + ".mito.fasta") else None,
+                "pipe": True,
+            },
+        )
         aaftf_filter.run(parser, filter_args)
     else:
         if args.right:
@@ -86,13 +91,18 @@ def run(parser, args):
     assembly_file = basename + f".{assembly_method}.fasta"
     if not checkfile(assembly_file):
         assembleOpts = ["memory", "cpus", "debug", "workdir", "method", "assembler_args", "tmpdir"]
-        asm_extra = {"left": basename + "_filtered_1.fastq.gz", "out": assembly_file, "pipe": True, "method": assembly_method, "merged": False}
+        asm_extra = {
+            "left": basename + "_filtered_1.fastq.gz",
+            "right": basename + "_filtered_2.fastq.gz" if args.right else None,
+            "out": assembly_file,
+            "pipe": True,
+            "method": assembly_method,
+            "merged": False,
+        }
         if assembly_method == "spades":
             asm_extra["isolate"] = False
             asm_extra["careful"] = True
         asm_args = create_namespace(assembleOpts, required_args=asm_extra)
-        if args.right:
-            asm_args.right = basename + "_filtered_2.fastq.gz"
         assemble.run(parser, asm_args)
     else:
         status(f"AAFTF assemble output found: {assembly_file}")
@@ -112,9 +122,19 @@ def run(parser, args):
     sourpurge_file = basename + ".sourpurge.fasta"
     if not checkfile(sourpurge_file):
         sourOpts = ["cpus", "debug", "workdir", "AAFTF_DB", "phylum", "sourdb", "mincovpct"]
-        sour_args = create_namespace(sourOpts, required_args={"left": basename + "_filtered_1.fastq.gz", "input": vecscreen_file, "outfile": sourpurge_file, "kmer": 31, "taxonomy": False, "pipe": True, "sourdb_type": "gbk"})
-        if args.right:
-            sour_args.right = basename + "_filtered_2.fastq.gz"
+        sour_args = create_namespace(
+            sourOpts,
+            required_args={
+                "left": basename + "_filtered_1.fastq.gz",
+                "right": basename + "_filtered_2.fastq.gz" if args.right else None,
+                "input": vecscreen_file,
+                "outfile": sourpurge_file,
+                "kmer": 31,
+                "taxonomy": False,
+                "pipe": True,
+                "sourdb_type": "gbk",
+            },
+        )
         sourpurge.run(parser, sour_args)
     else:
         status(f"AAFTF sourpurge output found: {sourpurge_file}")
@@ -134,9 +154,21 @@ def run(parser, args):
     polish_file = basename + ".polish.fasta"
     if not checkfile(polish_file):
         polishOpts = ["cpus", "debug", "workdir", "iterations", "memory"]
-        polish_args = create_namespace(polishOpts, required_args={"infile": rmdup_file, "outfile": polish_file, "left": basename + "_filtered_1.fastq.gz", "pipe": True})
-        if args.right:
-            polish_args.right = basename + "_filtered_2.fastq.gz"
+        polish_args = create_namespace(
+            polishOpts,
+            required_args={
+                "method": "pilon",
+                "infile": rmdup_file,
+                "outfile": polish_file,
+                "left": basename + "_filtered_1.fastq.gz",
+                "right": basename + "_filtered_2.fastq.gz" if args.right else None,
+                "longreads": None,
+                "diploid": False,
+                "ploidy": 1,
+                "polca": "polca.sh",
+                "pipe": True,
+            },
+        )
         polish.run(parser, polish_args)
     else:
         status(f"AAFTF polish output found: {polish_file}")

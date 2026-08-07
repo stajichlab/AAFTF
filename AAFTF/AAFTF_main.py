@@ -160,6 +160,8 @@ def main():
         action="store_true",
         help="Skip downloading NCBI FCS-adaptor resources",
     )
+    parser_download.add_argument("-v", "--debug", action="store_true", help="Provide debugging messages")
+    parser_download.add_argument("--pipe", action="store_true", help="AAFTF is running in pipeline mode")
 
     #########################################
     # create the individual tool parsers

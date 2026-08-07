@@ -33,6 +33,7 @@ See [AGENTS.md](AGENTS.md) for full development guidelines, code style, and comm
 | `depth` | `coverage`, `cov` | `AAFTF/depth.py` | minimap2, bwa, samtools, mosdepth |
 | `mito` | `mito_asm`, `mitochondria` | `AAFTF/mito.py` | NOVOPlasty, minimap2 |
 | `fix_tbl` | `fix` | `AAFTF/fix_tbl.py` | (none) |
+| `download` | `configure`, `install`, `download_db`, `setup` | `AAFTF/download.py` | (none — urllib only) |
 | `pipeline` | — | `AAFTF/pipeline.py` | all of the above |
 
 ## Module `args` Signatures

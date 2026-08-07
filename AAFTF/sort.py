@@ -1,8 +1,5 @@
 """This module sorts FASTA sequences by size and renames headers."""
 
-import operator
-
-from Bio import SeqIO
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 from AAFTF.utility import softwrap, status
@@ -16,12 +13,10 @@ def run(parser, args):
         for Header, Seq in SimpleFastaParser(fasta_in):
             if Header not in AllSeqs:
                 if len(Seq) >= args.minlen:
-                    AllSeqs[Header] = len(Seq)
-    sortSeqs = sorted(AllSeqs.items(), key=operator.itemgetter(1), reverse=True)
-    orderedSeqs = [i[0] for i in sortSeqs]
-    SeqRecords = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
+                    AllSeqs[Header] = Seq
+    sortSeqs = sorted(AllSeqs.items(), key=lambda item: len(item[1]), reverse=True)
     with open(args.out, "w") as fasta_out:
-        for i, x in enumerate(orderedSeqs):
-            fasta_out.write(f">{args.name}_{i + 1}\n{softwrap(str(SeqRecords[x].seq))}\n")
+        for i, (Header, Seq) in enumerate(sortSeqs):
+            fasta_out.write(f">{args.name}_{i + 1}\n{softwrap(Seq)}\n")
 
     status(f"Output written to: {args.out}")

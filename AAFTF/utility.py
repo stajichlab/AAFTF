@@ -152,9 +152,10 @@ def fastastats(input):
 
 def countfastq(input):
     """Count the number of records in a FASTQ file (gzip or regular)."""
-    lines = sum(1 for line in zopen(input))
-    count = int(lines) // 4
-    return count
+    opener = gzip.open if input.endswith(".gz") else open
+    with opener(input, "rt") as fh:
+        lines = sum(1 for _ in fh)
+    return lines // 4
 
 
 def softwrap(string, every=80):
@@ -368,14 +369,20 @@ def which(program):
 
 
 def open_pipe(command, mode="r", buff=1024 * 1024):
-    """Open read or write pipe to program."""
+    """Open read or write pipe to program.
+
+    `command` may be an argv list (run directly, no shell) or a string
+    (run via the shell) -- the string form exists for `zopen()`'s "!"
+    passthrough where the caller explicitly supplies a shell command.
+    """
     import signal
     import subprocess
 
+    shell = isinstance(command, str)
     if "r" in mode:
-        return subprocess.Popen(command, shell=True, bufsize=buff, stdout=subprocess.PIPE, preexec_fn=lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)).stdout
+        return subprocess.Popen(command, shell=shell, bufsize=buff, stdout=subprocess.PIPE, preexec_fn=lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)).stdout
     elif "w" in mode:
-        return subprocess.Popen(command, shell=True, bufsize=buff, stdin=subprocess.PIPE).stdin
+        return subprocess.Popen(command, shell=shell, bufsize=buff, stdin=subprocess.PIPE).stdin
     return None
 
 
@@ -391,24 +398,23 @@ WHICH_PIGZ = which("pigz")
 
 def open_gz(filename, mode="r", buff=1024 * 1024, external=PARALLEL):
     """Open a gzip file using processes (gzip/pigz) or native library."""
-    if external is None or external == NORMAL:
-        import gzip
+    import gzip
 
+    if "w" in mode:
+        return gzip.open(filename, mode)
+
+    if external is None or external == NORMAL:
         return gzip.GzipFile(filename, mode, buff)
     elif external == PROCESS:
         if not WHICH_GZIP:
             return open_gz(filename, mode, buff, NORMAL)
         if "r" in mode:
-            return open_pipe("gzip -dc " + filename, mode, buff)
-        elif "w" in mode:
-            return open_pipe("gzip >" + filename, mode, buff)
+            return open_pipe([WHICH_GZIP, "-dc", filename], mode, buff)
     elif external == PARALLEL:
         if not WHICH_PIGZ:
             return open_gz(filename, mode, buff, PROCESS)
         if "r" in mode:
-            return open_pipe("pigz -dc " + filename, mode, buff)
-        elif "w" in mode:
-            return open_pipe("pigz >" + filename, mode, buff)
+            return open_pipe([WHICH_PIGZ, "-dc", filename], mode, buff)
     return None
 
 
