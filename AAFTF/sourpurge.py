@@ -62,6 +62,7 @@ def run(parser, args):
             else:
                 status(f"$AAFTF_DB/{dbfile} not found, pass --sourdb")
                 sys.exit(1)
+        args.AAFTF_DB = DB
         SOUR = os.path.join(DB, dbfile)
         if not os.path.isfile(SOUR):
             try:
