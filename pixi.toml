@@ -3,11 +3,17 @@ authors = ["Jason Stajich <jasonstajich.phd@gmail.com>"]
 channels = ["conda-forge", "bioconda"]
 name = "AAFTF"
 platforms = ["linux-64"]
-version = "0.6.2"
+version = "0.7.0"
 
 [tasks]
 
-[dependencies]
+# ---------------------------------------------------------------------------
+# Conda toolchain shared by every environment. Kept in an explicit "common"
+# feature (rather than the top-level/implicit default feature) so it can be
+# combined with either pypi source below without pixi's always-on default
+# feature dragging in both aaftf sources into the same solve at once.
+# ---------------------------------------------------------------------------
+[feature.common.dependencies]
 python = "3.10.*"
 samtools = ">=1.23,<2"
 biopython = "*"
@@ -30,8 +36,9 @@ bbmap = ">=39.80,<40"
 masurca = ">=4.1.4,<5"
 pytest = ">=9.0.3,<10"
 
-# Default (dev): install AAFTF as an editable package from the local checkout.
-[pypi-dependencies]
+# "local": install AAFTF as an editable package from the local checkout
+# (used by the "default" environment for development / CI).
+[feature.local.pypi-dependencies]
 aaftf = { path = ".", editable = true }
 
 # ---------------------------------------------------------------------------
@@ -45,7 +52,5 @@ aaftf = { path = ".", editable = true }
 aaftf = { git = "https://github.com/stajichlab/AAFTF", tag = "v0.6.2" }
 
 [environments]
-# "default" uses the local editable install (for development / CI).
-default = { features = [], solve-group = "default" }
-# "release" installs the pinned tagged release from GitHub.
-release = { features = ["release"], solve-group = "default" }
+default = { features = ["common", "local"] }
+release = { features = ["common", "release"] }
