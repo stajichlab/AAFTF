@@ -45,7 +45,9 @@ def orient_to_start(fasta_in, fasta_out, folder=".", start=False):
             ref_start = int(cols[8]) + ref_offset
         else:
             ref_start = int(cols[7]) - ref_offset
-        if ref_start < 0 or ref_start >= len(initial_seq):
+        if ref_start == len(initial_seq):
+            ref_start = 0
+        if ref_start < 0 or ref_start > len(initial_seq):
             # A partial alignment of the seed to the contig edge can push
             # this offset out of range; Python's negative-index slicing
             # would silently wrap and produce a bogus rotation instead of
