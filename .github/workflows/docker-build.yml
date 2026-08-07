@@ -1,0 +1,110 @@
+# Builds and publishes the AAFTF container images.
+#
+# - Every push to main:      rebuilds the Docker image and publishes it as
+#                             ghcr.io/stajichlab/aaftf:latest / :main
+# - Every published release: builds the Docker image pinned to that tag and
+#                             publishes ghcr.io/stajichlab/aaftf:<tag> / :<version>,
+#                             plus builds a Singularity/Apptainer .sif for that
+#                             tag (without baking in the sourmash DB) and
+#                             attaches it to the GitHub Release as an asset.
+
+name: Build container images
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: stajichlab/aaftf
+
+jobs:
+  docker-main:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  docker-release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tags
+        id: meta
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="${tag#v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  singularity-release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: eWaterCycle/setup-apptainer@v2
+
+      - name: Build .sif for the released tag
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          apptainer build \
+            --build-arg git_ref="${tag}" \
+            --build-arg skip_db_download=1 \
+            "AAFTF-${tag}.sif" AAFTF.def
+
+      - name: Attach .sif to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          gh release upload "${tag}" "AAFTF-${tag}.sif" --clobber --repo "${{ github.repository }}"

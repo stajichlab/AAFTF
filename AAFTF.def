@@ -5,21 +5,27 @@ From: debian:bookworm-slim
 # AAFTF - Automatic Assembly For The Fungi
 # Singularity/Apptainer definition file
 #
-# Build:
+# Build (defaults: git_ref=main, skip_db_download=0):
 #   singularity build AAFTF.sif AAFTF.def
 #
-# Build with database download:
-#   singularity build AAFTF.sif AAFTF.def
+# Build a specific tagged release without baking in the sourmash DB
+# (used by CI for archived release .sif builds):
+#   singularity build --build-arg git_ref=v0.7.0 \
+#       --build-arg skip_db_download=1 AAFTF.sif AAFTF.def
 #
 # Run:
 #   singularity exec AAFTF.sif AAFTF --help
 #   singularity run --bind /path/to/data:/data AAFTF.sif
 # =============================================================================
 
+%arguments
+    git_ref=main
+    skip_db_download=0
+
 %labels
     Author Jason Stajich <jasonstajich.phd@gmail.com>
     Description AAFTF: Automatic Assembly For The Fungi
-    Version 0.6.2
+    Version {{ git_ref }}
     URL https://github.com/stajichlab/AAFTF
 
 %help
@@ -70,9 +76,9 @@ From: debian:bookworm-slim
     export PATH="${PIXI_HOME}/bin:/opt/build/AAFTF/.pixi/envs/default/bin:${PATH}"
 
     # -------------------------------------------------------------------------
-    # 3. Clone fresh AAFTF repository from GitHub
+    # 3. Clone AAFTF repository from GitHub at the requested ref (branch or tag)
     # -------------------------------------------------------------------------
-    git clone https://github.com/stajichlab/AAFTF.git /opt/build/AAFTF
+    git clone --branch "{{ git_ref }}" --depth 1 https://github.com/stajichlab/AAFTF.git /opt/build/AAFTF
     export AAFTF_DB=/opt/aaftf_db
 
     # -------------------------------------------------------------------------
@@ -98,11 +104,18 @@ From: debian:bookworm-slim
     fi
 
     # -------------------------------------------------------------------------
-    # 6. Database download (optional)
-    mkdir -p $AAFTF_DB 
+    # 6. Database download (skippable via --build-arg skip_db_download=1,
+    #    used by CI where disk/time budgets don't allow baking in the DB;
+    #    users then bind-mount or download AAFTF_DB separately at run time)
+    # -------------------------------------------------------------------------
+    mkdir -p $AAFTF_DB
     . /opt/aaftf_activate.sh
 
-    AAFTF download --AAFTF_DB $AAFTF_DB --sourdb-type gbk
+    if [ "{{ skip_db_download }}" = "1" ]; then
+        echo "Skipping database download (skip_db_download=1)"
+    else
+        AAFTF download --AAFTF_DB $AAFTF_DB --sourdb-type gbk
+    fi
 
     # -------------------------------------------------------------------------
     # 7. Cleanup build artefacts to reduce image size
@@ -120,4 +133,3 @@ From: debian:bookworm-slim
 %test
     # Basic smoke test: print version
     AAFTF --version
-

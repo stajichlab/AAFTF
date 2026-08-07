@@ -39,7 +39,7 @@ LOCAL_SCHEME = "node-and-date"
 # Static fallback, used only when no setuptools-scm, build-time version file,
 # git checkout, or installed package metadata is available. Keep roughly in
 # sync with the latest release tag; it is not the source of truth.
-__fallback_version__ = "0.6.2"
+__fallback_version__ = "0.7.0"
 
 
 def _repo_root():
