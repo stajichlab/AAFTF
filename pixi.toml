@@ -42,14 +42,17 @@ pytest = ">=9.0.3,<10"
 aaftf = { path = ".", editable = true }
 
 # ---------------------------------------------------------------------------
-# "release" environment — installs a pinned tagged version from GitHub.
-# Used by:  pixi install --environment release
-#           docker build --build-arg PIXI_ENV=release ...
-# To update the pinned tag, change the `tag` value below and run:
+# "release" environment — installs AAFTF from GitHub rather than the local
+# checkout. Used by:  pixi install --environment release
+#                      docker build --build-arg PIXI_ENV=release ...
+# Currently tracks the `main` branch since no v0.7.0 tag exists yet. Once
+# v0.7.0 is tagged and released, pin this to `tag = "v0.7.0"` instead (and
+# re-pin on each subsequent release) so this environment always installs an
+# exact released version, then run:
 #   pixi install --environment release  (regenerates pixi.lock for that env)
 # ---------------------------------------------------------------------------
 [feature.release.pypi-dependencies]
-aaftf = { git = "https://github.com/stajichlab/AAFTF", tag = "v0.6.2" }
+aaftf = { git = "https://github.com/stajichlab/AAFTF", branch = "main" }
 
 [environments]
 default = { features = ["common", "local"] }

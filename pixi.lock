@@ -485,7 +485,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.16.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2026c-h151e31d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
-      - pypi: git+https://github.com/stajichlab/AAFTF?tag=v0.6.2#365e3c71ca54d091470628262072cbc7918bb268
+      - pypi: git+https://github.com/stajichlab/AAFTF?branch=main#532e0510444add7858518efdcfb7f56951345469
 packages:
 - conda: https://conda.anaconda.org/bioconda/linux-64/bbmap-39.80-h9b5c0a0_0.conda
   sha256: 1dd3a7f23f5a26a610039e22cb3a094ed9d887fd8bef479b7f085d6cb08c397c
@@ -4881,9 +4881,9 @@ packages:
   - pytest>=7 ; extra == 'dev'
   - setuptools-scm>=8 ; extra == 'dev'
   requires_python: '>=3.9'
-- pypi: git+https://github.com/stajichlab/AAFTF?tag=v0.6.2#365e3c71ca54d091470628262072cbc7918bb268
+- pypi: git+https://github.com/stajichlab/AAFTF?branch=main#532e0510444add7858518efdcfb7f56951345469
   name: aaftf
-  version: 0.6.2
+  version: 0.6.3.dev10+g532e05104
   requires_dist:
   - pytest-cov ; extra == 'dev'
   - pytest>=7 ; extra == 'dev'
