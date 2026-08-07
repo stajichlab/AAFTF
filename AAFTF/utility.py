@@ -368,14 +368,20 @@ def which(program):
 
 
 def open_pipe(command, mode="r", buff=1024 * 1024):
-    """Open read or write pipe to program."""
+    """Open read or write pipe to program.
+
+    `command` may be an argv list (run directly, no shell) or a string
+    (run via the shell) -- the string form exists for `zopen()`'s "!"
+    passthrough where the caller explicitly supplies a shell command.
+    """
     import signal
     import subprocess
 
+    shell = isinstance(command, str)
     if "r" in mode:
-        return subprocess.Popen(command, shell=True, bufsize=buff, stdout=subprocess.PIPE, preexec_fn=lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)).stdout
+        return subprocess.Popen(command, shell=shell, bufsize=buff, stdout=subprocess.PIPE, preexec_fn=lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)).stdout
     elif "w" in mode:
-        return subprocess.Popen(command, shell=True, bufsize=buff, stdin=subprocess.PIPE).stdin
+        return subprocess.Popen(command, shell=shell, bufsize=buff, stdin=subprocess.PIPE).stdin
     return None
 
 
@@ -391,6 +397,8 @@ WHICH_PIGZ = which("pigz")
 
 def open_gz(filename, mode="r", buff=1024 * 1024, external=PARALLEL):
     """Open a gzip file using processes (gzip/pigz) or native library."""
+    import subprocess
+
     if external is None or external == NORMAL:
         import gzip
 
@@ -399,16 +407,18 @@ def open_gz(filename, mode="r", buff=1024 * 1024, external=PARALLEL):
         if not WHICH_GZIP:
             return open_gz(filename, mode, buff, NORMAL)
         if "r" in mode:
-            return open_pipe("gzip -dc " + filename, mode, buff)
+            return open_pipe([WHICH_GZIP, "-dc", filename], mode, buff)
         elif "w" in mode:
-            return open_pipe("gzip >" + filename, mode, buff)
+            outfh = open(filename, "wb")
+            return subprocess.Popen([WHICH_GZIP], shell=False, bufsize=buff, stdin=subprocess.PIPE, stdout=outfh).stdin
     elif external == PARALLEL:
         if not WHICH_PIGZ:
             return open_gz(filename, mode, buff, PROCESS)
         if "r" in mode:
-            return open_pipe("pigz -dc " + filename, mode, buff)
+            return open_pipe([WHICH_PIGZ, "-dc", filename], mode, buff)
         elif "w" in mode:
-            return open_pipe("pigz >" + filename, mode, buff)
+            outfh = open(filename, "wb")
+            return subprocess.Popen([WHICH_PIGZ], shell=False, bufsize=buff, stdin=subprocess.PIPE, stdout=outfh).stdin
     return None
 
 
