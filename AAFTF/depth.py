@@ -35,7 +35,7 @@ except ImportError:
 
 from packaging.version import Version
 
-from AAFTF.utility import SafeRemove, checkfile, get_samtools_version, printCMD, samtools_sort_cmd, status, which
+from AAFTF.utility import SafeRemove, checkfile, countfastq, get_samtools_version, printCMD, samtools_sort_cmd, status, which
 
 # ---------------------------------------------------------------------------
 # Constants for quantized coverage classes
@@ -76,12 +76,7 @@ def count_fastq_reads(fastq_file):
         Integer count of reads, or -1 on failure.
     """
     try:
-        opener = gzip.open if fastq_file.endswith(".gz") else open
-        n_lines = 0
-        with opener(fastq_file, "rt") as fh:
-            for _ in fh:
-                n_lines += 1
-        return n_lines // 4
+        return countfastq(fastq_file)
     except Exception:
         return -1
 
@@ -169,7 +164,8 @@ def map_reads(genome, reads_left, reads_right, longreads, workdir, cpus, illumin
             if ret.returncode != 0:
                 status("ERROR: bwa index failed")
                 sys.exit(1)
-            map_cmd = ["bwa", "mem", "-t", str(cpus), genome_local, reads_left]
+            read_group = r"@RG\tID:illumina\tSM:illumina\tPL:illumina"
+            map_cmd = ["bwa", "mem", "-t", str(cpus), "-R", read_group, genome_local, reads_left]
             if reads_right:
                 map_cmd.append(reads_right)
         else:

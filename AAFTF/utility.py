@@ -152,9 +152,10 @@ def fastastats(input):
 
 def countfastq(input):
     """Count the number of records in a FASTQ file (gzip or regular)."""
-    lines = sum(1 for line in zopen(input))
-    count = int(lines) // 4
-    return count
+    opener = gzip.open if input.endswith(".gz") else open
+    with opener(input, "rt") as fh:
+        lines = sum(1 for _ in fh)
+    return lines // 4
 
 
 def softwrap(string, every=80):

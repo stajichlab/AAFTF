@@ -151,8 +151,10 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent, contigs_to_remove=N
                         if loc[1] > FiveEnd:
                             FiveEnd = loc[1]
                     elif terminal and pos == "3":
-                        if loc[0] < ThreeEnd:
-                            ThreeEnd = loc[0]
+                        # loc[0] (qstart) is 1-based; the slice end must be
+                        # one less so the first vector/contaminant base isn't kept.
+                        if loc[0] - 1 < ThreeEnd:
+                            ThreeEnd = loc[0] - 1
                     else:  # internal hits to add to list
                         if loc not in internals:
                             internals.append(loc)
@@ -164,7 +166,11 @@ def parse_clean_blastn(fastafile, prefix, blastn, stringent, contigs_to_remove=N
                 else:
                     slicer = [FiveEnd]
                     for x in sInt:
-                        slicer = slicer + x
+                        # x[0] (qstart) is 1-based and used as a slice end below,
+                        # so shift by one to avoid retaining the first hit base.
+                        # x[1] (qend) is used as the following slice start, which
+                        # is already correct as-is.
+                        slicer = slicer + [x[0] - 1, x[1]]
                     slicer.append(ThreeEnd)
                 paired_slicer = list(group(slicer, 2))
                 if len(paired_slicer) < 2:
@@ -298,7 +304,9 @@ def run(parser, args):
                         lastpos = 0
                         newSeq = ""
                         for i, x in enumerate(regions):
-                            newSeq = Seq[lastpos : x[0]]
+                            # x[0] is a 1-based BLAST start; subtract one so the
+                            # slice end doesn't retain the first contaminant base.
+                            newSeq = Seq[lastpos : x[0] - 1]
                             lastpos = x[1]
                             cleanout.write(f">split{i}_{record.id}\n{softwrap(newSeq)}\n")
                             if i == len(regions) - 1:

@@ -45,6 +45,17 @@ def orient_to_start(fasta_in, fasta_out, folder=".", start=False):
             ref_start = int(cols[8]) + ref_offset
         else:
             ref_start = int(cols[7]) - ref_offset
+        if ref_start < 0 or ref_start >= len(initial_seq):
+            # A partial alignment of the seed to the contig edge can push
+            # this offset out of range; Python's negative-index slicing
+            # would silently wrap and produce a bogus rotation instead of
+            # erroring, so treat it the same as a failed rotation.
+            status(f"ERROR: unable to rotate because computed rotation offset {ref_start} is out of range for sequence of length {len(initial_seq)}\n")
+            with open(fasta_out, "w") as outfile:
+                outfile.write(">{}\n{}\n".format("mt", softwrap(initial_seq)))
+            if os.path.isfile(startFile):
+                os.remove(startFile)
+            return
         rotated = initial_seq[ref_start:] + initial_seq[:ref_start]
         if ref_strand == "-":
             rotated = RevComp(rotated)
