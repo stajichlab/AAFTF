@@ -40,10 +40,11 @@ def run(parser, args):
             if args.debug:
                 print(f"\tquery={qID} hit={tID} pident={pident:.2f} coverage={cov:.2f}")
 
-                if pident > args.percent_id and cov > args.percent_cov:
+            if pident > args.percent_id and cov > args.percent_cov:
+                if args.debug:
                     print(f"{name} duplicated: {pident:.0f}% identity over {cov:.0f}% of the contig. length={qLen}")
-                    garbage = True
-                    break
+                garbage = True
+                break
         return garbage  # false is good, true is repeat
 
     # start here -- functions nested so they can inherit the arguments
