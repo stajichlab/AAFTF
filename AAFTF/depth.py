@@ -248,7 +248,6 @@ def run_mosdepth(bam_file, workdir, cpus, prefix="coverage", debug=False):
         "-n",
         "--threads",
         str(cpus),
-        "--no-abbrev",
         mosdepth_prefix,
         os.path.abspath(bam_file),
     ]
