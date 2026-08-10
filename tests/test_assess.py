@@ -11,9 +11,7 @@ import os
 import pytest
 
 from AAFTF.assess import findTelomere, genome_asm_stats, revcomp, run
-
 from tests.conftest import (
-    SMALL_FASTA,
     TELO_FWD_ONLY,
     TELO_NONE,
     TELO_REV_ONLY,
@@ -26,6 +24,7 @@ pytestmark = pytest.mark.unit
 # ---------------------------------------------------------------------------
 # revcomp  (assess.py version — regex-aware)
 # ---------------------------------------------------------------------------
+
 
 class TestRevcomp:
     """assess.revcomp handles regex bracket metacharacters in the monomer."""
@@ -52,12 +51,14 @@ class TestRevcomp:
 # findTelomere
 # ---------------------------------------------------------------------------
 
+
 class TestFindTelomere:
     MONOMER = "TAA[C]+"
     N = 2
 
     def _check(self, seq_str):
         from Bio.Seq import Seq
+
         return findTelomere(Seq(seq_str), self.MONOMER, self.N)
 
     def test_t2t_both_ends(self):
@@ -84,6 +85,7 @@ class TestFindTelomere:
 # ---------------------------------------------------------------------------
 # genome_asm_stats
 # ---------------------------------------------------------------------------
+
 
 class TestGenomeAsmStats:
     MONOMER = "TAA[C]+"
@@ -149,6 +151,7 @@ class TestGenomeAsmStats:
 # run()
 # ---------------------------------------------------------------------------
 
+
 class TestAssessRun:
     def test_run_prints_to_stdout(self, assess_args, capsys):
         run(None, assess_args)
@@ -165,6 +168,7 @@ class TestAssessRun:
 
     def test_run_no_report_arg(self, fasta_file, capsys):
         from argparse import Namespace
+
         args = Namespace(
             input=str(fasta_file),
             report=None,

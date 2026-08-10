@@ -10,8 +10,7 @@ import pytest
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
 from AAFTF.sort import run
-
-from tests.conftest import SEQ1, SEQ2, SEQ3, SMALL_FASTA
+from tests.conftest import SEQ1, SEQ2, SEQ3
 
 pytestmark = pytest.mark.unit
 
@@ -40,6 +39,7 @@ def _make_args(tmp_path, fasta_file, minlen=0, name="scaffold"):
 # Basic sorting
 # ---------------------------------------------------------------------------
 
+
 class TestSortOrder:
     def test_output_file_created(self, sort_args):
         run(None, sort_args)
@@ -55,12 +55,12 @@ class TestSortOrder:
     def test_first_record_is_longest(self, sort_args):
         run(None, sort_args)
         records = _read_fasta(sort_args.out)
-        assert len(records[0][1]) == 150   # SEQ3
+        assert len(records[0][1]) == 150  # SEQ3
 
     def test_last_record_is_shortest(self, sort_args):
         run(None, sort_args)
         records = _read_fasta(sort_args.out)
-        assert len(records[-1][1]) == 20   # SEQ1
+        assert len(records[-1][1]) == 20  # SEQ1
 
     def test_all_sequences_present(self, sort_args):
         run(None, sort_args)
@@ -71,6 +71,7 @@ class TestSortOrder:
 # ---------------------------------------------------------------------------
 # Header renaming
 # ---------------------------------------------------------------------------
+
 
 class TestSortRenaming:
     def test_default_prefix(self, sort_args):
@@ -93,6 +94,7 @@ class TestSortRenaming:
 # ---------------------------------------------------------------------------
 # minlen filtering
 # ---------------------------------------------------------------------------
+
 
 class TestSortMinlen:
     def test_minlen_removes_short_contigs(self, tmp_path, fasta_file):
@@ -128,14 +130,13 @@ class TestSortMinlen:
 # Sequence content preserved
 # ---------------------------------------------------------------------------
 
+
 class TestSortContent:
     def test_sequences_are_not_modified(self, sort_args):
         run(None, sort_args)
         records = _read_fasta(sort_args.out)
         # Collect original sequences by length for comparison
-        originals = {len(SEQ3): SEQ3.upper(),
-                     len(SEQ2): SEQ2.upper(),
-                     len(SEQ1): SEQ1.upper()}
+        originals = {len(SEQ3): SEQ3.upper(), len(SEQ2): SEQ2.upper(), len(SEQ1): SEQ1.upper()}
         for header, seq in records:
             expected = originals[len(seq)]
             # softwrap may add newlines within the stored seq string but

@@ -16,6 +16,7 @@ pytestmark = pytest.mark.unit
 # Helper builders
 # ---------------------------------------------------------------------------
 
+
 def _tbl(text):
     """Wrap *text* in a StringIO for use as a tbl file handle."""
     return io.StringIO(text)
@@ -205,19 +206,19 @@ class TestFixTbl:
         out = _out()
         fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_LEFT_50), out)
         content = out.getvalue()
-        lines = [l for l in content.splitlines() if "\t" in l and not l.startswith(">")]
-        coord_lines = [l for l in lines if not l.startswith("\t")]
+        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
+        coord_lines = [line for line in lines if not line.startswith("\t")]
         # Original gene 1-100, after trim_left=50 → 1-50 (start clamped to 1)
         first_coords = coord_lines[0].split("\t")[:2]
-        assert first_coords[0] == "1"    # max(1, 1-50)
-        assert first_coords[1] == "50"   # 100-50
+        assert first_coords[0] == "1"  # max(1, 1-50)
+        assert first_coords[1] == "50"  # 100-50
 
     def test_trim_left_second_gene_shifted(self):
         out = _out()
         fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_LEFT_50), out)
         content = out.getvalue()
-        lines = [l for l in content.splitlines() if "\t" in l and not l.startswith(">")]
-        coord_lines = [l for l in lines if not l.startswith("\t")]
+        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
+        coord_lines = [line for line in lines if not line.startswith("\t")]
         # TBL_FOR_FIX has exactly 2 coordinate lines: index 0 (1-100) and 1 (200-300)
         second_coords = coord_lines[1].split("\t")[:2]
         assert second_coords[0] == "150"  # 200-50
@@ -227,8 +228,8 @@ class TestFixTbl:
         out = _out()
         fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_RIGHT_800), out)
         content = out.getvalue()
-        lines = [l for l in content.splitlines() if "\t" in l and not l.startswith(">")]
-        coord_lines = [l for l in lines if not l.startswith("\t")]
+        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
+        coord_lines = [line for line in lines if not line.startswith("\t")]
         # gene at 200-300: neither start(200) nor end(300) >= 801, so unchanged
         second_coords = coord_lines[1].split("\t")[:2]
         assert second_coords[0] == "200"
@@ -239,8 +240,8 @@ class TestFixTbl:
         out = _out()
         fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_NONE), out)
         content = out.getvalue()
-        lines = [l for l in content.splitlines() if "\t" in l and not l.startswith(">")]
-        coord_lines = [l for l in lines if not l.startswith("\t")]
+        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
+        coord_lines = [line for line in lines if not line.startswith("\t")]
         # Coordinates should be unchanged
         assert coord_lines[0].split("\t")[:2] == ["1", "100"]
 

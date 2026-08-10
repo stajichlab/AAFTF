@@ -3,7 +3,6 @@
 All tests are pure Python — no external bioinformatics tools required.
 """
 
-import gzip
 
 import pytest
 
@@ -20,8 +19,7 @@ from AAFTF.utility import (
     softwrap,
     which,
 )
-
-from tests.conftest import SMALL_FASTA, make_fastq_text
+from tests.conftest import make_fastq_text
 
 pytestmark = pytest.mark.unit
 
@@ -29,6 +27,7 @@ pytestmark = pytest.mark.unit
 # ---------------------------------------------------------------------------
 # myround
 # ---------------------------------------------------------------------------
+
 
 class TestMyround:
     def test_round_up_to_base10(self):
@@ -53,6 +52,7 @@ class TestMyround:
 # ---------------------------------------------------------------------------
 # calcN50
 # ---------------------------------------------------------------------------
+
 
 class TestCalcN50:
     """calcN50(lengths) uses the default num=0.5 for N50."""
@@ -86,6 +86,7 @@ class TestCalcN50:
 # RevComp
 # ---------------------------------------------------------------------------
 
+
 class TestRevComp:
     def test_simple(self):
         assert RevComp("ATCG") == "CGAT"
@@ -113,6 +114,7 @@ class TestRevComp:
 # softwrap
 # ---------------------------------------------------------------------------
 
+
 class TestSoftwrap:
     def test_short_string_unchanged(self):
         assert softwrap("ATCG", 80) == "ATCG"
@@ -139,6 +141,7 @@ class TestSoftwrap:
 # checkfile
 # ---------------------------------------------------------------------------
 
+
 class TestCheckfile:
     def test_existing_nonempty_file_is_true(self, fasta_file):
         assert checkfile(str(fasta_file)) is True
@@ -154,6 +157,7 @@ class TestCheckfile:
 # line_count
 # ---------------------------------------------------------------------------
 
+
 class TestLineCount:
     def test_known_line_count(self, line_file):
         assert line_count(str(line_file)) == 5
@@ -166,6 +170,7 @@ class TestLineCount:
 # ---------------------------------------------------------------------------
 # countfasta / fastastats
 # ---------------------------------------------------------------------------
+
 
 class TestCountFasta:
     def test_count_three_sequences(self, fasta_file):
@@ -185,6 +190,7 @@ class TestCountFasta:
 # countfastq
 # ---------------------------------------------------------------------------
 
+
 class TestCountFastq:
     def test_plain_fastq(self, fastq_file):
         assert countfastq(str(fastq_file)) == 10
@@ -202,6 +208,7 @@ class TestCountFastq:
 # which
 # ---------------------------------------------------------------------------
 
+
 class TestWhich:
     def test_python_found(self):
         # python3 or python should be in PATH in any test environment
@@ -215,6 +222,7 @@ class TestWhich:
 # ---------------------------------------------------------------------------
 # SafeRemove
 # ---------------------------------------------------------------------------
+
 
 class TestSafeRemove:
     def test_remove_file(self, tmp_path):

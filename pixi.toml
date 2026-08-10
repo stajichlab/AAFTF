@@ -43,14 +43,17 @@ pytest-cov = "*"
 aaftf = { path = ".", editable = true }
 
 # ---------------------------------------------------------------------------
-# "release" environment — installs AAFTF from GitHub rather than the local
-# checkout. Used by:  pixi install --environment release
-#                      docker build --build-arg PIXI_ENV=release ...
-# Currently tracks the `main` branch since no v0.7.0 tag exists yet. Once
-# v0.7.0 is tagged and released, pin this to `tag = "v0.7.0"` instead (and
-# re-pin on each subsequent release) so this environment always installs an
-# exact released version, then run:
-#   pixi install --environment release  (regenerates pixi.lock for that env)
+# "release" environment — installs AAFTF from PyPI/GitHub.
+# Used by:  pixi install --environment release
+#            docker build --build-arg PIXI_ENV=release ...
+#
+# Release workflow:
+#   1. git tag v0.X.Y && git push origin v0.X.Y
+#   2. Update this file: change branch="main" to tag="v0.X.Y"
+#   3. pixi install --environment release  (regenerates pixi.lock)
+#   4. git add pixi.lock && git commit -m "Bump aaftf to v0.X.Y" && git push
+#
+# Until step 2 is done, this tracks the main branch (development builds).
 # ---------------------------------------------------------------------------
 [feature.release.pypi-dependencies]
 aaftf = { git = "https://github.com/stajichlab/AAFTF", branch = "main" }
