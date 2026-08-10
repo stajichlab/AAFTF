@@ -149,6 +149,12 @@ jobs:
 
       - uses: sigstore/cosign-installer@v3
 
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Sign main/latest images
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
@@ -190,6 +196,12 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - uses: sigstore/cosign-installer@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate SLSA provenance for main/latest
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
