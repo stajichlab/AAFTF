@@ -268,8 +268,9 @@ class TestPolishPolcaFailure:
 
         with patch("AAFTF.polish.subprocess.run", return_value=mock_result):
             with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
-                with pytest.raises(SystemExit) as exc:
-                    run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    with pytest.raises(SystemExit) as exc:
+                        run(None, args)
         assert exc.value.code == 1
 
     def test_missing_output_file_raises_systemexit(self, tmp_path):
@@ -285,8 +286,9 @@ class TestPolishPolcaFailure:
 
         with patch("AAFTF.polish.subprocess.run", return_value=mock_result):
             with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
-                with pytest.raises(SystemExit) as exc:
-                    run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    with pytest.raises(SystemExit) as exc:
+                        run(None, args)
         assert exc.value.code == 1
 
     def test_success_copies_corrected_fasta(self, tmp_path):
@@ -309,7 +311,8 @@ class TestPolishPolcaFailure:
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
             with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
-                run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
 
         assert (tmp_path / "polished.fasta").exists()
 
@@ -332,7 +335,8 @@ class TestPolishPolcaFailure:
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
             with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
-                run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
 
         assert (tmp_path / "polished.fasta.vcf").exists()
 
@@ -355,7 +359,8 @@ class TestPolishPolcaFailure:
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
             with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
-                run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
 
         assert (tmp_path / "polished.fasta.polca_report.txt").exists()
 
@@ -381,7 +386,8 @@ class TestPolishPolcaFailure:
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
             with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
-                run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
 
         polca_cmd = captured_cmds[0]
         reads_arg = next((polca_cmd[i + 1] for i, a in enumerate(polca_cmd) if a == "-r"), None)
@@ -435,7 +441,8 @@ class TestPolishPilonConvergence:
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
             with patch("AAFTF.polish.make_bwa_bam", side_effect=_fake_make_bwa_bam):
-                run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
 
         # Only one pilon invocation — converged at iteration 1
         pilon_calls = [c for c in subprocess_calls if c and c[0] == "pilon"]
@@ -482,7 +489,8 @@ class TestPolishPilonConvergence:
 
         with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
             with patch("AAFTF.polish.make_bwa_bam", side_effect=_fake_make_bwa_bam):
-                run(None, args)
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
 
         assert call_count[0] == 2
         assert (tmp_path / "polished.fasta").exists()
