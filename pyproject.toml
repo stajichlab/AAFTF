@@ -32,7 +32,7 @@ AAFTF = "AAFTF.AAFTF_main:main"
 # in AAFTF/__version__.py so a source checkout reports the identical string.
 [tool.hatch.version]
 source = "vcs"
-raw-options = { version_scheme = "guess-next-dev", local_scheme = "node-and-date" }
+raw-options = { version_scheme = "guess-next-dev", local_scheme = "node-and-date", fallback_version = "0.0.0+unknown" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "AAFTF/_version.py"
