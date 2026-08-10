@@ -155,11 +155,8 @@ jobs:
           for tag in latest main; do
             cosign sign --yes \
               --recursive \
-              --upload=docs \
               "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
           done
-        env:
-          COSIGN_EXPERIMENTAL: "1"
 
       - name: Compute release tags
         if: github.event_name == 'release'
@@ -176,11 +173,8 @@ jobs:
           for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
             cosign sign --yes \
               --recursive \
-              --upload=docs \
               "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
           done
-        env:
-          COSIGN_EXPERIMENTAL: "1"
 
   provenance:
     needs: [docker-main, docker-release, docker-sign]
@@ -203,8 +197,6 @@ jobs:
           for tag in latest main; do
             cosign attest --yes \
               --type=slsaprovenance1 \
-              --predicate-type=slsaprovenance/internal \
-              --upload=docs \
               "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
           done
 
@@ -223,7 +215,5 @@ jobs:
           for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
             cosign attest --yes \
               --type=slsaprovenance1 \
-              --predicate-type=slsaprovenance/internal \
-              --upload=docs \
               "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
           done
