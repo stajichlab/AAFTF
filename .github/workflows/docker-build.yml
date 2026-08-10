@@ -208,6 +208,7 @@ jobs:
         run: |
           for tag in latest main; do
             cosign attest --yes \
+              --predicate <(printf '{}') \
               --type=slsaprovenance1 \
               "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
           done
@@ -226,6 +227,7 @@ jobs:
         run: |
           for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
             cosign attest --yes \
+              --predicate <(printf '{}') \
               --type=slsaprovenance1 \
               "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
           done
