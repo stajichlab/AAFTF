@@ -20,7 +20,7 @@ From: debian:bookworm-slim
 
 %arguments
     git_ref=main
-    skip_db_download=0
+    skip_db_download=1
 
 %labels
     Author Jason Stajich <jasonstajich.phd@gmail.com>
