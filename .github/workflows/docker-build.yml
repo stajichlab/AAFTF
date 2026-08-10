@@ -222,8 +222,7 @@ jobs:
               },
               "metadata": {
                 "invocationId": "${GITHUB_RUN_ID}",
-                "startedOn": "${started_on}",
-                "finishedOn": "${started_on}"
+                "startedOn": "${started_on}"
               },
               "byproducts": []
             }
