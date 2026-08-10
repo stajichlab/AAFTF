@@ -7,6 +7,9 @@
 #                             plus builds a Singularity/Apptainer .sif for that
 #                             tag (without baking in the sourmash DB) and
 #                             attaches it to the GitHub Release as an asset.
+#
+# All images are signed with Cosign (Sigstore) and include SLSA provenance
+# attestations for supply-chain security.
 
 name: Build container images
 
@@ -118,3 +121,97 @@ jobs:
         run: |
           tag="${{ github.event.release.tag_name }}"
           gh release upload "${tag}" "AAFTF-${tag}.sif" --clobber --repo "${{ github.repository }}"
+
+  docker-sign:
+    needs: [docker-main, docker-release]
+    runs-on: ubuntu-latest
+    if: always() && (contains(needs.docker-main.result, 'success') || contains(needs.docker-release.result, 'success'))
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Sign main/latest images
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          for tag in latest main; do
+            cosign sign --yes \
+              --recursive \
+              --upload=docs \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
+          done
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+      - name: Compute release tags
+        if: github.event_name == 'release'
+        id: meta
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="${tag#v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Sign release images
+        if: github.event_name == 'release'
+        run: |
+          for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
+            cosign sign --yes \
+              --recursive \
+              --upload=docs \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
+          done
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+  provenance:
+    needs: [docker-main, docker-release, docker-sign]
+    runs-on: ubuntu-latest
+    if: always() && (contains(needs.docker-main.result, 'success') || contains(needs.docker-release.result, 'success'))
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Generate SLSA provenance for main/latest
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          for tag in latest main; do
+            cosign attest --yes \
+              --type=slsaprovenance1 \
+              --predicate-type=slsaprovenance/internal \
+              --upload=docs \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
+          done
+
+      - name: Compute release tags
+        if: github.event_name == 'release'
+        id: meta
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="${tag#v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SLSA provenance for release images
+        if: github.event_name == 'release'
+        run: |
+          for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
+            cosign attest --yes \
+              --type=slsaprovenance1 \
+              --predicate-type=slsaprovenance/internal \
+              --upload=docs \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
+          done

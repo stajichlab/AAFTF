@@ -1,12 +1,19 @@
 """Shared pytest fixtures for the AAFTF test suite."""
 
 import gzip
-import io
-import textwrap
+import shutil
 from argparse import Namespace
-from pathlib import Path
 
 import pytest
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Clean up any leftover pytest temp directories after test session."""
+    if hasattr(session, "config") and session.config:
+        tmp_path = session.config._tmp_path_factory
+        if hasattr(tmp_path, "_tmp_path"):
+            shutil.rmtree(tmp_path._tmp_path, ignore_errors=True)
+
 
 # ---------------------------------------------------------------------------
 # FASTA sequences with known properties
@@ -17,33 +24,28 @@ import pytest
 # N50 = 150 (cumulative from largest reaches 50 % at first contig)
 # N90 = 80  (cumulative reaches 90 % with first two contigs)
 # ---------------------------------------------------------------------------
-SEQ1 = "ATCGATCGATCGATCGATCG"   # 20 bp
-SEQ2 = "GC" * 40                # 80 bp
-SEQ3 = "AT" * 75                # 150 bp
+SEQ1 = "ATCGATCGATCGATCGATCG"  # 20 bp
+SEQ2 = "GC" * 40  # 80 bp
+SEQ3 = "AT" * 75  # 150 bp
 
 SMALL_FASTA = f">seq1\n{SEQ1}\n>seq2\n{SEQ2}\n>seq3\n{SEQ3}\n"
 
 # Telomere sequences (200 bp each).
 # Default monomer: TAA[C]+  revcomp: [G]+TTA
-_FWD  = "TAACCCTAACCC"           # matches TAA[C]+TAA[C]+
-_REV  = "GGGTTAGGGTTA"           # matches [G]+TTA[G]+TTA
-_BODY = "A" * 176                # neutral padding (176 bp)
+_FWD = "TAACCCTAACCC"  # matches TAA[C]+TAA[C]+
+_REV = "GGGTTAGGGTTA"  # matches [G]+TTA[G]+TTA
+_BODY = "A" * 176  # neutral padding (176 bp)
 
 # Forward telomere only (pattern in first 100 bp)
-TELO_FWD_ONLY = _FWD + "A" * 188         # 200 bp
+TELO_FWD_ONLY = _FWD + "A" * 188  # 200 bp
 # Reverse telomere only (pattern in last 100 bp)
-TELO_REV_ONLY = "A" * 188 + _REV        # 200 bp
+TELO_REV_ONLY = "A" * 188 + _REV  # 200 bp
 # Telomere-to-telomere: both ends
-TELO_T2T      = _FWD + _BODY + _REV     # 200 bp
+TELO_T2T = _FWD + _BODY + _REV  # 200 bp
 # No telomere
-TELO_NONE     = "AAATTTGGGCCC" * 16 + "AAAA" * 2   # 200 bp
+TELO_NONE = "AAATTTGGGCCC" * 16 + "AAAA" * 2  # 200 bp
 
-TELOMERE_FASTA = (
-    f">scaffold_t2t\n{TELO_T2T}\n"
-    f">scaffold_fwd\n{TELO_FWD_ONLY}\n"
-    f">scaffold_rev\n{TELO_REV_ONLY}\n"
-    f">scaffold_none\n{TELO_NONE}\n"
-)
+TELOMERE_FASTA = f">scaffold_t2t\n{TELO_T2T}\n" f">scaffold_fwd\n{TELO_FWD_ONLY}\n" f">scaffold_rev\n{TELO_REV_ONLY}\n" f">scaffold_none\n{TELO_NONE}\n"
 
 # ---------------------------------------------------------------------------
 # mosdepth summary data
@@ -52,26 +54,15 @@ TELOMERE_FASTA = (
 # SD of per-contig depths vs mean=20.88 ≈ 309.8
 # threshold ≈ 950.3  →  scaffold_outlier (1000x) IS flagged
 # ---------------------------------------------------------------------------
-_NUCLEAR_ROWS = "\n".join(
-    f"scaffold_{i}\t10000\t100000\t10.0\t0\t50" for i in range(1, 10)
-)
-MOSDEPTH_SUMMARY = (
-    "chrom\tlength\tbases\tmean\tmin\tmax\n"
-    + _NUCLEAR_ROWS
-    + "\nscaffold_outlier\t1000\t1000000\t1000.0\t0\t2000"
-    + "\ntotal\t91000\t1900000\t20.88\t0\t2000\n"
-)
+_NUCLEAR_ROWS = "\n".join(f"scaffold_{i}\t10000\t100000\t10.0\t0\t50" for i in range(1, 10))
+MOSDEPTH_SUMMARY = "chrom\tlength\tbases\tmean\tmin\tmax\n" + _NUCLEAR_ROWS + "\nscaffold_outlier\t1000\t1000000\t1000.0\t0\t2000" + "\ntotal\t91000\t1900000\t20.88\t0\t2000\n"
 
-MOSDEPTH_DIST = (
-    "total\t0\t1.00000\n"
-    "total\t1\t0.98000\n"
-    "total\t2\t0.96000\n"
-    "total\t5\t0.90000\n"
-)
+MOSDEPTH_DIST = "total\t0\t1.00000\n" "total\t1\t0.98000\n" "total\t2\t0.96000\n" "total\t5\t0.90000\n"
 
 # ---------------------------------------------------------------------------
 # FASTQ helpers
 # ---------------------------------------------------------------------------
+
 
 def make_fastq_text(n_reads=10, read_len=100):
     """Return a FASTQ string with *n_reads* dummy records of *read_len* bp."""
@@ -84,6 +75,7 @@ def make_fastq_text(n_reads=10, read_len=100):
 # ---------------------------------------------------------------------------
 # File fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def fasta_file(tmp_path):
@@ -162,6 +154,7 @@ def mosdepth_dist_file(tmp_path):
 # ---------------------------------------------------------------------------
 # args Namespace fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def sort_args(tmp_path, fasta_file):

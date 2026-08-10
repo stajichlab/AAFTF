@@ -29,16 +29,17 @@ spades = "*"
 fastp = "*"
 novoplasty = "*"
 ncbi-fcs-gx = "*"
-mosdepth = "*"
+mosdepth = ">=0.3.10"
 matplotlib = "*"
 pip = "*"
 bbmap = ">=39.80,<40"
 masurca = ">=4.1.4,<5"
 pytest = ">=9.0.3,<10"
 
-# "local": install AAFTF as an editable package from the local checkout
-# (used by the "default" environment for development / CI).
-[feature.local.pypi-dependencies]
+[feature.dev.dependencies]
+pytest-cov = "*"
+
+[feature.dev.pypi-dependencies]
 aaftf = { path = ".", editable = true }
 
 # ---------------------------------------------------------------------------
@@ -55,5 +56,5 @@ aaftf = { path = ".", editable = true }
 aaftf = { git = "https://github.com/stajichlab/AAFTF", branch = "main" }
 
 [environments]
-default = { features = ["common", "local"] }
+default = { features = ["common", "dev"] }
 release = { features = ["common", "release"] }

@@ -1,0 +1,150 @@
+# =============================================================================
+# AAFTF - Automatic Assembly For The Fungi
+# Docker image built with conda-managed dependencies.
+#
+# Build (from source, editable install). AAFTF_VERSION must be supplied
+# explicitly via SETUPTOOLS_SCM_PRETEND_VERSION (the .git directory is excluded
+# from the build context by .dockerignore, so setuptools-scm cannot derive the
+# version inside the image):
+#   docker build --build-arg AAFTF_VERSION=$(git describe --tags --always) \
+#       -t aaftf:latest .
+#
+# Build for a specific tagged release (installs the published PyPI package):
+#   docker build --build-arg AAFTF_VERSION=0.7.0 --build-arg INSTALL_MODE=pypi \
+#       -t aaftf:v0.7.0 .
+#
+# Run:
+#   docker run --rm aaftf:latest AAFTF --help
+#
+# Run with data and external DB:
+#   docker run --rm \
+#     -v /path/to/data:/data \
+#     -v /path/to/aaftf_db:/opt/aaftf_db \
+#     aaftf:latest AAFTF trim --left /data/R1.fq.gz --right /data/R2.fq.gz
+# =============================================================================
+
+FROM debian:bookworm-slim
+
+ARG AAFTF_VERSION=0.0.0+unknown
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF=${AAFTF_VERSION}
+
+ARG INSTALL_MODE=source
+ENV AAFTF_INSTALL_MODE=${INSTALL_MODE}
+
+LABEL org.opencontainers.image.title="AAFTF"
+LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
+LABEL org.opencontainers.image.url="https://github.com/stajichlab/AAFTF"
+LABEL org.opencontainers.image.source="https://github.com/stajichlab/AAFTF"
+LABEL org.opencontainers.image.licenses="MIT"
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+# ---------------------------------------------------------------------------
+# 1. System dependencies
+# ---------------------------------------------------------------------------
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        wget \
+        bzip2 \
+        perl \
+        libgomp1 \
+        procps \
+        git \
+        tar \
+        pigz \
+        aria2 \
+        rsync \
+        && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# 2. Install Miniconda
+# ---------------------------------------------------------------------------
+ENV MINICONDA_VERSION=23.11.0-0
+ENV CONDA_PREFIX=/opt/conda
+ENV PATH="${CONDA_PREFIX}/bin:${PATH}"
+
+RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh && \
+    /bin/bash Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh -b -p "${CONDA_PREFIX}" && \
+    rm Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh
+
+# ---------------------------------------------------------------------------
+# 3. Configure conda + create environment
+# ---------------------------------------------------------------------------
+RUN conda config --add channels conda-forge && \
+    conda config --add channels bioconda && \
+    conda config --set channel_priority strict && \
+    conda create -y -p "${CONDA_PREFIX}" \
+        python=3.10 \
+        samtools>=1.23 \
+        biopython \
+        bwa \
+        minimap2 \
+        pilon \
+        blast \
+        diamond \
+        sourmash \
+        bowtie2 \
+        trimmomatic \
+        spades \
+        fastp \
+        novoplasty \
+        ncbi-fcs-gx \
+        mosdepth \
+        matplotlib \
+        bbmap>=39.80 \
+        masurca>=4.1.4 \
+        pytest>=7.0 \
+        pip \
+        && \
+    conda clean -afy
+
+# ---------------------------------------------------------------------------
+# 4. Install AAFTF
+# ---------------------------------------------------------------------------
+WORKDIR /opt/AAFTF
+
+COPY pyproject.toml ./
+COPY README.md ./
+COPY AAFTF/ AAFTF/
+COPY scripts/ scripts/
+COPY patches/ patches/
+
+RUN if [ "${AAFTF_INSTALL_MODE}" = "pypi" ]; then \
+        pip install aaftf==${AAFTF_VERSION}; \
+    else \
+        pip install --no-deps -e .; \
+    fi
+
+# ---------------------------------------------------------------------------
+# 5. Apply the patched polca.sh (compatible with newer samtools)
+# ---------------------------------------------------------------------------
+RUN POLCA_INSTALLED=$(find "${CONDA_PREFIX}" -name "polca.sh" 2>/dev/null | head -1) && \
+    if [ -n "${POLCA_INSTALLED}" ]; then \
+        echo "Replacing ${POLCA_INSTALLED} with patched version"; \
+        cp /opt/AAFTF/patches/polca.sh "${POLCA_INSTALLED}"; \
+        chmod +x "${POLCA_INSTALLED}"; \
+    else \
+        echo "WARNING: polca.sh not found — skipping polca patch"; \
+    fi
+
+# ---------------------------------------------------------------------------
+# 6. Smoke test
+# ---------------------------------------------------------------------------
+RUN AAFTF --version
+
+# ---------------------------------------------------------------------------
+# 7. Cleanup build artefacts
+# ---------------------------------------------------------------------------
+RUN rm -rf /root/.cache && \
+    conda clean -afy
+
+# ---------------------------------------------------------------------------
+# 8. Runtime environment
+# ---------------------------------------------------------------------------
+ENV AAFTF_DB="/opt/aaftf_db"
+
+WORKDIR /data
+CMD ["AAFTF", "--help"]
