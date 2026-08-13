@@ -39,6 +39,8 @@ From: debian:bookworm-slim
     The database directory is at /opt/aaftf_db (set AAFTF_DB to override).
 
 %environment
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
     . /opt/aaftf_activate.sh
     export AAFTF_DB="/opt/aaftf_db"
 
@@ -65,7 +67,9 @@ From: debian:bookworm-slim
         tar \
 	pigz \
 	aria2 \
-	rsync
+	rsync \
+	locales \
+	locales-all
     rm -rf /var/lib/apt/lists/*
 
     # -------------------------------------------------------------------------
@@ -127,6 +131,8 @@ From: debian:bookworm-slim
     #    so bake the activation there so AAFTF survives a login shell.
     # -------------------------------------------------------------------------
     cat > /etc/profile.d/aaaftf.sh <<'EOF'
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
 if [ -r /opt/aaftf_activate.sh ]; then
     . /opt/aaftf_activate.sh
 fi
