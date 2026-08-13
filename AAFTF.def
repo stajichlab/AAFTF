@@ -69,7 +69,9 @@ From: debian:bookworm-slim
 	aria2 \
 	rsync \
 	locales \
-	locales-all
+	locales-all \
+	build-essential \
+	zlib1g-dev
     rm -rf /var/lib/apt/lists/*
 
     # -------------------------------------------------------------------------
@@ -108,7 +110,14 @@ From: debian:bookworm-slim
     fi
 
     # -------------------------------------------------------------------------
-    # 6. Database download (skippable via --build-arg skip_db_download=1,
+    # 6. Build bowtie2 from source
+    #    The conda bowtie2 falls back from AVX2 (x86-64-v3) at runtime; the
+    #    source build in install_scripts/pixi_install_bowtie2.sh shadows it.
+    # -------------------------------------------------------------------------
+    pixi run install-bowtie2
+
+    # -------------------------------------------------------------------------
+    # 7. Database download (skippable via --build-arg skip_db_download=1,
     #    used by CI where disk/time budgets don't allow baking in the DB;
     #    users then bind-mount or download AAFTF_DB separately at run time)
     # -------------------------------------------------------------------------
@@ -122,7 +131,7 @@ From: debian:bookworm-slim
     fi
 
     # -------------------------------------------------------------------------
-    # 7. Make AAFTF available in LOGIN shells too.
+    # 8. Make AAFTF available in LOGIN shells too.
     #    The %environment block above only takes effect for non-login container
     #    shells (singularity run/exec). SLURM/Nextflow run task scripts via
     #    /bin/bash -l, and a login shell re-sources /etc/profile, which
@@ -141,7 +150,7 @@ EOF
     chmod +x /etc/profile.d/aaaftf.sh
 
     # -------------------------------------------------------------------------
-    # 8. Cleanup build artefacts to reduce image size
+    # 9. Cleanup build artefacts to reduce image size
     # -------------------------------------------------------------------------
     AAFTF --version || true
     rm -rf /opt/pixi
