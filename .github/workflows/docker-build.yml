@@ -117,7 +117,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: eWaterCycle/setup-apptainer@v2
+      - name: Install Apptainer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends apptainer
 
       - name: Build .sif for the released tag
         run: |

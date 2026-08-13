@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -141,7 +141,7 @@ jobs:
           git format-patch -1 HEAD --stdout > release-commit.patch
 
       - name: Upload Patch Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-patch
           path: release-commit.patch
@@ -153,12 +153,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Download patch
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-patch
           path: .
@@ -172,7 +172,7 @@ jobs:
           git tag -f "v${{ needs.prepare-release.outputs.version }}" HEAD
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
@@ -183,7 +183,7 @@ jobs:
         run: python -m build --sdist
 
       - name: Upload sdist artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -199,7 +199,7 @@ jobs:
 
     steps:
       - name: Checkout test suite only
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: |
             tests
@@ -207,13 +207,13 @@ jobs:
           sparse-checkout-cone-mode: true
 
       - name: Download sdist artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: sdist
           path: dist
 
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
@@ -233,12 +233,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Download patch
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-patch
           path: .
@@ -251,12 +251,12 @@ jobs:
           rm release-commit.patch
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
       - name: Set up conda (miniforge)
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           miniforge-variant: Miniforge3
           channels: conda-forge,bioconda,defaults
@@ -290,13 +290,13 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Download patch
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-patch
           path: .
@@ -314,13 +314,13 @@ jobs:
           git push --follow-tags
 
       - name: Download sdist artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: sdist
           path: dist
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body: ${{ needs.prepare-release.outputs.release_notes }}
           tag_name: v${{ needs.prepare-release.outputs.version }}
