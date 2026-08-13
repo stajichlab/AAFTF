@@ -113,8 +113,15 @@ From: debian:bookworm-slim
     # 6. Build bowtie2 from source
     #    The conda bowtie2 falls back from AVX2 (x86-64-v3) at runtime; the
     #    source build in install_scripts/pixi_install_bowtie2.sh shadows it.
+    #    Call the script directly (mirroring the funannotate Dockerfile) rather
+    #    than `pixi run install-bowtie2`, which re-resolves PyPI deps and can
+    #    fail with a pixi interpreter-query error. The script reads
+    #    $CONDA_PREFIX from the environment (exported by aaftf_activate.sh).
     # -------------------------------------------------------------------------
-    pixi run install-bowtie2
+    . /opt/aaftf_activate.sh
+    bash install_scripts/pixi_install_bowtie2.sh
+    test -x "$CONDA_PREFIX/bin/bowtie2"
+    test -x "$CONDA_PREFIX/bin/bowtie2-align-s-v256"
 
     # -------------------------------------------------------------------------
     # 7. Database download (skippable via --build-arg skip_db_download=1,

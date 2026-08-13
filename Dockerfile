@@ -62,7 +62,9 @@ RUN apt-get update && \
         aria2 \
         rsync \
         locales \
-        locales-all && \
+        locales-all \
+        build-essential \
+        zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Set locale for bioinformatics tools that require it (avoids
@@ -115,23 +117,49 @@ RUN source /opt/aaftf_activate.sh && \
     fi
 
 # ---------------------------------------------------------------------------
-# 6. Smoke test
+# 6. Build bowtie2 from source (fixes the conda binary's AVX2/x86-64-v3
+#    runtime fallback). The conda bowtie2 2.5.5 fails to launch its v3 build
+#    ("Failed to launch x86-64-v3 version, staying with default"), silently
+#    dropping to baseline SSE2. install_scripts/pixi_install_bowtie2.sh rebuilds
+#    it with the container toolchain and `make install PREFIX=$CONDA_PREFIX`,
+#    which also ships the -v256 (AVX2) variants the conda package omits.
+#    Mirrors the funannotate Dockerfile approach, and keeps pixi/Docker builds
+#    from drifting apart.
+# ---------------------------------------------------------------------------
+RUN source /opt/aaftf_activate.sh && \
+    bash install_scripts/pixi_install_bowtie2.sh && \
+    test -x "${CONDA_PREFIX}/bin/bowtie2" && \
+    test -x "${CONDA_PREFIX}/bin/bowtie2-align-s-v256"
+
+# ---------------------------------------------------------------------------
+# 7. Smoke test
 # ---------------------------------------------------------------------------
 RUN source /opt/aaftf_activate.sh && AAFTF --version
 
 # ---------------------------------------------------------------------------
-# 7. Cleanup build artefacts to reduce image size
+# 8. Cleanup build artefacts to reduce image size
 #    Keep /opt/pixi intact — pixi manages the conda env and removing it can
 #    break activation.  Only purge the download cache.
 # ---------------------------------------------------------------------------
 RUN rm -rf /root/.cache
 
 # ---------------------------------------------------------------------------
-# 8. Entrypoint: source the activation script then exec the user command
+# 9. Entrypoint: source the activation script then exec the user command
 # ---------------------------------------------------------------------------
 RUN printf '#!/bin/bash\nset -e\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \
         > /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# ---------------------------------------------------------------------------
+# 10. Bake the pixi env bin dir onto PATH (mirrors funannotate's
+#     `ENV PATH="/venv/bin:..."`). Docker execution gets this via the
+#     ENTRYPOINT sourcing aaftf_activate.sh, but Singularity/Apptainer SIFs
+#     converted from this image do NOT run the Docker ENTRYPOINT, and login
+#     shells (SLURM/Nextflow use `bash -l`) reset PATH via /etc/profile.
+#     Hardcode the same value aaftf_activate.sh exports so bowtie2/AAFTF are
+#     found in all execution modes.
+# ---------------------------------------------------------------------------
+ENV PATH="/opt/AAFTF/.pixi/envs/default/bin:/opt/pixi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Default AAFTF_DB location (override at runtime with -e or -v).
 ENV AAFTF_DB="/opt/aaftf_db"
