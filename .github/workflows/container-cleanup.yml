@@ -16,18 +16,18 @@ jobs:
         uses: snok/container-retention-policy@v3.1.0
         with:
           account: stajichlab
-          account-type: org
           image-names: aaftf
-          untagged-only: true
-          cut-off: 2 weeks ago UTC
+          tag-selection: untagged
+          cut-off: 2w
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Keep only latest beta/alpha release tag
         uses: snok/container-retention-policy@v3.1.0
         with:
           account: stajichlab
-          account-type: org
           image-names: aaftf
-          tag-regex: "^.*(?:alpha|beta|b\\d).*$"
+          image-tags: "*alpha* *beta*"
+          tag-selection: tagged
           keep-n-most-recent: 1
+          cut-off: 0s
           token: ${{ secrets.GITHUB_TOKEN }}
