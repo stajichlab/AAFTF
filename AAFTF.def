@@ -39,6 +39,8 @@ From: debian:bookworm-slim
     The database directory is at /opt/aaftf_db (set AAFTF_DB to override).
 
 %environment
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
     . /opt/aaftf_activate.sh
     export AAFTF_DB="/opt/aaftf_db"
 
@@ -65,7 +67,11 @@ From: debian:bookworm-slim
         tar \
 	pigz \
 	aria2 \
-	rsync
+	rsync \
+	locales \
+	locales-all \
+	build-essential \
+	zlib1g-dev
     rm -rf /var/lib/apt/lists/*
 
     # -------------------------------------------------------------------------
@@ -104,7 +110,21 @@ From: debian:bookworm-slim
     fi
 
     # -------------------------------------------------------------------------
-    # 6. Database download (skippable via --build-arg skip_db_download=1,
+    # 6. Build bowtie2 from source
+    #    The conda bowtie2 falls back from AVX2 (x86-64-v3) at runtime; the
+    #    source build in install_scripts/pixi_install_bowtie2.sh shadows it.
+    #    Call the script directly (mirroring the funannotate Dockerfile) rather
+    #    than `pixi run install-bowtie2`, which re-resolves PyPI deps and can
+    #    fail with a pixi interpreter-query error. The script reads
+    #    $CONDA_PREFIX from the environment (exported by aaftf_activate.sh).
+    # -------------------------------------------------------------------------
+    . /opt/aaftf_activate.sh
+    bash install_scripts/pixi_install_bowtie2.sh
+    test -x "$CONDA_PREFIX/bin/bowtie2"
+    test -x "$CONDA_PREFIX/bin/bowtie2-align-s-v256"
+
+    # -------------------------------------------------------------------------
+    # 7. Database download (skippable via --build-arg skip_db_download=1,
     #    used by CI where disk/time budgets don't allow baking in the DB;
     #    users then bind-mount or download AAFTF_DB separately at run time)
     # -------------------------------------------------------------------------
@@ -118,7 +138,26 @@ From: debian:bookworm-slim
     fi
 
     # -------------------------------------------------------------------------
-    # 7. Cleanup build artefacts to reduce image size
+    # 8. Make AAFTF available in LOGIN shells too.
+    #    The %environment block above only takes effect for non-login container
+    #    shells (singularity run/exec). SLURM/Nextflow run task scripts via
+    #    /bin/bash -l, and a login shell re-sources /etc/profile, which
+    #    unconditionally resets PATH -- dropping the pixi env dir that
+    #    %environment exported. /etc/profile sources every /etc/profile.d/*.sh,
+    #    so bake the activation there so AAFTF survives a login shell.
+    # -------------------------------------------------------------------------
+    cat > /etc/profile.d/aaaftf.sh <<'EOF'
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+if [ -r /opt/aaftf_activate.sh ]; then
+    . /opt/aaftf_activate.sh
+fi
+export AAFTF_DB="/opt/aaftf_db"
+EOF
+    chmod +x /etc/profile.d/aaaftf.sh
+
+    # -------------------------------------------------------------------------
+    # 9. Cleanup build artefacts to reduce image size
     # -------------------------------------------------------------------------
     AAFTF --version || true
     rm -rf /opt/pixi
@@ -131,5 +170,10 @@ From: debian:bookworm-slim
     exec AAFTF "$@"
 
 %test
-    # Basic smoke test: print version
+    # Basic smoke test: print version (non-login, via %environment)
     AAFTF --version
+
+    # Login-shell smoke test: Nextflow/SLURM run tasks through /bin/bash -l,
+    # and a login shell re-sources /etc/profile which resets PATH -- the
+    # /etc/profile.d/aaaftf.sh baked in %post must restore AAFTF.
+    bash -lc 'AAFTF --version'

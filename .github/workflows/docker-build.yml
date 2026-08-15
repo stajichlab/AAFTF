@@ -31,6 +31,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -52,15 +54,16 @@ jobs:
           fi
           echo "version=${v}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
+        id: build
         with:
           context: .
           push: true
@@ -78,6 +81,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v5
 
@@ -89,15 +94,16 @@ jobs:
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
+        id: build
         with:
           context: .
           push: true
@@ -117,7 +123,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: eWaterCycle/setup-apptainer@v2
+      - name: Install Apptainer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends apptainer
 
       - name: Build .sif for the released tag
         run: |
@@ -145,11 +154,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.1.2
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -158,29 +167,16 @@ jobs:
       - name: Sign main/latest images
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          for tag in latest main; do
-            cosign sign --yes \
-              --recursive \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
-          done
-
-      - name: Compute release tags
-        if: github.event_name == 'release'
-        id: meta
-        run: |
-          tag="${{ github.event.release.tag_name }}"
-          version="${tag#v}"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          cosign sign --yes \
+            --recursive \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-main.outputs.digest }}"
 
       - name: Sign release images
         if: github.event_name == 'release'
         run: |
-          for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
-            cosign sign --yes \
-              --recursive \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
-          done
+          cosign sign --yes \
+            --recursive \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-release.outputs.digest }}"
 
   provenance:
     needs: [docker-main, docker-release, docker-sign]
@@ -193,11 +189,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.1.2
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -233,28 +229,15 @@ jobs:
       - name: Generate SLSA provenance for main/latest
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          for tag in latest main; do
-            cosign attest --yes \
-              --predicate "${{ steps.slsa-predicate.outputs.path }}" \
-              --type=slsaprovenance1 \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
-          done
-
-      - name: Compute release tags
-        if: github.event_name == 'release'
-        id: meta
-        run: |
-          tag="${{ github.event.release.tag_name }}"
-          version="${tag#v}"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          cosign attest --yes \
+            --predicate "${{ steps.slsa-predicate.outputs.path }}" \
+            --type=slsaprovenance1 \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-main.outputs.digest }}"
 
       - name: Generate SLSA provenance for release images
         if: github.event_name == 'release'
         run: |
-          for t in "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.version }}"; do
-            cosign attest --yes \
-              --predicate "${{ steps.slsa-predicate.outputs.path }}" \
-              --type=slsaprovenance1 \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"
-          done
+          cosign attest --yes \
+            --predicate "${{ steps.slsa-predicate.outputs.path }}" \
+            --type=slsaprovenance1 \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-release.outputs.digest }}"

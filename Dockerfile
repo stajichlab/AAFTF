@@ -4,11 +4,12 @@
 #
 # Build (from source, dev/editable install). AAFTF_VERSION must be supplied
 # explicitly: .dockerignore excludes .git from the build context, so
-# setuptools-scm cannot derive the version inside the image the way it does
-# in a real source checkout (see AAFTF/__version__.py) — pass the host's
-# git-derived version through instead:
+# hatch-vcs/setuptools-scm cannot write AAFTF/_version.py inside the image.
+# Pass the host's git-derived version through the --build-arg:
 #   docker build --build-arg AAFTF_VERSION=$(git describe --tags --always) \
 #       -t aaftf:latest .
+#
+# Without this arg the image will report v0.0.0+unknown.
 #
 # Build for a specific tagged release (uses the "release" pixi environment):
 #   docker build --build-arg PIXI_ENV=release --build-arg AAFTF_VERSION=0.6.2 \
@@ -25,6 +26,8 @@
 # =============================================================================
 
 FROM debian:bookworm-slim
+
+LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
 
 # Which pixi environment to activate (default = editable local install).
 # Pass --build-arg PIXI_ENV=release to install from the pinned git tag instead.
@@ -60,8 +63,20 @@ RUN apt-get update && \
         tar \
         pigz \
         aria2 \
-        rsync && \
+        rsync \
+        locales \
+        locales-all \
+        build-essential \
+        python3 \
+        zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
+
+# Set locale for bioinformatics tools that require it (avoids
+# "bash: warning: setlocale: LC_ALL: cannot change locale" when the host
+# exports LC_ALL=en_US.UTF-8 but no en_US locale is generated in the image).
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    LANGUAGE=en_US:en
 
 # ---------------------------------------------------------------------------
 # 2. Install pixi
@@ -81,6 +96,20 @@ COPY pixi.toml pixi.lock ./
 # Copy rest of the source (needed before pixi install because the default
 # environment installs AAFTF as an editable PyPI package from ".")
 COPY . .
+
+# ---------------------------------------------------------------------------
+# 3b. Bake the version into AAFTF/_version.py
+#    .git is excluded from the build context (see .dockerignore), so
+#    hatch-vcs/setuptools-scm cannot write this file during the pip editable
+#    install.  Write it here explicitly using the version supplied via
+#    --build-arg AAFTF_VERSION=<git describe output from the host>.
+# ---------------------------------------------------------------------------
+RUN python3 -c "\
+import os; \
+ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
+os.makedirs('AAFTF', exist_ok=True); \
+open('AAFTF/_version.py', 'w').write(f'__version__ = \\\"{ver}\\\"\\n'); \
+print(f'Baked version {ver} into AAFTF/_version.py')"
 
 # ---------------------------------------------------------------------------
 # 4. Install conda + PyPI dependencies via pixi (locked / reproducible)
@@ -106,23 +135,49 @@ RUN source /opt/aaftf_activate.sh && \
     fi
 
 # ---------------------------------------------------------------------------
-# 6. Smoke test
+# 6. Build bowtie2 from source (fixes the conda binary's AVX2/x86-64-v3
+#    runtime fallback). The conda bowtie2 2.5.5 fails to launch its v3 build
+#    ("Failed to launch x86-64-v3 version, staying with default"), silently
+#    dropping to baseline SSE2. install_scripts/pixi_install_bowtie2.sh rebuilds
+#    it with the container toolchain and `make install PREFIX=$CONDA_PREFIX`,
+#    which also ships the -v256 (AVX2) variants the conda package omits.
+#    Mirrors the funannotate Dockerfile approach, and keeps pixi/Docker builds
+#    from drifting apart.
+# ---------------------------------------------------------------------------
+RUN source /opt/aaftf_activate.sh && \
+    bash install_scripts/pixi_install_bowtie2.sh && \
+    test -x "${CONDA_PREFIX}/bin/bowtie2" && \
+    test -x "${CONDA_PREFIX}/bin/bowtie2-align-s-v256"
+
+# ---------------------------------------------------------------------------
+# 7. Smoke test
 # ---------------------------------------------------------------------------
 RUN source /opt/aaftf_activate.sh && AAFTF --version
 
 # ---------------------------------------------------------------------------
-# 7. Cleanup build artefacts to reduce image size
+# 8. Cleanup build artefacts to reduce image size
 #    Keep /opt/pixi intact — pixi manages the conda env and removing it can
 #    break activation.  Only purge the download cache.
 # ---------------------------------------------------------------------------
 RUN rm -rf /root/.cache
 
 # ---------------------------------------------------------------------------
-# 8. Entrypoint: source the activation script then exec the user command
+# 9. Entrypoint: source the activation script then exec the user command
 # ---------------------------------------------------------------------------
 RUN printf '#!/bin/bash\nset -e\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \
         > /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# ---------------------------------------------------------------------------
+# 10. Bake the pixi env bin dir onto PATH (mirrors funannotate's
+#     `ENV PATH="/venv/bin:..."`). Docker execution gets this via the
+#     ENTRYPOINT sourcing aaftf_activate.sh, but Singularity/Apptainer SIFs
+#     converted from this image do NOT run the Docker ENTRYPOINT, and login
+#     shells (SLURM/Nextflow use `bash -l`) reset PATH via /etc/profile.
+#     Hardcode the same value aaftf_activate.sh exports so bowtie2/AAFTF are
+#     found in all execution modes.
+# ---------------------------------------------------------------------------
+ENV PATH="/opt/AAFTF/.pixi/envs/default/bin:/opt/pixi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Default AAFTF_DB location (override at runtime with -e or -v).
 ENV AAFTF_DB="/opt/aaftf_db"

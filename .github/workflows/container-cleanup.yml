@@ -1,0 +1,33 @@
+name: Container Retention Policy
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"  # Every Monday at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete untagged images older than 2 weeks
+        uses: snok/container-retention-policy@v3.1.0
+        with:
+          account: stajichlab
+          image-names: aaftf
+          tag-selection: untagged
+          cut-off: 2w
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Keep only latest beta/alpha release tag
+        uses: snok/container-retention-policy@v3.1.0
+        with:
+          account: stajichlab
+          image-names: aaftf
+          image-tags: "*alpha* *beta*"
+          tag-selection: tagged
+          keep-n-most-recent: 1
+          cut-off: 0s
+          token: ${{ secrets.GITHUB_TOKEN }}

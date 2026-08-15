@@ -56,8 +56,17 @@ RUN apt-get update && \
         pigz \
         aria2 \
         rsync \
+        locales \
+        locales-all \
         && \
     rm -rf /var/lib/apt/lists/*
+
+# Set locale for bioinformatics tools that require it (avoids
+# "bash: warning: setlocale: LC_ALL: cannot change locale" when the host
+# exports LC_ALL=en_US.UTF-8 but no en_US locale is generated in the image).
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    LANGUAGE=en_US:en
 
 # ---------------------------------------------------------------------------
 # 2. Install Miniconda

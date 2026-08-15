@@ -6,6 +6,11 @@ platforms = ["linux-64"]
 version = "0.7.0"
 
 [tasks]
+# Build bowtie2 from source into the active env to fix AVX2 (x86-64-v3)
+# runtime fallback in the conda binary. Run once after `pixi install`:
+#   pixi run install-bowtie2
+# Mirrors the approach used in funannotate.
+install-bowtie2 = { cmd = "bash install_scripts/pixi_install_bowtie2.sh", description = "Build bowtie2 from source to fix AVX2 runtime fallback issues" }
 
 # ---------------------------------------------------------------------------
 # Conda toolchain shared by every environment. Kept in an explicit "common"
@@ -17,6 +22,7 @@ version = "0.7.0"
 python = "3.10.*"
 samtools = ">=1.23,<2"
 biopython = "*"
+taxonkit = "*"
 bwa = "*"
 minimap2 = "*"
 pilon = "*"
