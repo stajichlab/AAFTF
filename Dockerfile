@@ -4,11 +4,12 @@
 #
 # Build (from source, dev/editable install). AAFTF_VERSION must be supplied
 # explicitly: .dockerignore excludes .git from the build context, so
-# setuptools-scm cannot derive the version inside the image the way it does
-# in a real source checkout (see AAFTF/__version__.py) — pass the host's
-# git-derived version through instead:
+# hatch-vcs/setuptools-scm cannot write AAFTF/_version.py inside the image.
+# Pass the host's git-derived version through the --build-arg:
 #   docker build --build-arg AAFTF_VERSION=$(git describe --tags --always) \
 #       -t aaftf:latest .
+#
+# Without this arg the image will report v0.0.0+unknown.
 #
 # Build for a specific tagged release (uses the "release" pixi environment):
 #   docker build --build-arg PIXI_ENV=release --build-arg AAFTF_VERSION=0.6.2 \
@@ -94,6 +95,20 @@ COPY pixi.toml pixi.lock ./
 # Copy rest of the source (needed before pixi install because the default
 # environment installs AAFTF as an editable PyPI package from ".")
 COPY . .
+
+# ---------------------------------------------------------------------------
+# 3b. Bake the version into AAFTF/_version.py
+#    .git is excluded from the build context (see .dockerignore), so
+#    hatch-vcs/setuptools-scm cannot write this file during the pip editable
+#    install.  Write it here explicitly using the version supplied via
+#    --build-arg AAFTF_VERSION=<git describe output from the host>.
+# ---------------------------------------------------------------------------
+RUN python -c "\
+import os; \
+ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
+os.makedirs('AAFTF', exist_ok=True); \
+open('AAFTF/_version.py', 'w').write(f'__version__ = \\\"{ver}\\\"\\n'); \
+print(f'Baked version {ver} into AAFTF/_version.py')"
 
 # ---------------------------------------------------------------------------
 # 4. Install conda + PyPI dependencies via pixi (locked / reproducible)
