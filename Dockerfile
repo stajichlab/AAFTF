@@ -25,7 +25,7 @@
 #     aaftf:latest AAFTF trim --left /data/R1.fq.gz --right /data/R2.fq.gz
 # =============================================================================
 
-FROM debian:bookworm-slim
+FROM ubuntu:noble
 
 LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
 
@@ -107,8 +107,9 @@ COPY . .
 RUN python3 -c "\
 import os; \
 ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
+ver = ver.lstrip('v'); \
 os.makedirs('AAFTF', exist_ok=True); \
-open('AAFTF/_version.py', 'w').write(f'__version__ = \\\"{ver}\\\"\\n'); \
+open('AAFTF/_version.py', 'w').write(f'__version__ = version = \\\"{ver}\\\"\\n'); \
 print(f'Baked version {ver} into AAFTF/_version.py')"
 
 # ---------------------------------------------------------------------------
@@ -120,6 +121,20 @@ RUN pixi install --environment "${PIXI_ENV}" --locked && \
         | grep '^export ' > /opt/aaftf_activate.sh && \
     chmod +x /opt/aaftf_activate.sh && \
     pixi clean cache --yes
+
+# ---------------------------------------------------------------------------
+# 4b. Re-bake version into AAFTF/_version.py (after pixi install overwrites it)
+#    pixi installs aaftf as editable, which re-runs hatch-vcs/setuptools-scm.
+#    Without .git in the build context, hatch-vcs writes 0.0.0+unknown.
+#    Overwrite with the version we baked in step 3b.
+# ---------------------------------------------------------------------------
+RUN source /opt/aaftf_activate.sh && \
+    python3 -c "\
+import os; \
+ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
+ver = ver.lstrip('v'); \
+open('/opt/AAFTF/AAFTF/_version.py', 'w').write(f'__version__ = version = \\\"{ver}\\\"\\n'); \
+print(f'Baked version {ver} into AAFTF/_version.py')"
 
 # ---------------------------------------------------------------------------
 # 5. Apply the patched polca.sh (compatible with newer samtools)
