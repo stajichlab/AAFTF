@@ -67,6 +67,7 @@ RUN apt-get update && \
         locales \
         locales-all \
         build-essential \
+        python3 \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
@@ -103,7 +104,7 @@ COPY . .
 #    install.  Write it here explicitly using the version supplied via
 #    --build-arg AAFTF_VERSION=<git describe output from the host>.
 # ---------------------------------------------------------------------------
-RUN python -c "\
+RUN python3 -c "\
 import os; \
 ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
 os.makedirs('AAFTF', exist_ok=True); \
