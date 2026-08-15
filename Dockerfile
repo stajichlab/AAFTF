@@ -26,6 +26,8 @@
 
 FROM debian:bookworm-slim
 
+LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
+
 # Which pixi environment to activate (default = editable local install).
 # Pass --build-arg PIXI_ENV=release to install from the pinned git tag instead.
 ARG PIXI_ENV=default
