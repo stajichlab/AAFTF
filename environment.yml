@@ -12,9 +12,11 @@ dependencies:
   - pilon
   - blast
   - diamond
-  - sourmash
   - bowtie2
+  - sourmash
   - trimmomatic
+  - megahit
+  - unicycler
   - spades
   - fastp
   - novoplasty
