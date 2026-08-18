@@ -146,7 +146,7 @@ From: debian:bookworm-slim
     #    %environment exported. /etc/profile sources every /etc/profile.d/*.sh,
     #    so bake the activation there so AAFTF survives a login shell.
     # -------------------------------------------------------------------------
-    cat > /etc/profile.d/aaaftf.sh <<'EOF'
+    cat > /etc/profile.d/aaftf.sh <<'EOF'
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 if [ -r /opt/aaftf_activate.sh ]; then
@@ -154,7 +154,7 @@ if [ -r /opt/aaftf_activate.sh ]; then
 fi
 export AAFTF_DB="/opt/aaftf_db"
 EOF
-    chmod +x /etc/profile.d/aaaftf.sh
+    chmod +x /etc/profile.d/aaftf.sh
 
     # -------------------------------------------------------------------------
     # 9. Cleanup build artefacts to reduce image size
@@ -175,5 +175,5 @@ EOF
 
     # Login-shell smoke test: Nextflow/SLURM run tasks through /bin/bash -l,
     # and a login shell re-sources /etc/profile which resets PATH -- the
-    # /etc/profile.d/aaaftf.sh baked in %post must restore AAFTF.
+    # /etc/profile.d/aaftf.sh baked in %post must restore AAFTF.
     bash -lc 'AAFTF --version'

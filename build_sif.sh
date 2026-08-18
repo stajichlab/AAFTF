@@ -9,7 +9,7 @@
 #
 # The produced SIF is fully self-contained: pixi env (conda + PyPI deps),
 # AAFTF editable install, the bowtie2 source build (AVX2 / -v256 fix), and
-# /etc/profile.d/aaaftf.sh so AAFTF is on PATH even in login shells.
+# /etc/profile.d/aaftf.sh so AAFTF is on PATH even in login shells.
 #
 # Usage:
 #   ./build_sif.sh                       # full build, bakes in sourmash DB
