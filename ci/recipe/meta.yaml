@@ -35,6 +35,7 @@ requirements:
     - fastqc
     - hifiasm
     - kraken2
+    - gfatools
     - novoplasty
     - bbmap
 

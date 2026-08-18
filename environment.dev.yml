@@ -22,6 +22,7 @@ dependencies:
   - fastqc
   - hifiasm
   - kraken2
+  - gfatools
   - novoplasty
   - ncbi-fcs-gx
   - mosdepth
