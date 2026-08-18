@@ -99,6 +99,11 @@ RUN conda config --add channels conda-forge && \
         trimmomatic \
         spades \
         fastp \
+        flye \
+        racon \
+        fastqc \
+        hifiasm \
+        kraken2 \
         novoplasty \
         ncbi-fcs-gx \
         mosdepth \

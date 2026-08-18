@@ -30,6 +30,11 @@ requirements:
     - trimmomatic
     - spades
     - fastp
+    - flye
+    - racon
+    - fastqc
+    - hifiasm
+    - kraken2
     - novoplasty
     - bbmap
 

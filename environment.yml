@@ -19,6 +19,11 @@ dependencies:
   - unicycler
   - spades
   - fastp
+  - flye
+  - racon
+  - fastqc
+  - hifiasm
+  - kraken2
   - novoplasty
   - ncbi-fcs-gx
   - mosdepth
