@@ -129,7 +129,7 @@ def run(parser, args):
                 "right": basename + "_filtered_2.fastq.gz" if args.right else None,
                 "input": vecscreen_file,
                 "outfile": sourpurge_file,
-                "kmer": 31,
+                "kmer": "31",
                 "taxonomy": False,
                 "pipe": True,
                 "sourdb_type": "gbk",
@@ -167,6 +167,9 @@ def run(parser, args):
                 "ploidy": 1,
                 "polca": "polca.sh",
                 "pipe": True,
+                # pipeline-level --memory is str (matches assemble's spades usage);
+                # polish.py divides it by cpus expecting int (see polish.py memperthread).
+                "memory": int(args_dict["memory"]),
             },
         )
         polish.run(parser, polish_args)
