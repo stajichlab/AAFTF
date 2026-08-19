@@ -155,21 +155,48 @@ def run(parser, args):
             MEM = f"-Xmx{args.memory}g"
         else:
             MEM = f"-Xmx{round(0.6 * getRAM())}g"
-        cmd = ["bbduk.sh", MEM, f"t={args.cpus}", "hdist=1", "k=27", "overwrite=true"]
-
         leftcleanfname = f"{clean_reads}_1.fastq.gz"
         if revReads:
-            cmd.extend([f"in={forReads}", f"out={clean_reads}_1.fastq.gz", f"in2={revReads}", f"out2={clean_reads}_2.fastq.gz"])
+            # Paired mode (in=/in2=) hits a bug in this BBDuk build's
+            # PairStreamer on large paired FASTQ: it silently truncates the
+            # stream after a few hundred reads (with or without threading),
+            # instead of erroring loudly. Feed it an INTERLEAVED single file
+            # instead (bbduk's single-end reader handles the full file
+            # correctly), then de-interleave the cleaned output.
+            interleaved_in = os.path.join(args.workdir, f"{args.basename}_ivl.fq.gz")
+            interleaved_out = os.path.join(args.workdir, f"{args.basename}_ivl.clean.fq.gz")
+            shuffle_cmd = ["shuffle.sh", f"in1={forReads}", f"in2={revReads}", f"out={interleaved_in}"]
+            printCMD(shuffle_cmd)
+            if args.debug:
+                subprocess.run(shuffle_cmd)
+            else:
+                subprocess.run(shuffle_cmd, stderr=DEVNULL)
+
+            cmd = ["bbduk.sh", MEM, f"t={args.cpus}", "hdist=1", "k=27", "overwrite=true", f"in={interleaved_in}", "interleaved=true", f"out={interleaved_out}"]
+            cmd.extend(["ref={}".format(",".join(refmatch_bbduk))])
+            printCMD(cmd)
+            if args.debug:
+                subprocess.run(cmd)
+            else:
+                subprocess.run(cmd, stderr=DEVNULL)
+
+            reformat_cmd = ["reformat.sh", f"in={interleaved_out}", f"out1={clean_reads}_1.fastq.gz", f"out2={clean_reads}_2.fastq.gz"]
+            printCMD(reformat_cmd)
+            if args.debug:
+                subprocess.run(reformat_cmd)
+            else:
+                subprocess.run(reformat_cmd, stderr=DEVNULL)
         else:
+            cmd = ["bbduk.sh", MEM, f"t={args.cpus}", "hdist=1", "k=27", "overwrite=true"]
             cmd.extend([f"in={forReads}", f"out={clean_reads}_U.fastq.gz"])
             leftcleanfname = f"{clean_reads}_U.fastq.gz"
-        cmd.extend(["ref={}".format(",".join(refmatch_bbduk))])
-        # cmd.extend(['prealloc','qhdist=1'])
-        printCMD(cmd)
-        if args.debug:
-            subprocess.run(cmd)
-        else:
-            subprocess.run(cmd, stderr=DEVNULL)
+            cmd.extend(["ref={}".format(",".join(refmatch_bbduk))])
+            # cmd.extend(['prealloc','qhdist=1'])
+            printCMD(cmd)
+            if args.debug:
+                subprocess.run(cmd)
+            else:
+                subprocess.run(cmd, stderr=DEVNULL)
 
         if not args.debug and not custom_workdir:
             SafeRemove(args.workdir)

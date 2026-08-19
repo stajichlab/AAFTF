@@ -70,17 +70,45 @@ def run(parser, args):
             MEM = f"-Xmx{round(0.6 * getRAM())}g"
 
         status("Adapter trimming using BBDuk")
-        cmd = ["bbduk.sh", MEM, "ref=adapters", f"t={args.cpus}", "ktrim=r", "k=23", "mink=11", f"minlen={args.minlen}", "hdist=1", f"maq={args.avgqual}", "ftm=5", "tpe", "tbo", "overwrite=true"]
+        bbduk_base = ["bbduk.sh", MEM, "ref=adapters", f"t={args.cpus}", "ktrim=r", "k=23", "mink=11", f"minlen={args.minlen}", "hdist=1", f"maq={args.avgqual}", "ftm=5", "tpe", "tbo", "overwrite=true"]
         if args.left and args.right:
-            cmd += [f"in1={args.left}", f"in2={args.right}", f"out1={args.basename}_1P.fastq.gz", f"out2={args.basename}_2P.fastq.gz"]
-        elif args.left:
-            cmd += [f"in={args.left}", f"out={args.basename}_1U.fastq.gz"]
+            # Paired mode (in1=/in2=) hits a bug in this BBDuk build's
+            # PairStreamer on large/variable-length paired FASTQ: it silently
+            # truncates the stream after a few hundred reads instead of
+            # erroring loudly. Feed it an INTERLEAVED single file instead
+            # (bbduk's single-end reader handles the full file correctly),
+            # then de-interleave the trimmed output.
+            interleaved_in = f"{args.basename}_ivl.fq.gz"
+            interleaved_out = f"{args.basename}_ivl.trimmed.fq.gz"
+            shuffle_cmd = ["shuffle.sh", f"in1={args.left}", f"in2={args.right}", f"out={interleaved_in}"]
+            printCMD(shuffle_cmd)
+            if args.debug:
+                subprocess.run(shuffle_cmd)
+            else:
+                subprocess.run(shuffle_cmd, stderr=DEVNULL)
 
-        printCMD(cmd)
-        if args.debug:
-            subprocess.run(cmd)
-        else:
-            subprocess.run(cmd, stderr=DEVNULL)
+            cmd = bbduk_base + [f"in={interleaved_in}", "interleaved=true", f"out={interleaved_out}"]
+            printCMD(cmd)
+            if args.debug:
+                subprocess.run(cmd)
+            else:
+                subprocess.run(cmd, stderr=DEVNULL)
+
+            reformat_cmd = ["reformat.sh", f"in={interleaved_out}", f"out1={args.basename}_1P.fastq.gz", f"out2={args.basename}_2P.fastq.gz"]
+            printCMD(reformat_cmd)
+            if args.debug:
+                subprocess.run(reformat_cmd)
+            else:
+                subprocess.run(reformat_cmd, stderr=DEVNULL)
+            SafeRemove(interleaved_in)
+            SafeRemove(interleaved_out)
+        elif args.left:
+            cmd = bbduk_base + [f"in={args.left}", f"out={args.basename}_1U.fastq.gz"]
+            printCMD(cmd)
+            if args.debug:
+                subprocess.run(cmd)
+            else:
+                subprocess.run(cmd, stderr=DEVNULL)
 
         if args.right:
             clean = countfastq(f"{args.basename}_1P.fastq.gz")
