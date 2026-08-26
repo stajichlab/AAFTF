@@ -239,12 +239,14 @@ class TestTrimRunBbduk:
         assert any(f"in2={right}" in " ".join(c) for c in cmds)
 
     def test_pe_command_includes_out1_out2(self, tmp_path):
+        # PE bbduk runs as shuffle.sh -> bbduk.sh -> reformat.sh (see a136d93);
+        # the final out1/out2 filenames are written by the reformat.sh step,
+        # not the first command.
         left = str(tmp_path / "sample_R1.fastq.gz")
         right = str(tmp_path / "sample_R2.fastq.gz")
         cmds, args = _run_bbduk(tmp_path, left, right)
-        cmd_str = " ".join(cmds[0])
-        assert f"out1={args.basename}_1P.fastq.gz" in cmd_str
-        assert f"out2={args.basename}_2P.fastq.gz" in cmd_str
+        assert any(f"out1={args.basename}_1P.fastq.gz" in " ".join(c) for c in cmds)
+        assert any(f"out2={args.basename}_2P.fastq.gz" in " ".join(c) for c in cmds)
 
     def test_se_command_includes_in(self, tmp_path):
         left = str(tmp_path / "sample_R1.fastq.gz")

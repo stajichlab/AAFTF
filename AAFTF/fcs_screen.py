@@ -57,18 +57,29 @@ def run(parser, args):
                 status(f"url {url} download to {fcsexe}")
             urllib.request.urlretrieve(url, fcsexe)
             os.chmod(fcsexe, 0o444)
-    if image is None:
-        image = os.path.join(DB, FCSADAPTOR["SIFLOCAL"] % (FCSADAPTOR["VERSION"]))
-        if not os.path.exists(image):
-            url = os.path.join(FCSADAPTOR["SIFURL"], FCSADAPTOR["VERSION"], FCSADAPTOR["SIF"])
-            if args.debug:
-                status(f"url {url} download to {image}")
-            urllib.request.urlretrieve(url, image)
-
-    cmd = [fcsexe, "--fasta-input", args.infile, "--output-dir", args.workdir, tax]
 
     if containerengine == "singularity":
-        cmd += ["--container-engine", "singularity", "--image", image]
+        # local SIF file: download once and cache under AAFTF_DB
+        if image is None:
+            image = os.path.join(DB, FCSADAPTOR["SIFLOCAL"] % (FCSADAPTOR["VERSION"]))
+            if not os.path.exists(image):
+                url = os.path.join(FCSADAPTOR["SIFURL"], FCSADAPTOR["VERSION"], FCSADAPTOR["SIF"])
+                if args.debug:
+                    status(f"url {url} download to {image}")
+                urllib.request.urlretrieve(url, image)
+        if shutil.which("singularity") is None and shutil.which("apptainer") is None:
+            status("ERROR: --container_engine singularity requires 'singularity' or 'apptainer' on PATH.")
+            sys.exit(1)
+    elif containerengine == "docker":
+        # docker image reference (registry:tag), not a local file; docker itself
+        # resolves/pulls it, so no download step is needed here.
+        if image is None:
+            image = FCSADAPTOR["DOCKERIMAGE"] % (FCSADAPTOR["VERSION"])
+        if shutil.which("docker") is None:
+            status("ERROR: --container_engine docker requires 'docker' on PATH.")
+            sys.exit(1)
+
+    cmd = [fcsexe, "--fasta-input", args.infile, "--output-dir", args.workdir, tax, "--container-engine", containerengine, "--image", image]
     printCMD(cmd)
     DEVNULL = open(os.devnull, "w")
     try:

@@ -58,7 +58,10 @@ def _make_asm_args(tmp_path, method="spades", left=_UNSET, right=None, **overrid
         right=right,
         longreads=None,
         merged=None,
-        workdir=None,
+        # Confine assemble.py's workdir (which it otherwise creates relative
+        # to the CWD via a uuid/pid-based fallback name) inside tmp_path so
+        # tests never leave spades_*/megahit_*/unicycler_* litter in the repo.
+        workdir=str(tmp_path / f"{method}_workdir"),
         cpus=1,
         memory="16",
         careful=True,

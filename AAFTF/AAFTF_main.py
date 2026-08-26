@@ -410,7 +410,7 @@ def main():
 
     parser_fcs_screen.add_argument("--prefix", type=str, required=False, help="Prefix for tempfiles")
 
-    parser_fcs_screen.add_argument("--container_engine", type=str, default="singularity", help="Container engine (singular or docker)")
+    parser_fcs_screen.add_argument("--container_engine", type=str, default="singularity", choices=["singularity", "docker"], help="Container engine used to run fcs-adaptor (default: singularity)")
 
     parser_fcs_screen.add_argument("--image", type=str, required=False, help="Container file (or will download and look in AAFTF_DB)")
 

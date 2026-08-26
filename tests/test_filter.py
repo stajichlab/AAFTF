@@ -283,28 +283,27 @@ def _run_filter_bbduk(tmp_path, left, right=None, **extra):
 
 
 class TestFilterRunBbduk:
+    # PE bbduk runs as shuffle.sh -> bbduk.sh -> reformat.sh (see a136d93,
+    # the BBDuk PairStreamer paired-mode workaround), so a given argument may
+    # land on any of the three commands rather than the first.
     def test_pe_command_includes_in(self, tmp_path):
         left = str(tmp_path / "sample_R1.fastq.gz")
         right = str(tmp_path / "sample_R2.fastq.gz")
         cmds, _ = _run_filter_bbduk(tmp_path, left, right)
-        bbduk_cmd = cmds[0]
-        cmd_str = " ".join(bbduk_cmd)
-        assert f"in={left}" in cmd_str
+        assert any(f"in1={left}" in " ".join(c) for c in cmds)
 
     def test_pe_command_includes_in2(self, tmp_path):
         left = str(tmp_path / "sample_R1.fastq.gz")
         right = str(tmp_path / "sample_R2.fastq.gz")
         cmds, _ = _run_filter_bbduk(tmp_path, left, right)
-        cmd_str = " ".join(cmds[0])
-        assert f"in2={right}" in cmd_str
+        assert any(f"in2={right}" in " ".join(c) for c in cmds)
 
     def test_pe_output_files_use_filtered_basename(self, tmp_path):
         left = str(tmp_path / "sample_R1.fastq.gz")
         right = str(tmp_path / "sample_R2.fastq.gz")
         cmds, args = _run_filter_bbduk(tmp_path, left, right)
-        cmd_str = " ".join(cmds[0])
         expected_out1 = f"{args.basename}_filtered_1.fastq.gz"
-        assert expected_out1 in cmd_str
+        assert any(expected_out1 in " ".join(c) for c in cmds)
 
     def test_se_output_uses_U_suffix(self, tmp_path):
         left = str(tmp_path / "sample_R1.fastq.gz")
@@ -316,15 +315,14 @@ class TestFilterRunBbduk:
         left = str(tmp_path / "sample_R1.fastq.gz")
         right = str(tmp_path / "sample_R2.fastq.gz")
         cmds, _ = _run_filter_bbduk(tmp_path, left, right)
-        assert cmds[0][0] == "bbduk.sh"
+        assert any(c[0] == "bbduk.sh" for c in cmds)
 
     def test_command_includes_contamdb_ref(self, tmp_path):
         left = str(tmp_path / "sample_R1.fastq.gz")
         right = str(tmp_path / "sample_R2.fastq.gz")
         cmds, args = _run_filter_bbduk(tmp_path, left, right)
-        cmd_str = " ".join(cmds[0])
-        # contamdb.fa is passed via ref= argument
-        assert "contamdb.fa" in cmd_str
+        # contamdb.fa is passed via ref= argument on the bbduk.sh step
+        assert any("contamdb.fa" in " ".join(c) for c in cmds)
 
     def test_basename_derived_from_underscore_split(self, tmp_path):
         left = str(tmp_path / "MySample_R1.fastq.gz")

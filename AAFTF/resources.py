@@ -46,4 +46,5 @@ FCSADAPTOR = {
     "SIFLOCAL": "fcs-adaptor.%s.sif",
     "SIFURL": "https://ftp.ncbi.nlm.nih.gov/genomes/TOOLS/FCS/releases/",
     "EXEURL": "https://raw.githubusercontent.com/ncbi/fcs/v%s/dist/run_fcsadaptor.sh",  # noqa: E501
+    "DOCKERIMAGE": "ncbi/fcs-adaptor:%s",
 }
