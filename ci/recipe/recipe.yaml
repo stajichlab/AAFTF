@@ -1,0 +1,102 @@
+# recipe.yaml - rattler-build recipe for AAFTF
+#
+# Build a local conda package:
+#   rattler-build build --recipe ci/recipe \
+#       --channels conda-forge --channels bioconda \
+#       --output-dir dist-conda
+#
+# `version` below is the single source of truth for both the conda package
+# version AND the version baked into AAFTF/_version.py at install time:
+# SETUPTOOLS_SCM_PRETEND_VERSION forces hatch-vcs to record exactly this
+# string, so `AAFTF --version` inside the conda package reports the same
+# version as the package itself. Bump it together with pixi.toml on release.
+context:
+  name: aaftf
+  version: 0.7.0
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+
+source:
+  path: ../..
+  # .git/, .pixi/, build/ and the large local test reads are excluded
+  # automatically: rattler-build honours the repo's .gitignore for path
+  # sources (use_gitignore defaults to true).
+
+build:
+  number: 0
+  # Pure-Python package: build once, install on any platform. The console
+  # entry point is declared via [project.scripts] in pyproject.toml, so pip
+  # creates the `AAFTF` launcher.
+  noarch: python
+  script:
+    content:
+      - python -m pip install . --no-deps --no-build-isolation -vv
+    env:
+      SETUPTOOLS_SCM_PRETEND_VERSION: ${{ version }}
+
+requirements:
+  host:
+    - python
+    - pip
+    - hatchling
+    - hatch-vcs
+    - setuptools-scm
+  run:
+    # Keep in sync with environment.yml / pixi.toml ([feature.common]).
+    - python >=3.9
+    - biopython
+    - packaging
+    - samtools >=1.23,<2
+    - bwa
+    - minimap2
+    - pilon
+    - blast
+    - diamond
+    - sourmash
+    - bowtie2
+    - trimmomatic
+    - megahit
+    - unicycler
+    - spades
+    - fastp
+    - flye
+    - racon
+    - fastqc
+    - hifiasm
+    - kraken2
+    - gfatools
+    - novoplasty
+    - ncbi-fcs-gx
+    - mosdepth
+    - matplotlib
+    - bbmap >=39.80,<40
+    - masurca >=4.1.4,<5
+    - taxonkit
+
+tests:
+  - python:
+      imports:
+        - AAFTF
+      pip_check: true
+  - script:
+      - AAFTF --version
+      - AAFTF --help
+
+about:
+  homepage: https://github.com/stajichlab/AAFTF
+  repository: https://github.com/stajichlab/AAFTF
+  license: MIT
+  license_file: LICENSE
+  summary: Automatic Assembly For The Fungi
+  description: |
+    AAFTF is a toolkit for automated fungal genome assembly, cleanup,
+    mitochondrial genome assembly, and polishing. It orchestrates
+    BBDuk/Trimmomatic read cleaning, SPAdes/MEGAHIT/Unicycler assembly,
+    NCBI FCS contamination screening, vector screening, sorting and
+    renaming of contigs, and summary statistics including telomere detection.
+
+extra:
+  recipe-maintainers:
+    - stajichlab
