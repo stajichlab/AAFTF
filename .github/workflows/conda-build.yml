@@ -53,8 +53,8 @@ jobs:
 
       - name: Patch recipe version
         run: |
-          # Only rewrite the `context.version` line (stopping before the
-          # `package:` block), leaving `package: version: ${{ version }}` intact.
+          # Only rewrite the context.version line (stopping before the
+          # package: block); the jinja package.version reference is left intact.
           sed -i "0,/^package:/s/^  version: .*/  version: ${{ steps.version.outputs.version }}/" ci/recipe/recipe.yaml
           grep -n -A0 "^context:" ci/recipe/recipe.yaml
           grep -n "^  version:" ci/recipe/recipe.yaml
