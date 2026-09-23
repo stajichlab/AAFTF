@@ -67,6 +67,9 @@ RUN apt-get update && \
         locales \
         locales-all \
         build-essential \
+        cmake \
+        libbz2-dev \
+        binutils \
         python3 \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
@@ -163,6 +166,20 @@ RUN source /opt/aaftf_activate.sh && \
     bash install_scripts/pixi_install_bowtie2.sh && \
     test -x "${CONDA_PREFIX}/bin/bowtie2" && \
     test -x "${CONDA_PREFIX}/bin/bowtie2-align-s-v256"
+
+# ---------------------------------------------------------------------------
+# 6b. Build SPAdes for x86-64-v2 AND x86-64-v3 with runtime dispatch.
+#    The bioconda SPAdes recipe forces -march=x86-64-v3, so its binaries die
+#    with SIGILL (exit 132) on older CPUs (e.g. AMD Opteron / Intel Ivy
+#    Bridge HPC nodes). install_spades_multiarch.sh builds both levels under
+#    /opt/spades/{v2,v3} and replaces the conda SPAdes commands in the env
+#    bin/ with wrappers that pick the build matching the CPU at run time.
+#    Force a build with SPADES_ARCH=v2|v3.
+# ---------------------------------------------------------------------------
+RUN source /opt/aaftf_activate.sh && \
+    bash install_scripts/install_spades_multiarch.sh && \
+    test -x /opt/spades/v2/bin/spades-hammer && \
+    test -x /opt/spades/v3/bin/spades-hammer
 
 # ---------------------------------------------------------------------------
 # 7. Smoke test
