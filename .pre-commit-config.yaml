@@ -7,7 +7,9 @@ repos:
       - id: check-symlinks
       - id: destroyed-symlinks
       - id: trailing-whitespace
+        exclude: ^patches/.*\.patch$  # blank diff context lines are a single space
       - id: end-of-file-fixer
+        exclude: ^patches/.*\.patch$
       - id: check-yaml
       - id: check-toml
       - id: check-ast

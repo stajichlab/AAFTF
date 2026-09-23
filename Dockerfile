@@ -70,6 +70,7 @@ RUN apt-get update && \
         cmake \
         libbz2-dev \
         binutils \
+        patch \
         python3 \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
@@ -180,6 +181,16 @@ RUN source /opt/aaftf_activate.sh && \
     bash install_scripts/install_spades_multiarch.sh && \
     test -x /opt/spades/v2/bin/spades-hammer && \
     test -x /opt/spades/v3/bin/spades-hammer
+
+# ---------------------------------------------------------------------------
+# 6c. Rebuild MEGAHIT from source without the bioconda -march=x86-64-v3 flag.
+#    MEGAHIT picks one of three core binaries at run time (BMI2 / POPCNT /
+#    baseline); the bioconda build puts v3 code into all three, so they die
+#    with SIGILL on older CPUs. See install_scripts/install_megahit_from_source.sh.
+# ---------------------------------------------------------------------------
+RUN source /opt/aaftf_activate.sh && \
+    bash install_scripts/install_megahit_from_source.sh && \
+    test -f "${CONDA_PREFIX}/bin/.megahit_sourcebuild_1.2.9"
 
 # ---------------------------------------------------------------------------
 # 7. Smoke test

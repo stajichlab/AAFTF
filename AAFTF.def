@@ -74,6 +74,7 @@ From: debian:bookworm-slim
 	cmake \
 	libbz2-dev \
 	binutils \
+	patch \
 	python3 \
 	zlib1g-dev
     rm -rf /var/lib/apt/lists/*
@@ -136,6 +137,14 @@ From: debian:bookworm-slim
     bash install_scripts/install_spades_multiarch.sh
     test -x /opt/spades/v2/bin/spades-hammer
     test -x /opt/spades/v3/bin/spades-hammer
+
+    # -------------------------------------------------------------------------
+    # 6c. Rebuild MEGAHIT from source without the bioconda -march=x86-64-v3
+    #     flag so its own BMI2/POPCNT/baseline core dispatch works on older
+    #     CPUs. See install_scripts/install_megahit_from_source.sh.
+    # -------------------------------------------------------------------------
+    bash install_scripts/install_megahit_from_source.sh
+    test -f "$CONDA_PREFIX/bin/.megahit_sourcebuild_1.2.9"
 
     # -------------------------------------------------------------------------
     # 7. Database download (skippable via --build-arg skip_db_download=1,
