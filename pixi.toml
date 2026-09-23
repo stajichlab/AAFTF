@@ -11,6 +11,10 @@ version = "0.7.0"
 #   pixi run install-bowtie2
 # Mirrors the approach used in funannotate.
 install-bowtie2 = { cmd = "bash install_scripts/pixi_install_bowtie2.sh", description = "Build bowtie2 from source to fix AVX2 runtime fallback issues" }
+# Build SPAdes for x86-64-v2 and x86-64-v3 and install CPU-dispatch wrappers
+# (bioconda SPAdes is v3-only and dies with SIGILL on older CPUs):
+#   pixi run install-spades-multiarch
+install-spades-multiarch = { cmd = "SPADES_ROOT=$CONDA_PREFIX/opt/spades SPADES_BUILD_PATH=$PATH bash install_scripts/install_spades_multiarch.sh", description = "Build SPAdes for x86-64-v2 and v3 with runtime CPU dispatch" }
 
 # ---------------------------------------------------------------------------
 # Conda toolchain shared by every environment. Kept in an explicit "common"

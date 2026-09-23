@@ -91,7 +91,9 @@ def run(parser, args):
     except NameError:
         print(f"error in calling executable {cmd}")
 
-    os.mkdir(os.path.join(args.workdir, "cleaned_sequences"))
+    # run_fcsadaptor.sh's own workflow already creates cleaned_sequences/ as
+    # part of its output tree, so this must tolerate it already existing.
+    os.makedirs(os.path.join(args.workdir, "cleaned_sequences"), exist_ok=True)
     cleanresult = os.path.join(args.workdir, "cleaned_sequences", infilename)
     if args.debug:
         status(f"copy from: {cleanresult} -> {args.outfile}")

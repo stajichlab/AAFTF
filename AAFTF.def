@@ -71,6 +71,10 @@ From: debian:bookworm-slim
 	locales \
 	locales-all \
 	build-essential \
+	cmake \
+	libbz2-dev \
+	binutils \
+	python3 \
 	zlib1g-dev
     rm -rf /var/lib/apt/lists/*
 
@@ -122,6 +126,16 @@ From: debian:bookworm-slim
     bash install_scripts/pixi_install_bowtie2.sh
     test -x "$CONDA_PREFIX/bin/bowtie2"
     test -x "$CONDA_PREFIX/bin/bowtie2-align-s-v256"
+
+    # -------------------------------------------------------------------------
+    # 6b. Build SPAdes for x86-64-v2 AND x86-64-v3 with runtime dispatch
+    #     (bioconda SPAdes forces -march=x86-64-v3 and dies with SIGILL on
+    #     older CPUs). See install_scripts/install_spades_multiarch.sh.
+    #     Force a build at run time with SPADES_ARCH=v2|v3.
+    # -------------------------------------------------------------------------
+    bash install_scripts/install_spades_multiarch.sh
+    test -x /opt/spades/v2/bin/spades-hammer
+    test -x /opt/spades/v3/bin/spades-hammer
 
     # -------------------------------------------------------------------------
     # 7. Database download (skippable via --build-arg skip_db_download=1,
