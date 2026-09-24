@@ -190,7 +190,11 @@ def run(parser, args):  # noqa: C901
             status(f"(this may be red herring now) WARNING: samtools {samtoolsver} detected; polca.sh uses 'samtools sort -f' " "which was removed in samtools 1.21+. " "Use --polca_samtools to point to a compatible samtools (< 1.21), " "or switch to --method pilon.")
 
         # Build the subprocess environment, optionally injecting a compatible samtools
-        polca_env = os.environ.copy()
+        # Drop exported bash functions (BASH_FUNC_*). RHEL/HPC login shells export
+        # a `which` function that uses GNU-which-only options; inside an
+        # Ubuntu/Debian container polca.sh's `which bwa` then fails with
+        # "bwa not found on the PATH".
+        polca_env = {k: v for k, v in os.environ.items() if not k.startswith("BASH_FUNC_")}
         polca_samtools = getattr(args, "polca_samtools", None)
         if polca_samtools:
             polca_samtools = os.path.abspath(polca_samtools)

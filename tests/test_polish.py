@@ -395,6 +395,44 @@ class TestPolishPolcaFailure:
         assert "R1.fq" in reads_arg
         assert "R2.fq" in reads_arg
 
+    def test_polca_env_drops_exported_bash_functions(self, tmp_path, monkeypatch):
+        """Host-exported bash functions (e.g. RHEL's BASH_FUNC_which%%) must not reach polca.sh.
+
+        The RHEL `which` function passes GNU-which-only options; inside an
+        Ubuntu/Debian container `which bwa` then fails and polca.sh aborts
+        with "bwa not found on the PATH".
+        """
+        monkeypatch.setenv("BASH_FUNC_which%%", "() {  /usr/bin/which --tty-only --read-alias $@\n}")
+        monkeypatch.setenv("BASH_FUNC_module%%", "() {  eval $($LMOD_CMD bash $@)\n}")
+        monkeypatch.setenv("AAFTF_TEST_KEEP", "1")
+        outfile = str(tmp_path / "polished.fasta")
+        args = _setup_polca_run(tmp_path, outfile=outfile)
+        workdir = tmp_path / "wdir"
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        captured_envs = []
+
+        def _fake_run(cmd, **kw):
+            captured_envs.append(kw.get("env"))
+            (workdir / "asm.fa.PolcaCorrected.fa").write_text(">c\nATCG\n")
+            (workdir / "asm.fa.vcf").write_text("")
+            (workdir / "asm.fa.report").write_text("")
+            return mock_result
+
+        from packaging.version import Version
+
+        from AAFTF.polish import run
+
+        with patch("AAFTF.polish.subprocess.run", side_effect=_fake_run):
+            with patch("AAFTF.polish.get_samtools_version", return_value=Version("1.23")):
+                with patch("AAFTF.polish.shutil.which", return_value=True):
+                    run(None, args)
+
+        env = captured_envs[0]
+        assert env is not None
+        assert not [k for k in env if k.startswith("BASH_FUNC_")]
+        assert env["AAFTF_TEST_KEEP"] == "1"
+
 
 # ---------------------------------------------------------------------------
 # pilon: convergence (zero changes stops the loop)
