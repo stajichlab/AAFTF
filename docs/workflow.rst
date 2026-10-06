@@ -157,8 +157,9 @@ Running step-by-step
 Each individual command page under :doc:`commands/index` documents its own defaults and cutoffs
 in detail.
 
-For long reads, ``pipeline_long`` runs assemble (flye) -> polish (racon) -> vecscreen -> rmdup ->
-sort -> assess (no sourpurge, which needs Illumina reads), and ``pipeline_hybrid`` combines
+For long reads, ``pipeline_long`` runs assemble (flye) -> vecscreen -> rmdup -> polish (racon) ->
+sort -> assess (with ``-p/--phylum``, also a taxonomy-only sourpurge before rmdup), and ``pipeline_hybrid`` combines
 Illumina and long reads: trim -> filter -> assemble (flye, or unicycler with both read types) ->
-polish (racon, then polypolish/pypolca with the Illumina reads; skipped for unicycler) ->
-vecscreen -> sourpurge -> rmdup -> sort -> assess. See :doc:`commands/pipeline`.
+vecscreen -> sourpurge -> rmdup -> polish (racon, then polypolish/pypolca with the Illumina reads;
+skipped for unicycler) -> sort -> assess. Polishing comes after the cleaning steps so discarded
+contigs are not polished. See :doc:`commands/pipeline`.

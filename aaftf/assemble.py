@@ -354,8 +354,7 @@ def run_flye(
     run_cmd(runcmd, debug, quiet_stdout=True)
 
     final_out = _derive_final_out(out, longreads, ".flye.fasta")
-    next_cmd = f"AAFTF polish --method racon -i {final_out} -lr {longreads} -c {cpus}"
-    _finish_assembly(Path(workdir, "assembly.fasta"), final_out, "Flye", cpus, pipe, next_cmd=next_cmd)
+    _finish_assembly(Path(workdir, "assembly.fasta"), final_out, "Flye", cpus, pipe)
     if auto_workdir and not debug:
         safe_remove(workdir)
 
@@ -400,7 +399,7 @@ def _derive_final_out(out: str | None, forward_reads: str, suffix: str) -> str:
     return prefix + suffix
 
 
-def _finish_assembly(src: str | Path, final_out: str, tool_name: str, cpus: int, pipe: bool, next_cmd: str | None = None) -> None:
+def _finish_assembly(src: str | Path, final_out: str, tool_name: str, cpus: int, pipe: bool) -> None:
     """Copy the assembler's raw output to ``final_out``, report stats, and log the next-step hint.
 
     Args:
@@ -409,7 +408,6 @@ def _finish_assembly(src: str | Path, final_out: str, tool_name: str, cpus: int,
         tool_name: Assembler name used in log messages.
         cpus: Thread count shown in the suggested command.
         pipe: Suppress the "next command" hint.
-        next_cmd: Suggested next command; ``AAFTF vecscreen`` on ``final_out`` if None.
 
     Raises:
         RuntimeError: If the assembler did not produce ``src``.
@@ -422,5 +420,4 @@ def _finish_assembly(src: str | Path, final_out: str, tool_name: str, cpus: int,
     logger.info(f"Assembly is {num_seqs:,} scaffolds and {assembly_size:,} bp")
 
     if not pipe:
-        next_cmd = next_cmd or f"AAFTF vecscreen -i {final_out} -c {cpus}"
-        logger.info(f"Your next command might be:\n{next_cmd}")
+        logger.info(f"Your next command might be:\nAAFTF vecscreen -i {final_out} -c {cpus}")

@@ -49,13 +49,14 @@ check the **Breaking changes** before updating scripts.
 
  - **`assemble --method flye`**: Flye long-read assembly (`-lr/--longreads`, `--longread_type`
    default `nano-hq`, `--genome_size`); resumes a previous run in the workdir with `--resume`, and
-   the next-command hint suggests `polish --method racon`. `-1/--read1` is now required only for
+   the next-command hint suggests `vecscreen` (polish after cleaning). `-1/--read1` is now required only for
    spades, megahit and unicycler. Flye is an optional tool (`dependency`, pixi `complete`).
- - **`pipeline_long`**: long-read pipeline assemble (flye) → polish (racon) → vecscreen → rmdup →
-   sort → assess (no sourpurge, which needs Illumina reads).
- - **`pipeline_hybrid`**: Illumina + long reads: trim → filter → assemble (flye) → polish (racon,
-   then polypolish for paired or pypolca for single-end reads) → vecscreen → sourpurge → rmdup →
-   sort → assess; `--method unicycler` assembles both read types with Unicycler and skips polishing.
+ - **`pipeline_long`**: long-read pipeline assemble (flye) → vecscreen → rmdup → polish (racon) →
+   sort → assess; with `-p/--phylum` sourpurge also runs before rmdup as a taxonomy-only screen
+   (its coverage filter needs Illumina reads).
+ - **`pipeline_hybrid`**: Illumina + long reads: trim → filter → assemble (flye) → vecscreen → sourpurge →
+   rmdup → polish (racon, then polypolish for paired or pypolca for single-end reads) → sort →
+   assess (contigs are cleaned before polishing, so discarded contigs are never polished); `--method unicycler` assembles both read types with Unicycler and skips polishing.
 
  - **`dependency`** (was `check_dependencies`): checks the tools and Python packages in two groups —
    what the default pipeline needs (an error if missing) and what only optional steps or non-default

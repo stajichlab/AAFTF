@@ -6,10 +6,13 @@ Three subcommands run the whole raw-reads-to-clean-assembly workflow in a single
 
 * ``pipeline_short`` -- Illumina reads: trim -> filter -> assemble -> vecscreen -> sourpurge ->
   rmdup -> sort -> assess.
-* ``pipeline_long`` -- long reads (ONT/PacBio) only: assemble (flye) -> polish (racon) ->
-  vecscreen -> rmdup -> sort -> assess.
+* ``pipeline_long`` -- long reads (ONT/PacBio) only: assemble (flye) -> vecscreen ->
+  [sourpurge] -> rmdup -> polish (racon) -> sort -> assess.
 * ``pipeline_hybrid`` -- Illumina + long reads: trim -> filter -> assemble (flye or unicycler) ->
-  polish -> vecscreen -> sourpurge -> rmdup -> sort -> assess.
+  vecscreen -> sourpurge -> rmdup -> polish -> sort -> assess.
+
+Polishing always runs after the cleaning steps (vecscreen, sourpurge, rmdup), so no time is spent
+polishing contigs that are then discarded.
 
 See :doc:`../workflow` for the full diagram and per-step input/output description.
 
@@ -122,9 +125,11 @@ summary statistics.
 pipeline_long
 =============
 
-Assembles long reads with :doc:`assemble` ``--method flye``, polishes the assembly once with
-:doc:`polish` ``--method racon`` using the same reads, then runs :doc:`vecscreen`, :doc:`rmdup`,
-:doc:`sort` and :doc:`assess`. :doc:`sourpurge` is not run, since it needs Illumina reads for
+Assembles long reads with :doc:`assemble` ``--method flye``, runs :doc:`vecscreen` and
+:doc:`rmdup`, polishes the cleaned contigs once with :doc:`polish` ``--method racon`` using the same
+reads, then runs :doc:`sort` and :doc:`assess`. With ``-p/--phylum``, :doc:`sourpurge` also runs
+between vecscreen and rmdup, as a taxonomy-only screen: its low-coverage filter needs Illumina
+reads, so it is skipped. :doc:`sourpurge` is not run, since it needs Illumina reads for
 contig coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
 
 .. list-table::
@@ -143,6 +148,12 @@ contig coverage. Steps are run, defaulted and skipped (resumable) exactly as in 
    * - ``--genome_size``
      - estimated by flye
      - Estimated genome size for flye, e.g. ``40m``
+   * - ``-p/--phylum``
+     - none (sourpurge not run)
+     - Phyla whose contigs sourpurge keeps (taxonomy screen only)
+   * - ``--sourdb``
+     - from ``AAFTF database``
+     - sourmash LCA database for sourpurge
    * - ``--assembler_args``
      - none
      - Passed to assemble
@@ -157,7 +168,8 @@ contig coverage. Steps are run, defaulted and skipped (resumable) exactly as in 
 
     AAFTF pipeline_long -lr FASTQ -o PREFIX
                         [--longread_type {nano-raw,nano-hq,pacbio-raw,pacbio-hifi}]
-                        [--genome_size SIZE] [-w DIR] [--assembler_args ARG]
+                        [--genome_size SIZE] [-p PHYLUM [PHYLUM ...]] [--sourdb FILE]
+                        [-w DIR] [--assembler_args ARG]
                         [-mc BP] [-c INT] [-m GB] [-q] [-v]
 
 .. code-block:: bash
@@ -165,18 +177,18 @@ contig coverage. Steps are run, defaulted and skipped (resumable) exactly as in 
     AAFTF pipeline_long -lr reads/STRAINX_ont.fq.gz -o STRAINX \
         --genome_size 40m -c 24
 
-This produces ``STRAINX.flye.fasta`` (assemble), ``STRAINX.racon.fasta`` (polish),
-``STRAINX.vecscreen.fasta``, ``STRAINX.rmdup.fasta`` and ``STRAINX.final.fasta``, then prints the
+This produces ``STRAINX.flye.fasta`` (assemble), ``STRAINX.vecscreen.fasta``,
+``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta`` (polish) and ``STRAINX.final.fasta``, then prints the
 ``assess`` statistics.
 
 pipeline_hybrid
 ===============
 
 Trims and filters the Illumina reads (:doc:`trim`, :doc:`filter`), assembles the long reads with
-flye, polishes with :doc:`polish` ``--method racon`` (long reads) and then with the filtered
+flye, runs :doc:`vecscreen`, :doc:`sourpurge` (with the Illumina reads) and :doc:`rmdup`, polishes
+the cleaned contigs with :doc:`polish` ``--method racon`` (long reads) and then with the filtered
 Illumina reads -- ``polypolish`` for paired reads, ``pypolca`` for single-end -- and runs
-:doc:`vecscreen`, :doc:`sourpurge` (with the Illumina reads), :doc:`rmdup`, :doc:`sort` and
-:doc:`assess`. With ``--method unicycler``, unicycler assembles the filtered Illumina reads together
+:doc:`sort` and :doc:`assess`. With ``--method unicycler``, unicycler assembles the filtered Illumina reads together
 with the long reads and both polish steps are skipped, since Unicycler polishes its own assembly.
 Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
 

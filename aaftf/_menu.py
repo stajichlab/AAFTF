@@ -938,7 +938,7 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_pipeline = subparsers.add_parser(
         "pipeline_long",
-        description="Run the AAFTF long-read (ONT/PacBio) pipeline: assemble (flye), polish (racon), vecscreen, rmdup, sort and assess. sourpurge is not run, since it needs Illumina reads. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
+        description="Run the AAFTF long-read (ONT/PacBio) pipeline: assemble (flye), vecscreen, [sourpurge], rmdup, polish (racon), sort and assess. sourpurge runs only with -p/--phylum, as a taxonomy-only screen (its low-coverage filter needs Illumina reads). Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
         help="Run the AAFTF pipeline on long reads",
         formatter_class=CustomHelpFormatter,
     )
@@ -953,6 +953,10 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     optional.add_argument("--longread_type", choices=list(assemble.FLYE_READ_TYPES), default="nano-hq", help="Long-read type for flye")
 
     optional.add_argument("--genome_size", type=str, help="Estimated genome size for flye, e.g. 40m; default: estimated by flye", metavar="SIZE")
+
+    optional.add_argument("-p", "--phylum", nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota; when given, sourpurge screens the contigs by taxonomy only (no coverage filter); default: sourpurge is not run", metavar="PHYLUM", type=str)
+
+    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database; default: the one from 'AAFTF database'", metavar="FILE")
 
     optional.add_argument("-w", "--workdir", type=str, help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
@@ -981,7 +985,7 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_pipeline = subparsers.add_parser(
         "pipeline_hybrid",
-        description="Run the AAFTF hybrid (Illumina + long-read) pipeline: trim, filter, assemble (flye on the long reads), polish (racon, then polypolish for paired or pypolca for single-end Illumina reads), vecscreen, sourpurge, rmdup, sort and assess. With --method unicycler both read types go to unicycler, which polishes its own assembly, so the polish steps are skipped. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
+        description="Run the AAFTF hybrid (Illumina + long-read) pipeline: trim, filter, assemble (flye on the long reads), vecscreen, sourpurge, rmdup, polish (racon, then polypolish for paired or pypolca for single-end Illumina reads), sort and assess. Polishing runs after the cleaning steps so discarded contigs are not polished. With --method unicycler both read types go to unicycler, which polishes its own assembly, so the polish steps are skipped. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
         help="Run the AAFTF pipeline on Illumina plus long reads",
         formatter_class=CustomHelpFormatter,
     )

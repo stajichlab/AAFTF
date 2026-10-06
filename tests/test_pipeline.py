@@ -164,8 +164,8 @@ class TestFileChaining:
         assert all(calls[s]["read2"] is None for s in ("trim", "filter", "assemble", "sourpurge"))
 
 
-LONG_STEPS = ["assemble", "polish", "vecscreen", "rmdup", "sort", "assess"]
-HYBRID_STEPS = ["trim", "filter", "assemble", "polish", "polish", "vecscreen", "sourpurge", "rmdup", "sort", "assess"]
+LONG_STEPS = ["assemble", "vecscreen", "rmdup", "polish", "sort", "assess"]
+HYBRID_STEPS = ["trim", "filter", "assemble", "vecscreen", "sourpurge", "rmdup", "polish", "polish", "sort", "assess"]
 
 
 def _run_long(tmp_path, **options):
@@ -190,13 +190,25 @@ class TestLongPipeline:
         asm = calls["assemble"]
         assert (asm["method"], asm["longreads"], asm["read1"], asm["out"]) == ("flye", "ont.fq.gz", None, f"{base}.flye.fasta")
         assert (asm["longread_type"], asm["genome_size"], asm["cpus"]) == ("pacbio-hifi", "40m", 4)
-        assert (calls["polish"]["method"], calls["polish"]["infile"], calls["polish"]["longreads"]) == ("racon", f"{base}.flye.fasta", "ont.fq.gz")
-        assert calls["vecscreen"]["infile"] == f"{base}.racon.fasta"
+        assert calls["vecscreen"]["infile"] == f"{base}.flye.fasta"
         assert calls["rmdup"]["input"] == f"{base}.vecscreen.fasta"  # no sourpurge without Illumina reads
+        assert (calls["polish"]["method"], calls["polish"]["infile"], calls["polish"]["longreads"]) == ("racon", f"{base}.rmdup.fasta", "ont.fq.gz")
+        assert calls["sort"]["input"] == f"{base}.racon.fasta"
 
     def test_assemble_gets_own_workdir_subfolder(self, tmp_path):
         calls = dict(_run_long(tmp_path, workdir="wd"))
         assert (calls["assemble"]["workdir"], calls["polish"]["workdir"]) == (str(Path("wd", "assemble_flye")), "wd")
+
+    def test_phylum_runs_taxonomy_only_sourpurge(self, tmp_path):
+        calls = _run_long(tmp_path, phylum=["Ascomycota"], sourdb="db.zip")
+        base = str(tmp_path / "sample")
+        assert [step for step, _ in calls] == ["assemble", "vecscreen", "sourpurge", "rmdup", "polish", "sort", "assess"]
+        steps = dict(calls)
+        purge = steps["sourpurge"]
+        assert (purge["input"], purge["phylum"], purge["sourdb"]) == (f"{base}.vecscreen.fasta", ["Ascomycota"], "db.zip")
+        assert (purge["read1"], purge["read2"]) == (None, None)  # no coverage filter without Illumina reads
+        assert set(purge) == set(_cli_defaults("sourpurge")) | {"pipe"}
+        assert steps["rmdup"]["input"] == f"{base}.sourpurge.fasta"
 
     def test_assemble_defaults_kept(self, tmp_path):
         asm = dict(_run_long(tmp_path))["assemble"]
@@ -215,11 +227,12 @@ class TestHybridPipeline:
         calls = _run_hybrid(tmp_path)
         base = str(tmp_path / "sample")
         racon, short = [kwargs for step, kwargs in calls if step == "polish"]
-        assert (racon["method"], racon["infile"]) == ("racon", f"{base}.flye.fasta")
+        assert (racon["method"], racon["infile"]) == ("racon", f"{base}.rmdup.fasta")
         assert (short["method"], short["infile"]) == ("polypolish", f"{base}.racon.fasta")
         assert (short["read1"], short["read2"]) == (f"{base}_filtered_1.fastq.gz", f"{base}_filtered_2.fastq.gz")
         steps = dict(calls)
-        assert steps["vecscreen"]["infile"] == f"{base}.polypolish.fasta"
+        assert steps["vecscreen"]["infile"] == f"{base}.flye.fasta"
+        assert steps["sort"]["input"] == f"{base}.polypolish.fasta"
         assert steps["sourpurge"]["read1"] == f"{base}_filtered_1.fastq.gz"
 
     def test_single_end_uses_pypolca(self, tmp_path):
@@ -233,6 +246,7 @@ class TestHybridPipeline:
         asm = dict(calls)["assemble"]
         assert (asm["method"], asm["read1"], asm["longreads"]) == ("unicycler", f"{base}_filtered_1.fastq.gz", "ont.fq.gz")
         assert dict(calls)["vecscreen"]["infile"] == f"{base}.unicycler.fasta"
+        assert dict(calls)["sort"]["input"] == f"{base}.rmdup.fasta"
 
     @pytest.mark.parametrize("method", ["flye", "unicycler"])
     def test_assemble_gets_own_workdir_subfolder(self, tmp_path, method):

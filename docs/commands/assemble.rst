@@ -111,4 +111,4 @@ Example
         --longreads ont_reads.fastq.gz --genome_size 40m \
         -o genomes/STRAINX.flye.fasta -w working_AAFTF/flye_STRAINX
 
-Next step: :doc:`vecscreen` (after Flye: :doc:`polish` ``--method racon``).
+Next step: :doc:`vecscreen` (for long-read assemblies, :doc:`polish` ``--method racon`` after :doc:`rmdup`).

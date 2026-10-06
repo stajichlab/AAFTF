@@ -108,8 +108,8 @@ or pass `--fcs_script`/`--image`). `fcs_gx_purge` needs an FCS-GX database set u
 | Subcommand | What it does | Output |
 |---|---|---|
 | `pipeline_short` | Run steps 1-8 on Illumina reads | `<prefix>.final.fasta` |
-| `pipeline_long` | Long reads: assemble (Flye), polish (Racon), vecscreen, rmdup, sort, assess | `<prefix>.final.fasta` |
-| `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), polish, vecscreen, sourpurge, rmdup, sort, assess | `<prefix>.final.fasta` |
+| `pipeline_long` | Long reads: assemble (Flye), vecscreen, [sourpurge with `-p`], rmdup, polish (Racon), sort, assess | `<prefix>.final.fasta` |
+| `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), vecscreen, sourpurge, rmdup, polish, sort, assess | `<prefix>.final.fasta` |
 
 **Annotation**
 - `fix_tbl` - fix an NCBI `.tbl` feature table after FCS trimmed or excluded contigs
@@ -135,21 +135,23 @@ This writes `STRAINX_1P/2P.fastq.gz`, `STRAINX_filtered_1/2.fastq.gz`, `STRAINX.
 then prints the `assess` statistics. Each step uses its own defaults unless a pipeline option overrides
 it, and steps whose output already exists are skipped, so an interrupted run can simply be restarted.
 
-Long reads only (no sourpurge, which needs Illumina reads for coverage):
+Long reads only (add `-p PHYLUM` to also run sourpurge as a taxonomy-only screen; its coverage
+filter needs Illumina reads):
 ```
 AAFTF pipeline_long -lr reads/STRAINX_ont.fq.gz -o STRAINX --genome_size 40m -c 16
 ```
-This writes `STRAINX.flye.fasta`, `STRAINX.racon.fasta`, `STRAINX.vecscreen.fasta`,
-`STRAINX.rmdup.fasta` and `STRAINX.final.fasta`.
+This writes `STRAINX.flye.fasta`, `STRAINX.vecscreen.fasta`, `STRAINX.rmdup.fasta`,
+`STRAINX.racon.fasta` and `STRAINX.final.fasta`. The contigs are cleaned before they are polished, so
+discarded contigs are never polished.
 
 Illumina + long reads:
 ```
 AAFTF pipeline_hybrid -1 reads/STRAINX_R1.fq.gz -2 reads/STRAINX_R2.fq.gz \
     -lr reads/STRAINX_ont.fq.gz -o STRAINX -p Ascomycota -c 16 -m 64
 ```
-After trim and filter this writes `STRAINX.flye.fasta`, `STRAINX.racon.fasta`,
-`STRAINX.polypolish.fasta` (`STRAINX.pypolca.fasta` with single-end reads), then the vecscreen,
-sourpurge, rmdup and final FASTA as above. With `--method unicycler` the Illumina and long reads are
+After trim and filter this writes `STRAINX.flye.fasta`, the vecscreen, sourpurge and rmdup FASTA,
+then `STRAINX.racon.fasta`, `STRAINX.polypolish.fasta` (`STRAINX.pypolca.fasta` with single-end
+reads) and the final FASTA. With `--method unicycler` the Illumina and long reads are
 assembled together into `STRAINX.unicycler.fasta` and both polish steps are skipped.
 
 ## Step by step
