@@ -1,12 +1,14 @@
 # Builds and publishes the AAFTF container images.
 #
-# - Every push to main:      rebuilds the Docker image and publishes it as
-#                             ghcr.io/stajichlab/aaftf:latest / :main
+# Images are built only for releases, not on every push:
 # - Every published release: builds the Docker image pinned to that tag and
-#                             publishes ghcr.io/stajichlab/aaftf:<tag> / :<version>,
-#                             plus builds a Singularity/Apptainer .sif for that
+#                             publishes ghcr.io/stajichlab/aaftf:<tag> / :<version>
+#                             (and :latest for a full, non-pre-release), plus builds a Singularity/Apptainer .sif for that
 #                             tag (without baking in the sourmash DB) and
 #                             attaches it to the GitHub Release as an asset.
+#
+# - Manual run (workflow_dispatch): builds the current branch as
+#                             ghcr.io/stajichlab/aaftf:main, to test an image before releasing.
 #
 # All images are signed with Cosign (Sigstore) and include SLSA provenance
 # attestations for supply-chain security.
@@ -14,8 +16,6 @@
 name: Build container images
 
 on:
-  push:
-    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
@@ -26,7 +26,7 @@ env:
 
 jobs:
   docker-main:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,7 +62,6 @@ jobs:
           build-args: |
             AAFTF_VERSION=${{ steps.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -85,6 +84,10 @@ jobs:
           version="${tag#v}"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
+          # only a full release moves :latest; pre-releases get just their own tags
+          if [ "${{ github.event.release.prerelease }}" != "true" ]; then
+            echo "latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/setup-buildx-action@v4
 
@@ -104,6 +107,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.latest }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -156,8 +160,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign main/latest images
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      - name: Sign the manually built :main image
+        if: github.event_name == 'workflow_dispatch'
         run: |
           cosign sign --yes \
             --recursive \
@@ -218,8 +222,8 @@ jobs:
           JSON
           echo "path=${predicate_file}" >> "${GITHUB_OUTPUT}"
 
-      - name: Generate SLSA provenance for main/latest
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      - name: Generate SLSA provenance for the :main image
+        if: github.event_name == 'workflow_dispatch'
         run: |
           cosign attest --yes \
             --predicate "${{ steps.slsa-predicate.outputs.path }}" \
