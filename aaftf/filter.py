@@ -5,6 +5,7 @@ tools. See resources.py for these defaults.
 """
 
 import logging
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,11 @@ __all__ = ["run"]
 
 
 logger = logging.getLogger(__name__)
+
+# Illumina sequencing artifacts and the lambda phage genome (a common spike-in), bundled with
+# BBTools in its resources/ folder; added to every contamination database so that all
+# --aligner choices screen the same sequences
+BBTOOLS_SCREENS = ("sequencing_artifacts.fa.gz", "lambda.fa.gz")
 
 
 # flake8: noqa: C901
@@ -66,8 +72,9 @@ def run(
     try:
         bamthreads = min(cpus, 4)
 
-        # PhiX and UniVec come from `AAFTF database`; extra accessions/URLs are fetched here
-        contam_filenames = require_databases(["phix", "univec"])
+        # PhiX and UniVec come from `AAFTF database`, artifacts and lambda from BBTools;
+        # extra accessions/URLs are fetched here
+        contam_filenames = require_databases(["phix", "univec"]) + bbtools_screens()
 
         for acc in screen_accessions or []:
             contam_filenames.append(download_file(SEQ_DBS["nucleotide"] % acc, db_file(acc + ".fna")))
@@ -105,7 +112,6 @@ def run(
 
         align_bam = str(Path(workdir, basename + "_contam_db.bam"))
         clean_reads = basename + "_filtered"
-        refmatch_bbduk = [contamdb, "phix", "artifacts", "lambda"]
         if aligner == "bbduk":
             logger.info("Kmer filtering reads using BBDuk")
             java_mem = f"-Xmx{memory}g"
@@ -123,7 +129,7 @@ def run(
                 run_cmd(shuffle_cmd, debug)
 
                 cmd = ["bbduk.sh", java_mem, f"t={cpus}", "hdist=1", "k=27", "overwrite=true", f"in={interleaved_in}", "interleaved=true", f"out={interleaved_out}"]
-                cmd.extend([f"ref={','.join(refmatch_bbduk)}"])
+                cmd.append(f"ref={contamdb}")
                 run_cmd(cmd, debug)
 
                 reformat_cmd = ["reformat.sh", f"in={interleaved_out}", f"out1={clean_reads}_1.fastq.gz", f"out2={clean_reads}_2.fastq.gz"]
@@ -132,7 +138,7 @@ def run(
                 cmd = ["bbduk.sh", java_mem, f"t={cpus}", "hdist=1", "k=27", "overwrite=true"]
                 cmd.extend([f"in={forward_reads}", f"out={clean_reads}_U.fastq.gz"])
                 leftcleanfname = f"{clean_reads}_U.fastq.gz"
-                cmd.extend([f"ref={','.join(refmatch_bbduk)}"])
+                cmd.append(f"ref={contamdb}")
                 # cmd.extend(['prealloc','qhdist=1'])
                 run_cmd(cmd, debug)
 
@@ -219,6 +225,29 @@ def run(
             raise RuntimeError(f"{aligner} alignment produced no BAM file {align_bam} (rerun with -v to see the {aligner} output)")
     finally:
         close_step_log()
+
+
+def bbtools_screens() -> list[str]:
+    """Return the BBTools-bundled screening FASTAs (``BBTOOLS_SCREENS``) from its ``resources/`` folder.
+
+    The folder sits next to the real ``bbduk.sh`` script (after resolving the symlink conda/pixi
+    put on ``PATH``).
+
+    Returns:
+        Paths of the sequencing-artifact and lambda phage FASTAs.
+
+    Raises:
+        FileNotFoundError: If ``bbduk.sh`` is not on ``PATH`` or the files are not in its resources folder.
+    """
+    bbduk = shutil.which("bbduk.sh")
+    if not bbduk:
+        raise FileNotFoundError("bbduk.sh not found on PATH; filter needs BBTools (bbmap) for its bundled artifact and lambda phage sequences")
+    resources = Path(bbduk).resolve().parent / "resources"
+    paths = [resources / name for name in BBTOOLS_SCREENS]
+    missing = [str(path) for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"BBTools screening sequence(s) not found: {', '.join(missing)}")
+    return [str(path) for path in paths]
 
 
 def _rebuild_index_if_stale(marker_file: str, contamdb: str, build_cmd: list[str], debug: bool) -> None:

@@ -98,6 +98,11 @@ check the **Breaking changes** before updating scripts.
 
 ### Changed
 
+ - `filter`: every `--aligner` now screens the same sequences. The Illumina sequencing-artifact and
+   lambda phage FASTAs bundled with BBTools are added to the combined contamination database, so
+   bowtie2, bwa and minimap2 now remove them too (before, only bbduk did, through its built-in
+   `artifacts`/`lambda` references); bbduk no longer also loads BBTools' own PhiX, which duplicated
+   the `phix` database.
  - `polish` is optional and recommended only with long reads; `rmdup`'s next-command hint now suggests `sort`.
  - `fix_tbl` rewritten: features are clipped at trimmed contig ends and marked partial (`<`/`>`),
    features inside trimmed regions or on excluded contigs are dropped, minus-strand features and

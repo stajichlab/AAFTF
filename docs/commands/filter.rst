@@ -13,6 +13,9 @@ Algorithm
    * the PhiX genome and UniVec (always included; they are never downloaded by ``filter`` -- install
      them first with ``AAFTF database phix univec``, see :doc:`database`; a missing database
      raises an error, exit code 2);
+   * the Illumina sequencing-artifact and lambda phage (a common spike-in) FASTAs bundled with
+     BBTools (``sequencing_artifacts.fa.gz`` and ``lambda.fa.gz`` in the ``resources/`` folder
+     next to ``bbduk.sh``; always included, error if BBTools is not found);
    * any ``-a/--screen_accessions`` GenBank accessions (downloaded via NCBI eutils);
    * any ``-u/--screen_urls`` remote FASTA URLs (downloaded);
    * any ``-s/--screen_local`` local FASTA files (e.g. a ``mito.fasta`` from :doc:`mito`, so
@@ -21,8 +24,7 @@ Algorithm
 2. Maps/kmer-matches the input reads against that combined database with one of four
    ``--aligner`` backends, then writes out only the **unmapped** (non-contaminant) reads:
 
-   * **bbduk** (default) -- kmer-based filtering with ``k=27 hdist=1``, additionally matching
-     built-in BBTools ``phix``/``artifacts``/``lambda`` reference sets. Paired-mode input is
+   * **bbduk** (default) -- kmer-based filtering with ``k=27 hdist=1``. Paired-mode input is
      interleaved first (same PairStreamer workaround as :doc:`trim`) then de-interleaved after
      filtering.
    * **bowtie2** -- ``bowtie2 --very-sensitive``, builds a bowtie2 index of the contamination DB
@@ -30,7 +32,8 @@ Algorithm
    * **bwa** -- ``bwa mem`` against a bwa index of the contamination DB.
    * **minimap2** -- ``minimap2 -ax sr`` (short-read preset).
 
-   Any other ``--aligner`` value raises an error.
+   Any other ``--aligner`` value raises an error. Every backend screens the same sequences: the
+   whole combined database above.
 
    For bowtie2/bwa/minimap2, reads are kept if flagged unmapped in the resulting sorted BAM
    (``samtools fastq -f 12`` for pairs -- both mates unmapped; ``-f 4`` for single-end).

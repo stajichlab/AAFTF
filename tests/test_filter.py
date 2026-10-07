@@ -104,6 +104,27 @@ def _stub_databases():
         _write_stub_gz(path) if path.name.endswith(".gz") else _write_stub_plain(path)
 
 
+def _fake_bbtools(root: Path) -> Path:
+    """Lay out a BBTools install (bin/bbduk.sh -> opt/bbmap/bbduk.sh, opt/bbmap/resources); return bin/."""
+    opt = root / "opt" / "bbmap"
+    (opt / "resources").mkdir(parents=True)
+    (opt / "bbduk.sh").write_text("#!/bin/sh\n")
+    (opt / "bbduk.sh").chmod(0o755)
+    _write_stub_gz(opt / "resources" / "sequencing_artifacts.fa.gz", b">contam_0\nACGT\n")
+    _write_stub_gz(opt / "resources" / "lambda.fa.gz", b">lambda\nTTGG\n")
+    bindir = root / "bin"
+    bindir.mkdir()
+    (bindir / "bbduk.sh").symlink_to(opt / "bbduk.sh")
+    return bindir
+
+
+@pytest.fixture(autouse=True)
+def _stub_bbtools(tmp_path_factory, monkeypatch):
+    """Put a fake BBTools install (with its bundled artifact/lambda FASTAs) first on PATH."""
+    bindir = _fake_bbtools(tmp_path_factory.mktemp("bbtools"))
+    monkeypatch.setenv("PATH", f"{bindir}:{__import__('os').environ['PATH']}")
+
+
 # ---------------------------------------------------------------------------
 # Parser defaults and required flags
 # ---------------------------------------------------------------------------
@@ -250,6 +271,45 @@ class TestFilterContamdbCreation:
         contamdb = Path(args.workdir) / "contamdb.fa"
         assert contamdb.stat().st_size > 0
 
+    def test_contamdb_includes_bbtools_artifacts_and_lambda(self, tmp_path):
+        """Every --aligner screens the BBTools artifact and lambda sequences, via contamdb."""
+        read1 = str(tmp_path / "sample_R1.fastq.gz")
+        args = _make_filter_args(tmp_path, read1=read1, aligner="bwa")
+        Path(args.workdir).mkdir(parents=True, exist_ok=True)
+
+        from aaftf.filter import run
+
+        with patch("aaftf.filter.count_fastq", return_value=100), patch("aaftf.filter.run_cmd"), patch("aaftf.filter.align_to_sorted_bam"):
+            with pytest.raises(RuntimeError):  # the mocked aligner writes no BAM
+                run(**vars(args))
+
+        content = (Path(args.workdir) / "contamdb.fa").read_text()
+        assert ">contam_0" in content and ">lambda" in content
+
+
+class TestBbtoolsScreens:
+    def test_found_next_to_resolved_bbduk(self):
+        from aaftf.filter import bbtools_screens
+
+        assert [Path(p).name for p in bbtools_screens()] == ["sequencing_artifacts.fa.gz", "lambda.fa.gz"]
+        assert all(Path(p).parent.name == "resources" for p in bbtools_screens())
+
+    def test_missing_bbduk_raises(self, monkeypatch):
+        from aaftf.filter import bbtools_screens
+
+        monkeypatch.setattr("aaftf.filter.shutil.which", lambda name: None)
+        with pytest.raises(FileNotFoundError, match="bbduk.sh not found"):
+            bbtools_screens()
+
+    def test_missing_resource_raises(self, tmp_path, monkeypatch):
+        from aaftf.filter import bbtools_screens
+
+        bindir = _fake_bbtools(tmp_path)
+        (tmp_path / "opt" / "bbmap" / "resources" / "lambda.fa.gz").unlink()
+        monkeypatch.setattr("aaftf.filter.shutil.which", lambda name: str(bindir / name))
+        with pytest.raises(FileNotFoundError, match="lambda.fa.gz"):
+            bbtools_screens()
+
 
 # ---------------------------------------------------------------------------
 # bbduk command construction
@@ -318,8 +378,9 @@ class TestFilterRunBbduk:
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         read2 = str(tmp_path / "sample_R2.fastq.gz")
         cmds, args = _run_filter_bbduk(tmp_path, read1, read2)
-        # contamdb.fa is passed via ref= argument on the bbduk.sh step
-        assert any("contamdb.fa" in " ".join(c) for c in cmds)
+        # contamdb.fa (which already holds PhiX, artifacts and lambda) is the only ref= of bbduk.sh
+        refs = [arg for c in cmds if c[0] == "bbduk.sh" for arg in c if arg.startswith("ref=")]
+        assert refs == [f"ref={Path(args.workdir, 'contamdb.fa')}"]
 
     def test_basename_derived_from_underscore_split(self, tmp_path):
         read1 = str(tmp_path / "MySample_R1.fastq.gz")
