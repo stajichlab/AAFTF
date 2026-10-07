@@ -22,36 +22,51 @@ with ``-p/--phylum``; leave it out if the organism's taxonomy is unknown), :doc:
 contigs). Polishing, when the workflow has it, comes after cleaning so discarded contigs are never
 polished.
 
-In the diagrams below, dashed boxes are optional steps and dashed arrows are the alternative paths
-(e.g. without ``--phylum``, taxpurge is skipped).
+In the diagrams below, the main column is what the ``pipeline_*`` subcommand runs by default;
+dashed boxes and arrows are optional steps or alternative paths (e.g. taxpurge runs only with
+``--phylum``).
 
 .. _workflow-short:
 
 Short reads (pipeline_short)
 =============================
 
-.. mermaid::
+.. graphviz::
+   :align: center
 
-    flowchart TD
-        reads[/"Illumina FASTQ<br/>R1/R2 or single-end"/]
-        trim["<b>trim</b><br/>BBDuk / fastp / Trimmomatic<br/>adapter + quality trim"]
-        mito["<b>mito</b> (optional, PE only)<br/>NOVOPlasty mitochondrial assembly"]:::opt
-        filter["<b>filter</b><br/>remove PhiX / UniVec / user<br/>contaminant reads"]
-        assemble["<b>assemble</b><br/>spades (default) / megahit / unicycler"]
-        vecscreen["<b>vecscreen</b><br/>BLASTN vector + Euk/Prok/Mito screen"]
-        taxpurge["<b>taxpurge</b> (with --phylum)<br/>sourmash taxonomy screen"]:::opt
-        fcs["<b>fcs_screen / fcs_gx_purge</b><br/>NCBI FCS (run separately)"]:::opt
-        covpurge["<b>covpurge</b><br/>drop low-coverage contigs"]
-        rmdup["<b>rmdup</b><br/>remove redundant contigs"]
-        sort["<b>sort</b><br/>longest first, rename headers"]
-        assess["<b>assess</b><br/>N50 / GC / telomere / gap stats"]
-        depth["<b>depth</b> (optional)<br/>per-contig read depth"]:::opt
+   digraph pipeline_short {
+       graph [bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
+       node [shape=box, style="rounded,filled", fillcolor="#e3ecf9", color="#3d6aa8", fontname="Helvetica", fontsize=11, width=2.3, height=0.5, margin="0.12,0.05"]
+       edge [color="#3d4852", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5f6b7a"]
+       reads [label="Illumina FASTQ\nR1/R2 or single-end", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
+       subgraph cluster_reads { label="Read processing"
+           trim [label=<<b>trim</b><br/><font point-size="9">adapter + quality trimming</font>>]
+           filter [label=<<b>filter</b><br/><font point-size="9">remove PhiX / vector / user contaminants</font>>]
+       }
+       mito [label=<<b>mito</b><br/><font point-size="9">optional, paired reads</font>>, style="rounded,dashed", fillcolor=white]
+       assemble [label=<<b>assemble</b><br/><font point-size="9">spades (default) / megahit / unicycler</font>>]
+       subgraph cluster_clean { label="Contig cleaning"
+           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
+           covpurge [label=<<b>covpurge</b><br/><font point-size="9">drop low-coverage contigs</font>>]
+           rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
+       }
+       taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash taxonomy screen</font>>, style="rounded,dashed", fillcolor=white]
+       subgraph cluster_finish { label="Finishing"
+           sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
+           assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
+       }
+       depth [label=<<b>depth</b><br/><font point-size="9">optional coverage report</font>>, style="rounded,dashed", fillcolor=white]
 
-        reads --> trim --> filter --> assemble --> vecscreen --> taxpurge --> covpurge --> rmdup --> sort --> assess --> depth
-        trim -.-> mito -. "--screen_local" .-> filter
-        vecscreen -. "no --phylum" .-> covpurge
-        vecscreen -.-> fcs -.-> covpurge
-    classDef opt stroke-dasharray: 5 5
+       reads -> trim -> filter -> assemble -> vecscreen -> covpurge -> rmdup -> sort -> assess [weight=10]
+       trim -> mito [style=dashed]
+       mito -> filter [style=dashed, label=" --screen_local"]
+       vecscreen -> taxpurge [style=dashed, label=" with --phylum"]
+       taxpurge -> covpurge [style=dashed]
+       assess -> depth [style=dashed]
+       {rank=same; filter; mito}
+       {rank=same; covpurge; taxpurge}
+       {rank=same; assess; depth}
+   }
 
 Polishing a short-read-only assembly with the same reads rarely helps, so ``pipeline_short`` does
 not run :doc:`commands/polish`.
@@ -152,23 +167,36 @@ Step by step:
 Long reads (pipeline_long)
 ===========================
 
-.. mermaid::
+.. graphviz::
+   :align: center
 
-    flowchart TD
-        reads[/"long-read FASTQ<br/>ONT or PacBio"/]
-        assemble["<b>assemble</b><br/>flye (--longread_type, --genome_size)"]
-        vecscreen["<b>vecscreen</b><br/>BLASTN vector + Euk/Prok/Mito screen"]
-        taxpurge["<b>taxpurge</b> (with --phylum)<br/>sourmash taxonomy screen"]:::opt
-        rmdup["<b>rmdup</b><br/>remove redundant contigs"]
-        polish["<b>polish</b><br/>racon with the long reads"]
-        sort["<b>sort</b><br/>longest first, rename headers"]
-        assess["<b>assess</b><br/>N50 / GC / telomere / gap stats"]
-        depth["<b>depth</b> (optional)<br/>per-contig read depth"]:::opt
+   digraph pipeline_long {
+       graph [bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
+       node [shape=box, style="rounded,filled", fillcolor="#e3ecf9", color="#3d6aa8", fontname="Helvetica", fontsize=11, width=2.3, height=0.5, margin="0.12,0.05"]
+       edge [color="#3d4852", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5f6b7a"]
+       reads [label="long-read FASTQ\nONT or PacBio", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
+       assemble [label=<<b>assemble</b><br/><font point-size="9">flye</font>>]
+       subgraph cluster_clean { label="Contig cleaning"
+           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
+           rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
+       }
+       taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash taxonomy screen</font>>, style="rounded,dashed", fillcolor=white]
+       subgraph cluster_polish { label="Polishing"
+           racon [label=<<b>polish</b><br/><font point-size="9">racon with the long reads</font>>]
+       }
+       subgraph cluster_finish { label="Finishing"
+           sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
+           assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
+       }
+       depth [label=<<b>depth</b><br/><font point-size="9">optional coverage report</font>>, style="rounded,dashed", fillcolor=white]
 
-        reads --> assemble --> vecscreen --> taxpurge --> rmdup --> polish --> sort --> assess --> depth
-        vecscreen -. "no --phylum" .-> rmdup
-        reads -. "long reads" .-> polish
-    classDef opt stroke-dasharray: 5 5
+       reads -> assemble -> vecscreen -> rmdup -> racon -> sort -> assess [weight=10]
+       vecscreen -> taxpurge [style=dashed, label=" with --phylum"]
+       taxpurge -> rmdup [style=dashed]
+       assess -> depth [style=dashed]
+       {rank=same; rmdup; taxpurge}
+       {rank=same; assess; depth}
+   }
 
 There are no reads to trim or filter, and :doc:`commands/covpurge` is not run, since it needs
 Illumina reads for contig coverage.
@@ -242,32 +270,45 @@ Step by step:
 Illumina + long reads (pipeline_hybrid)
 ========================================
 
-.. mermaid::
+.. graphviz::
+   :align: center
 
-    flowchart TD
-        illumina[/"Illumina FASTQ<br/>R1/R2 or single-end"/]
-        longreads[/"long-read FASTQ<br/>ONT or PacBio"/]
-        trim["<b>trim</b>"]
-        filter["<b>filter</b>"]
-        assemble["<b>assemble</b><br/>flye (long reads, default) or<br/>unicycler (Illumina + long reads)"]
-        vecscreen["<b>vecscreen</b><br/>BLASTN vector + Euk/Prok/Mito screen"]
-        taxpurge["<b>taxpurge</b> (with --phylum)<br/>sourmash taxonomy screen"]:::opt
-        covpurge["<b>covpurge</b><br/>drop low-coverage contigs"]
-        rmdup["<b>rmdup</b><br/>remove redundant contigs"]
-        racon["<b>polish</b> (flye only)<br/>racon with the long reads"]
-        short["<b>polish</b> (flye only)<br/>polypolish (paired) or<br/>pypolca (single-end)"]
-        sort["<b>sort</b><br/>longest first, rename headers"]
-        assess["<b>assess</b><br/>N50 / GC / telomere / gap stats"]
+   digraph pipeline_hybrid {
+       graph [bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
+       node [shape=box, style="rounded,filled", fillcolor="#e3ecf9", color="#3d6aa8", fontname="Helvetica", fontsize=11, width=2.3, height=0.5, margin="0.12,0.05"]
+       edge [color="#3d4852", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5f6b7a"]
+       illumina [label="Illumina FASTQ\nR1/R2 or single-end", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
+       longreads [label="long-read FASTQ\nONT or PacBio", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
+       subgraph cluster_reads { label="Read processing"
+           trim [label=<<b>trim</b><br/><font point-size="9">adapter + quality trimming</font>>]
+           filter [label=<<b>filter</b><br/><font point-size="9">remove PhiX / vector / user contaminants</font>>]
+       }
+       assemble [label=<<b>assemble</b><br/><font point-size="9">flye (default): long reads<br/>unicycler: both read types</font>>]
+       subgraph cluster_clean { label="Contig cleaning"
+           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
+           covpurge [label=<<b>covpurge</b><br/><font point-size="9">drop low-coverage contigs</font>>]
+           rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
+       }
+       taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash taxonomy screen</font>>, style="rounded,dashed", fillcolor=white]
+       subgraph cluster_polish { label="Polishing (flye only)"
+           racon [label=<<b>polish</b><br/><font point-size="9">racon with the long reads</font>>]
+           short [label=<<b>polish</b><br/><font point-size="9">polypolish (paired) / pypolca (single-end)</font>>]
+       }
+       subgraph cluster_finish { label="Finishing"
+           sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
+           assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
+       }
 
-        illumina --> trim --> filter
-        longreads --> assemble
-        filter -. "unicycler" .-> assemble
-        assemble --> vecscreen --> taxpurge --> covpurge --> rmdup --> racon --> short --> sort --> assess
-        vecscreen -. "no --phylum" .-> covpurge
-        rmdup -. "unicycler" .-> sort
-        filter -. "filtered reads" .-> covpurge
-        filter -. "filtered reads" .-> short
-    classDef opt stroke-dasharray: 5 5
+       illumina -> trim -> filter [weight=10]
+       longreads -> assemble [weight=10]
+       filter -> assemble [style=dashed, label=" unicycler"]
+       assemble -> vecscreen -> covpurge -> rmdup -> racon -> short -> sort -> assess [weight=10]
+       vecscreen -> taxpurge [style=dashed, label=" with --phylum"]
+       taxpurge -> covpurge [style=dashed]
+       rmdup -> sort [style=dashed, label=" unicycler", constraint=false]
+       {rank=same; illumina; longreads}
+       {rank=same; covpurge; taxpurge}
+   }
 
 With ``--method unicycler``, Unicycler assembles both read types and polishes its own assembly, so
 the polish steps are skipped.

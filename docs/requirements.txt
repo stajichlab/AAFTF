@@ -1,2 +1,2 @@
 sphinx>=7,<8
-sphinxcontrib-mermaid>=0.9
+furo

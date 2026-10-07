@@ -182,4 +182,8 @@ pixi run -e dev pre-commit run --all-files
 
 # Compile-check all modules
 python -m py_compile aaftf/*.py
+
+# Docs (Sphinx + Graphviz diagrams; output in docs/_build/html)
+pixi run -e dev docs         # build once
+pixi run -e dev docs-serve   # live reload on http://127.0.0.1:8000
 ```
