@@ -4,15 +4,18 @@ Pipelines
 
 Three subcommands run the whole raw-reads-to-clean-assembly workflow in a single command:
 
-* ``pipeline_short`` -- Illumina reads: trim -> filter -> assemble -> vecscreen -> sourpurge ->
-  rmdup -> sort -> assess.
+* ``pipeline_short`` -- Illumina reads: trim -> filter -> assemble -> vecscreen -> [taxpurge] ->
+  covpurge -> rmdup -> sort -> assess.
 * ``pipeline_long`` -- long reads (ONT/PacBio) only: assemble (flye) -> vecscreen ->
-  [sourpurge] -> rmdup -> polish (racon) -> sort -> assess.
+  [taxpurge] -> rmdup -> polish (racon) -> sort -> assess.
 * ``pipeline_hybrid`` -- Illumina + long reads: trim -> filter -> assemble (flye or unicycler) ->
-  vecscreen -> sourpurge -> rmdup -> polish -> sort -> assess.
+  vecscreen -> [taxpurge] -> covpurge -> rmdup -> polish -> sort -> assess.
 
-Polishing always runs after the cleaning steps (vecscreen, sourpurge, rmdup), so no time is spent
-polishing contigs that are then discarded.
+:doc:`taxpurge` runs only when ``-p/--phylum`` is given, so the pipelines also work when the
+organism's taxonomy is unknown (the contigs are then screened by :doc:`vecscreen`,
+:doc:`covpurge` and :doc:`rmdup` only). :doc:`covpurge` needs Illumina reads, so ``pipeline_long``
+does not run it. Polishing always runs after the cleaning steps, so no time is spent polishing
+contigs that are then discarded.
 
 See :doc:`../workflow` for the full diagram and per-step input/output description.
 
@@ -41,7 +44,7 @@ aborts with an error if the expected output was not produced.
 Steps intentionally **not** included in ``pipeline_short`` (marked "(Optional)" in ``AAFTF -h``) -- run
 these manually if needed: :doc:`mito` (to screen mitochondrial reads out, run it before
 :doc:`filter` and pass its output to ``filter --screen_local``), :doc:`fcs_screen`, :doc:`fcs_gx_purge` (alternatives/complements to :doc:`vecscreen` /
-:doc:`sourpurge`), :doc:`polish` (recommended only with long reads; polishing a short-read-only
+:doc:`taxpurge`), :doc:`polish` (recommended only with long reads; polishing a short-read-only
 assembly with the same reads rarely helps), :doc:`depth` (coverage QC of the final assembly), :doc:`fix_tbl` (post-FCS
 annotation coordinate fixups), and :doc:`database` (run once, ahead of time, to populate
 ``$AAFTF_DB``).
@@ -50,7 +53,7 @@ Cutoffs / defaults
 ------------------
 
 ``pipeline_short`` uses each step's own defaults (:doc:`trim`, :doc:`filter`,
-:doc:`assemble`, :doc:`vecscreen`, :doc:`sourpurge`, :doc:`rmdup`, :doc:`sort`,
+:doc:`assemble`, :doc:`vecscreen`, :doc:`taxpurge`, :doc:`covpurge`, :doc:`rmdup`, :doc:`sort`,
 :doc:`assess`) except where noted:
 
 .. list-table::
@@ -73,9 +76,9 @@ Cutoffs / defaults
    * - ``--tmpdir``, ``--assembler_args``
      - none
      - Passed to assemble
-   * - ``-p/--phylum`` (required), ``--sourdb``
-     - ``--sourdb``: the one from ``AAFTF database``
-     - Phyla kept, and the sourmash database, for sourpurge
+   * - ``-p/--phylum``, ``--sourdb``
+     - none (taxpurge not run); ``--sourdb``: the one from ``AAFTF database``
+     - Phyla kept, and the sourmash database, for taxpurge
    * - ``--method``
      - spades
      - Assembler method (spades / megahit / unicycler)
@@ -87,21 +90,21 @@ Cutoffs / defaults
      - Minimum contig length kept by rmdup and by the final sort step
    * - ``--mincovpct``
      - 5
-     - sourpurge low-coverage removal threshold (percent of N50-contig coverage)
+     - covpurge low-coverage removal threshold (percent of N50-contig coverage)
 
 Invocation
 ----------
 
 .. code-block:: text
 
-    AAFTF pipeline_short -1 FASTQ [-2 FASTQ] -o BASENAME -p PHYLUM [PHYLUM ...]
+    AAFTF pipeline_short -1 FASTQ [-2 FASTQ] -o BASENAME [-p PHYLUM [PHYLUM ...]]
                          [-c CPUS] [-m MEMORY] [-ml MINLEN]
                          [-mc MINCONTIGLEN] [--method {spades,megahit,unicycler}]
                          [-a ACCESSIONS ...] [-u URLS ...] [--sourdb PATH]
                          [--mincovpct PCT] [-w WORKDIR]
                          [--assembler_args ARG ...] [--tmpdir DIR] [-q] [-v]
 
-``-1/--read1``, ``-o/--out`` (basename), and ``-p/--phylum`` are required.
+``-1/--read1`` and ``-o/--out`` (basename) are required.
 
 Example
 -------
@@ -118,7 +121,8 @@ Example
 This produces, in sequence: ``STRAINX_1P.fastq.gz``/``STRAINX_2P.fastq.gz`` (trim),
 ``STRAINX_filtered_1.fastq.gz``/``_2.fastq.gz``
 (filter), ``STRAINX.spades.fasta`` (assemble), ``STRAINX.vecscreen.fasta`` (vecscreen),
-``STRAINX.sourpurge.fasta`` (sourpurge), ``STRAINX.rmdup.fasta`` (rmdup), and finally
+``STRAINX.taxpurge.fasta`` (taxpurge), ``STRAINX.covpurge.fasta`` (covpurge),
+``STRAINX.rmdup.fasta`` (rmdup), and finally
 ``STRAINX.final.fasta`` (sort) with printed/``assess``
 summary statistics.
 
@@ -127,10 +131,9 @@ pipeline_long
 
 Assembles long reads with :doc:`assemble` ``--method flye``, runs :doc:`vecscreen` and
 :doc:`rmdup`, polishes the cleaned contigs once with :doc:`polish` ``--method racon`` using the same
-reads, then runs :doc:`sort` and :doc:`assess`. With ``-p/--phylum``, :doc:`sourpurge` also runs
-between vecscreen and rmdup, as a taxonomy-only screen: its low-coverage filter needs Illumina
-reads, so it is skipped. :doc:`sourpurge` is not run, since it needs Illumina reads for
-contig coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
+reads, then runs :doc:`sort` and :doc:`assess`. With ``-p/--phylum``, :doc:`taxpurge` also runs
+between vecscreen and rmdup. :doc:`covpurge` is not run, since it needs Illumina reads for contig
+coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
 
 .. list-table::
    :header-rows: 1
@@ -149,11 +152,11 @@ contig coverage. Steps are run, defaulted and skipped (resumable) exactly as in 
      - estimated by flye
      - Estimated genome size for flye, e.g. ``40m``
    * - ``-p/--phylum``
-     - none (sourpurge not run)
-     - Phyla whose contigs sourpurge keeps (taxonomy screen only)
+     - none (taxpurge not run)
+     - Phyla whose contigs taxpurge keeps
    * - ``--sourdb``
      - from ``AAFTF database``
-     - sourmash LCA database for sourpurge
+     - sourmash LCA database for taxpurge
    * - ``--assembler_args``
      - none
      - Passed to assemble
@@ -185,7 +188,8 @@ pipeline_hybrid
 ===============
 
 Trims and filters the Illumina reads (:doc:`trim`, :doc:`filter`), assembles the long reads with
-flye, runs :doc:`vecscreen`, :doc:`sourpurge` (with the Illumina reads) and :doc:`rmdup`, polishes
+flye, runs :doc:`vecscreen`, :doc:`taxpurge` (only with ``-p/--phylum``), :doc:`covpurge` (with the
+Illumina reads) and :doc:`rmdup`, polishes
 the cleaned contigs with :doc:`polish` ``--method racon`` (long reads) and then with the filtered
 Illumina reads -- ``polypolish`` for paired reads, ``pypolca`` for single-end -- and runs
 :doc:`sort` and :doc:`assess`. With ``--method unicycler``, unicycler assembles the filtered Illumina reads together
@@ -198,7 +202,7 @@ in ``pipeline_long``. ``-m/--memory`` is passed to trim, filter, assemble and po
 
 .. code-block:: text
 
-    AAFTF pipeline_hybrid -1 FASTQ -lr FASTQ -o PREFIX -p PHYLUM [PHYLUM ...]
+    AAFTF pipeline_hybrid -1 FASTQ -lr FASTQ -o PREFIX [-p PHYLUM [PHYLUM ...]]
                           [-2 FASTQ] [--method {flye,unicycler}]
                           [--longread_type {nano-raw,nano-hq,pacbio-raw,pacbio-hifi}]
                           [--genome_size SIZE] [-w DIR] [--tmpdir DIR]
@@ -215,7 +219,7 @@ in ``pipeline_long``. ``-m/--memory`` is passed to trim, filter, assemble and po
         -o STRAINX -c 24 -m 96 --phylum Ascomycota
 
 This produces the trim and filter FASTQs as in ``pipeline_short``, then ``STRAINX.flye.fasta``,
-``STRAINX.racon.fasta``, ``STRAINX.polypolish.fasta`` (``STRAINX.pypolca.fasta`` with single-end
-reads), ``STRAINX.vecscreen.fasta``, ``STRAINX.sourpurge.fasta``, ``STRAINX.rmdup.fasta`` and
-``STRAINX.final.fasta``. With ``--method unicycler`` the assembly is ``STRAINX.unicycler.fasta``
+``STRAINX.vecscreen.fasta``, ``STRAINX.taxpurge.fasta``, ``STRAINX.covpurge.fasta``,
+``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta``, ``STRAINX.polypolish.fasta``
+(``STRAINX.pypolca.fasta`` with single-end reads) and ``STRAINX.final.fasta``. With ``--method unicycler`` the assembly is ``STRAINX.unicycler.fasta``
 and no polish files are written.

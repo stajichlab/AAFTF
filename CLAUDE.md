@@ -17,7 +17,7 @@ See [AGENTS.md](AGENTS.md) for full development guidelines, code style, and comm
 
 - Every subcommand parser has `-q/--quiet` (dest `quiet`) and `-v/--verbose` (dest `debug`, so code and `run()` parameters use `debug`). There is no `--pipe` CLI flag.
 - `add_verbosity_args(target)` (in `aaftf/_menu.py`; formerly `menu_common_args`) adds exactly those two arguments to `target`. Every `<name>_menu()` function calls it **last**, passing its own `optional = parser_x.add_argument_group("optional arguments")` group (not the parser itself), so they render as the final entries of that subcommand's "optional arguments" section.
-- All other args a subcommand needs (`-c/--cpus`, `-w/--workdir/--tmpdir`, `-1/--read1`/`-2/--read2`, etc.) are implemented locally within that subcommand's own `<name>_menu()` — there is no shared parent-parser mechanism (argparse `parents=[...]` shared `Action` objects across subcommands and per-subcommand overrides silently corrupted others). When adding such a block to a new menu function, copy it verbatim from a similar existing one (e.g. `vecscreen_menu`, `sourpurge_menu`) to keep help text/defaults consistent. Path arguments use `type=str`.
+- All other args a subcommand needs (`-c/--cpus`, `-w/--workdir/--tmpdir`, `-1/--read1`/`-2/--read2`, etc.) are implemented locally within that subcommand's own `<name>_menu()` — there is no shared parent-parser mechanism (argparse `parents=[...]` shared `Action` objects across subcommands and per-subcommand overrides silently corrupted others). When adding such a block to a new menu function, copy it verbatim from a similar existing one (e.g. `vecscreen_menu`, `covpurge_menu`) to keep help text/defaults consistent. Path arguments use `type=str`.
 - Each `<name>_menu()` function that has any required argument creates two argument groups — `required = parser_x.add_argument_group("required arguments")` and `optional = parser_x.add_argument_group("optional arguments")` — and adds each local argument to the appropriate one (required = `required=True` with no `default=`; everything else = optional).
 - Adding a new subcommand: write its `<name>_menu(subparsers)` function in `aaftf/_menu.py` (create the subparser, add required/optional groups and any subtool-specific args, call `add_verbosity_args(optional)` last, then `parser_x.set_defaults(func=<module>.run)`), add it to the right group's list in `register_subcommands()`, and write the subtool's `run(**kwargs)` in its own module (named params for the dest names it uses, plus a trailing `**kwargs`).
 - Testing a subcommand's CLI parsing without executing the tool: patch `aaftf.<module>.run` with a `side_effect` that captures `**kwargs` into a `Namespace`, then call `aaftf.main.main()` with `sys.argv` patched. See `tests/test_cli.py::_parse_with_main`.
@@ -35,7 +35,8 @@ See [AGENTS.md](AGENTS.md) for full development guidelines, code style, and comm
 | `filter` | `aaftf/filter.py` | bbduk.sh, bowtie2, bwa, minimap2, samtools |
 | `assemble` | `aaftf/assemble.py` | spades.py, megahit, unicycler, flye |
 | `vecscreen` | `aaftf/vecscreen.py` | blastn, makeblastdb |
-| `sourpurge` | `aaftf/sourpurge.py` | sourmash, bwa, samtools |
+| `taxpurge` | `aaftf/taxpurge.py` | sourmash |
+| `covpurge` | `aaftf/covpurge.py` | bwa, samtools |
 | `fcs_screen` | `aaftf/fcs_screen.py` | run_fcsadaptor.sh (singularity/docker) |
 | `fcs_gx_purge` | `aaftf/fcs_gx_purge.py` | run_gx.py (NCBI FCS-GX) |
 | `rmdup` | `aaftf/rmdup.py` | minimap2 |
@@ -59,7 +60,8 @@ Keyword parameters of each `run()` (besides the trailing `**kwargs`):
 - **filter**: `read1`, `read2`, `workdir`, `cpus`, `screen_accessions`, `screen_urls`, `screen_local`, `basename`, `aligner`, `memory`, `debug`, `pipe`
 - **assemble**: `out`, `method` (required, no default), `read1`, `workdir`, `cpus`, `memory`, `isolate`, `careful`, `assembler_args`, `tmpdir`, `read2`, `longreads`, `merged`, `longread_type`, `genome_size`, `debug`, `pipe`. `read1` is optional in the parser (required by spades/megahit/unicycler; `flye` needs `longreads` instead).
 - **vecscreen**: `infile`, `outfile`, `workdir`, `cpus`, `percent_id`, `stringency`, `debug`, `pipe`
-- **sourpurge**: `input`, `outfile`, `phylum`, `workdir`, `cpus`, `read1`, `read2`, `sourdb`, `sourdb_type`, `kmer`, `mincovpct`, `taxonomy`, `debug`, `pipe`
+- **taxpurge**: `input`, `outfile`, `phylum`, `workdir`, `sourdb`, `sourdb_type`, `kmer`, `taxonomy`, `debug`, `pipe`
+- **covpurge**: `input`, `outfile`, `read1`, `read2`, `workdir`, `cpus`, `mincovpct`, `debug`, `pipe`
 - **fcs_screen**: `infile`, `outfile`, `container_engine`, `workdir`, `image`, `prok`, `fcs_script`, `debug`, `pipe`
 - **fcs_gx_purge**: `input`, `outfile`, `workdir`, `taxid`, `db`, `debug`, `pipe`
 - **rmdup**: `input`, `out`, `workdir`, `cpus`, `percent_id`, `percent_cov`, `minlen`, `exhaustive`, `debug`, `pipe`
@@ -74,9 +76,9 @@ Keyword parameters of each `run()` (besides the trailing `**kwargs`):
 
 ## Pipeline step defaults
 
-`pipeline_short` runs trim → filter → assemble → vecscreen → sourpurge → rmdup → sort → assess (mito, fcs_screen, fcs_gx_purge, polish and depth are optional and not run).
-`pipeline_long` runs assemble (flye) → vecscreen → [sourpurge] → rmdup → polish (racon) → sort → assess; sourpurge runs only with `-p/--phylum`, without reads (taxonomy screen only, since its coverage filter needs Illumina reads).
-`pipeline_hybrid` runs trim → filter → assemble (flye on the long reads) → vecscreen → sourpurge → rmdup → polish (racon) → polish (polypolish for paired, pypolca for single-end filtered Illumina reads) → sort → assess; all pipelines clean (vecscreen/sourpurge/rmdup) before polishing, via the shared `_clean_and_finish(..., polish_steps=[...])`, so discarded contigs are never polished; with `--method unicycler` Unicycler gets both read types and both polish steps are skipped. A step whose output file already exists is skipped (`_run_step`). Each step is called with `_step_kwargs(name, shared, **step_options)`:
+`pipeline_short` runs trim → filter → assemble → vecscreen → [taxpurge] → covpurge → rmdup → sort → assess (mito, fcs_screen, fcs_gx_purge, polish and depth are optional and not run).
+`pipeline_long` runs assemble (flye) → vecscreen → [taxpurge] → rmdup → polish (racon) → sort → assess (no covpurge: it needs Illumina reads). In every pipeline `-p/--phylum` is optional and taxpurge runs only when it is given (`_taxpurge_options()`), so the pipelines work when the taxonomy is unknown.
+`pipeline_hybrid` runs trim → filter → assemble (flye on the long reads) → vecscreen → [taxpurge] → covpurge → rmdup → polish (racon) → polish (polypolish for paired, pypolca for single-end filtered Illumina reads) → sort → assess; all pipelines clean (vecscreen/taxpurge/covpurge/rmdup) before polishing, via the shared `_clean_and_finish(assembly, ..., taxpurge_options, covpurge_options, polish_steps)`, so discarded contigs are never polished; with `--method unicycler` Unicycler gets both read types and both polish steps are skipped. A step whose output file already exists is skipped (`_run_step`). Each step is called with `_step_kwargs(name, shared, **step_options)`:
 - it starts from that step's CLI defaults, read from its `_menu.py` parser (`_subcommand_defaults()`), so every `run()` parameter is present and the pipeline never drifts from `AAFTF <step>` defaults — do not hard-code step settings in `pipeline.py`
 - `shared` pipeline options (`cpus`, `memory`, `workdir`, `debug`, `quiet`) go only to steps that have that option; a `None` value (e.g. no `--memory`) keeps the step default. Exception: `assemble` gets `{workdir}/assemble_{method}` (`_assemble_workdir()`), since SPAdes restarts from and MEGAHIT refuses an existing folder, and `filter` has already created the pipeline workdir
 - `step_options` are the pipeline options specific to that step plus the file names chaining the steps; `pipe=True` is always set
@@ -88,7 +90,7 @@ Recommended order for full assembly QC:
 
 ```
 trim → [mito optional, PE only] → filter → assemble → vecscreen
-  → [fcs_screen / fcs_gx_purge optional] → sourpurge → rmdup
+  → [fcs_screen / fcs_gx_purge optional] → [taxpurge, needs a phylum] → covpurge → rmdup
   → [polish optional, mainly with long reads] → sort → assess → [depth optional]
 ```
 
@@ -100,8 +102,9 @@ Files `AAFTF pipeline_short -o {base}` writes (`pipeline_long` / `pipeline_hybri
 | filter | trimmed FASTQ | `{base}_filtered_1.fastq.gz`, `{base}_filtered_2.fastq.gz` |
 | assemble | filtered FASTQ | `{base}.{method}.fasta` |
 | vecscreen | assembled FASTA | `{base}.vecscreen.fasta` |
-| sourpurge | vecscreen FASTA | `{base}.sourpurge.fasta` |
-| rmdup | sourpurge FASTA | `{base}.rmdup.fasta` |
+| taxpurge (with `-p`) | vecscreen FASTA | `{base}.taxpurge.fasta` |
+| covpurge | taxpurge (or vecscreen) FASTA | `{base}.covpurge.fasta` |
+| rmdup | covpurge FASTA | `{base}.rmdup.fasta` |
 | sort | rmdup FASTA | `{base}.final.fasta` |
 | assess | sorted FASTA | printed stats (optional report file) |
 

@@ -235,4 +235,4 @@ def test_run_end_to_end(tmp_path, monkeypatch, caplog, pipe):
     assert _read_fasta(tmp_path / "sub" / "asm.vecscreen.fasta") == {"keep": "A" * 300}
     assert _read_fasta(tmp_path / "sub" / "asm.vecscreen.mitochondria.fasta") == {"mito": "C" * 300}
     assert not (tmp_path / "asm.vecscreen.fasta").exists()
-    assert ("AAFTF sourpurge" in caplog.text) is (not pipe)
+    assert ("AAFTF taxpurge" in caplog.text) is (not pipe)

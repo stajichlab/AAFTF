@@ -13,14 +13,13 @@ Python >=3.10 and the external tools below. Everything can be installed with con
 pixi (see Install). Run `AAFTF dependency` to see which tools are found and which are missing.
 
 **Needed by the pipelines** (`pipeline_short`, `pipeline_long` and `pipeline_hybrid`, i.e. `trim`,
-`filter`, `assemble`, `polish`, `vecscreen`, `sourpurge`, `rmdup`, `sort`, `assess` with the settings
+`filter`, `assemble`, `polish`, `vecscreen`, `covpurge`, `rmdup`, `sort`, `assess` with the settings
 the pipelines use by default):
 
 - [BBTools](https://bbmap.org/) (`bbduk.sh`, `shuffle.sh`, `reformat.sh`; needs Java) - read trimming and contaminant filtering
 - [SPAdes](https://github.com/ablab/spades) - assembly
 - [NCBI BLAST+](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) - vector/contaminant screening (`vecscreen`)
-- [sourmash](https://sourmash.readthedocs.io/) >=4 ([paper](https://pubmed.ncbi.nlm.nih.gov/31508216/)) - taxonomic screening of contigs (`sourpurge`)
-- [bwa](https://github.com/lh3/bwa) and [samtools](https://github.com/samtools/samtools) >=1.13 - read mapping for the `sourpurge` coverage filter
+- [bwa](https://github.com/lh3/bwa) and [samtools](https://github.com/samtools/samtools) >=1.13 - read mapping for the `covpurge` coverage filter
 - [minimap2](https://github.com/lh3/minimap2) - duplicate contig detection (`rmdup`)
 - [Flye](https://github.com/mikolmogorov/Flye) - long-read assembly (`pipeline_long`, `pipeline_hybrid`)
 - [Racon](https://github.com/lbcb-sci/racon), [Polypolish](https://github.com/rrwick/Polypolish), [pypolca](https://github.com/gbouras13/pypolca) + freebayes - polishing (`pipeline_long`, `pipeline_hybrid`)
@@ -30,6 +29,7 @@ the pipelines use by default):
 
 | Tool | Used by |
 |---|---|
+| [sourmash](https://sourmash.readthedocs.io/) >=4 ([paper](https://pubmed.ncbi.nlm.nih.gov/31508216/)) | `taxpurge` (run by the pipelines only with `-p/--phylum`; also needs `AAFTF database sm_gbk`) |
 | [fastp](https://github.com/OpenGene/fastp), [Trimmomatic](https://github.com/usadellab/Trimmomatic) | `trim --method fastp` / `trimmomatic` |
 | [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) | `filter --aligner bowtie2` (`bwa` and `minimap2` are the other alternatives) |
 | [MEGAHIT](https://github.com/voutcn/megahit), [Unicycler](https://github.com/rrwick/Unicycler) | `assemble --method megahit` / `unicycler` (also `pipeline_short`/`pipeline_hybrid --method`) |
@@ -71,7 +71,8 @@ writable one. The steps only read databases; download them once with `AAFTF data
 ```
 $ export AAFTF_DB=/path/with/space/aaftf_db   # or a shared, system-wide location
 $ AAFTF database                                        # list databases and where they are stored
-$ AAFTF database required     # what the default pipeline needs: phix univec euks proks mitodb sm_gbk
+$ AAFTF database required     # what the default pipeline needs: phix univec euks proks mitodb
+$ AAFTF database sm_gbk       # sourmash index for taxpurge (pipelines with -p/--phylum)
 ```
 
 `fcs_screen` also needs the FCS-adaptor script and container image (`AAFTF database fcs_script fcs_image`,
@@ -94,22 +95,23 @@ or pass `--fcs_script`/`--image`). `fcs_gx_purge` needs an FCS-GX database set u
 | 2 | `filter` | Remove PhiX, vector and other contaminant reads - BBDuk (default), bowtie2, bwa or minimap2 | `<prefix>_filtered_1.fastq.gz`, `<prefix>_filtered_2.fastq.gz` |
 | 3 | `assemble` | Assemble - SPAdes, MEGAHIT, Unicycler or Flye (long reads); `--method` is required | assembly FASTA |
 | 4 | `vecscreen` | BLAST-based vector/contaminant screen of contigs, following NCBI VecScreen | cleaned FASTA (and `.mitochondria.fasta`) |
-| 5 | `sourpurge` | Drop contigs of other phyla (sourmash) and low-coverage contigs | purged FASTA |
+| 5 | `taxpurge` | Drop contigs sourmash classifies outside your phyla (`-p`); the pipelines run it only when given `-p` | purged FASTA |
 | - | `fcs_screen` | (Optional) NCBI FCS-adaptor vector screen | cleaned FASTA |
 | - | `fcs_gx_purge` | (Optional) Drop the contigs NCBI FCS-GX marks EXCLUDE | purged FASTA |
-| 6 | `rmdup` | Remove duplicate and contained contigs (minimap2) | deduplicated FASTA |
+| 6 | `covpurge` | Drop contigs with low Illumina read coverage (bwa) | purged FASTA |
+| 7 | `rmdup` | Remove duplicate and contained contigs (minimap2) | deduplicated FASTA |
 | - | `polish` | (Optional) Polish with Polypolish (default), pypolca, NextPolish2 or Racon; recommended only with long reads | polished FASTA |
-| 7 | `sort` | Sort contigs by length and rename them | final FASTA |
-| 8 | `assess` | Assembly statistics (N50/L50, GC, gaps, soft-masking, telomeres) | printed (and a `-r` file) |
+| 8 | `sort` | Sort contigs by length and rename them | final FASTA |
+| 9 | `assess` | Assembly statistics (N50/L50, GC, gaps, soft-masking, telomeres) | printed (and a `-r` file) |
 | - | `depth` | (Optional) Per-contig read depth (mosdepth), flagging outliers such as organelles or contaminants | coverage report and plots |
 
 **Pipeline** (several steps in one command)
 
 | Subcommand | What it does | Output |
 |---|---|---|
-| `pipeline_short` | Run steps 1-8 on Illumina reads | `<prefix>.final.fasta` |
-| `pipeline_long` | Long reads: assemble (Flye), vecscreen, [sourpurge with `-p`], rmdup, polish (Racon), sort, assess | `<prefix>.final.fasta` |
-| `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), vecscreen, sourpurge, rmdup, polish, sort, assess | `<prefix>.final.fasta` |
+| `pipeline_short` | Run steps 1-9 on Illumina reads (step 5 only with `-p`) | `<prefix>.final.fasta` |
+| `pipeline_long` | Long reads: assemble (Flye), vecscreen, [taxpurge with `-p`], rmdup, polish (Racon), sort, assess | `<prefix>.final.fasta` |
+| `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), vecscreen, [taxpurge with `-p`], covpurge, rmdup, polish, sort, assess | `<prefix>.final.fasta` |
 
 **Annotation**
 - `fix_tbl` - fix an NCBI `.tbl` feature table after FCS trimmed or excluded contigs
@@ -131,12 +133,14 @@ AAFTF pipeline_short -1 reads/STRAINX_R1.fq.gz -2 reads/STRAINX_R2.fq.gz \
     -o STRAINX -p Ascomycota -c 16 -m 64
 ```
 This writes `STRAINX_1P/2P.fastq.gz`, `STRAINX_filtered_1/2.fastq.gz`, `STRAINX.spades.fasta`,
-`STRAINX.vecscreen.fasta`, `STRAINX.sourpurge.fasta`, `STRAINX.rmdup.fasta` and `STRAINX.final.fasta`,
-then prints the `assess` statistics. Each step uses its own defaults unless a pipeline option overrides
+`STRAINX.vecscreen.fasta`, `STRAINX.taxpurge.fasta`, `STRAINX.covpurge.fasta`, `STRAINX.rmdup.fasta`
+and `STRAINX.final.fasta`, then prints the `assess` statistics. `-p` is optional: without it (e.g. when
+the organism's taxonomy is unknown) taxpurge is skipped and the contigs are screened by vecscreen,
+covpurge and rmdup only. Each step uses its own defaults unless a pipeline option overrides
 it, and steps whose output already exists are skipped, so an interrupted run can simply be restarted.
 
-Long reads only (add `-p PHYLUM` to also run sourpurge as a taxonomy-only screen; its coverage
-filter needs Illumina reads):
+Long reads only (add `-p PHYLUM` to also run taxpurge; covpurge needs Illumina reads, so it is not
+run):
 ```
 AAFTF pipeline_long -lr reads/STRAINX_ont.fq.gz -o STRAINX --genome_size 40m -c 16
 ```
@@ -149,7 +153,7 @@ Illumina + long reads:
 AAFTF pipeline_hybrid -1 reads/STRAINX_R1.fq.gz -2 reads/STRAINX_R2.fq.gz \
     -lr reads/STRAINX_ont.fq.gz -o STRAINX -p Ascomycota -c 16 -m 64
 ```
-After trim and filter this writes `STRAINX.flye.fasta`, the vecscreen, sourpurge and rmdup FASTA,
+After trim and filter this writes `STRAINX.flye.fasta`, the vecscreen, taxpurge, covpurge and rmdup FASTA,
 then `STRAINX.racon.fasta`, `STRAINX.polypolish.fasta` (`STRAINX.pypolca.fasta` with single-end
 reads) and the final FASTA. With `--method unicycler` the Illumina and long reads are
 assembled together into `STRAINX.unicycler.fasta` and both polish steps are skipped.
@@ -330,12 +334,15 @@ AAFTF assemble --method spades -c $CPU --memory $MEM --read1 $READ1 --read2 $REA
 # vector/contaminant screen (also writes $OUTDIR/${BASE}.vecscreen.mitochondria.fasta)
 AAFTF vecscreen -c $CPU -i $OUTDIR/${BASE}.spades.fasta -o $OUTDIR/${BASE}.vecscreen.fasta
 
-# keep contigs classified to your phylum; with reads, also drop low-coverage contigs
-AAFTF sourpurge -c $CPU -i $OUTDIR/${BASE}.vecscreen.fasta -o $OUTDIR/${BASE}.sourpurge.fasta \
-    -p Ascomycota --read1 $READ1 --read2 $READ2
+# keep contigs classified to your phylum (skip if the taxonomy is unknown)
+AAFTF taxpurge -i $OUTDIR/${BASE}.vecscreen.fasta -o $OUTDIR/${BASE}.taxpurge.fasta -p Ascomycota
+
+# drop contigs with low read coverage
+AAFTF covpurge -c $CPU -i $OUTDIR/${BASE}.taxpurge.fasta -o $OUTDIR/${BASE}.covpurge.fasta \
+    --read1 $READ1 --read2 $READ2
 
 # remove duplicate contigs
-AAFTF rmdup -c $CPU -i $OUTDIR/${BASE}.sourpurge.fasta -o $OUTDIR/${BASE}.rmdup.fasta
+AAFTF rmdup -c $CPU -i $OUTDIR/${BASE}.covpurge.fasta -o $OUTDIR/${BASE}.rmdup.fasta
 
 # sort by length and rename, then report statistics
 AAFTF sort -i $OUTDIR/${BASE}.rmdup.fasta -o $OUTDIR/${BASE}.final.fasta -n ${BASE}

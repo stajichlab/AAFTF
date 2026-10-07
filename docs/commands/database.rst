@@ -4,7 +4,7 @@ database
 
 Lists and fetches the reference databases AAFTF's other subcommands rely on, into the database
 folder (``$AAFTF_DB``, or ``~/.cache/aaftf`` when it is unset). This is the only command that
-downloads them: ``filter``/``vecscreen``/``sourpurge``/``fcs_screen`` read the stored copies and,
+downloads them: ``filter``/``vecscreen``/``taxpurge``/``fcs_screen`` read the stored copies and,
 if one is missing, stop with the ``AAFTF database ...`` command that fetches it. (The one
 exception is ``filter``'s ``-a/--screen_accessions`` and ``-u/--screen_urls``, which fetch those
 extra sequences themselves.)
@@ -32,8 +32,8 @@ Databases
 Run ``AAFTF database`` with no arguments to list every database: its short name, file, size,
 which subcommands use it, and the folder it is stored in (or ``not downloaded``, with the
 remote size). Like ``AAFTF dependency``, the list is split in two: the databases ``AAFTF pipeline_short``
-needs with its default settings (``phix``, ``univec``, ``euks``, ``proks``, ``mitodb``, ``sm_gbk``),
-then those only needed by non-default options or optional steps (``sm_gtdbrep``, ``sm_gtdb``,
+needs with its default settings (``phix``, ``univec``, ``euks``, ``proks``, ``mitodb``),
+then those only needed by non-default options or optional steps (``sm_gbk``, ``sm_gtdbrep``, ``sm_gtdb``,
 ``fcs_script``, ``fcs_image``); any other files found in the database folders are listed last.
 
 .. list-table::
@@ -60,13 +60,13 @@ then those only needed by non-default options or optional steps (``sm_gtdbrep``,
      - ``vecscreen``
    * - ``sm_gbk``
      - ``genbank-k31.lca.json.gz`` (sourmash GenBank)
-     - ``sourpurge --sourdb_type gbk``
+     - ``taxpurge --sourdb_type gbk``
    * - ``sm_gtdbrep``
      - ``gtdb-rs220-reps.k31.lca.json.gz`` (sourmash GTDB representatives)
-     - ``sourpurge --sourdb_type gtdbrep``
+     - ``taxpurge --sourdb_type gtdbrep``
    * - ``sm_gtdb``
      - ``gtdb-rs220-k31.lca.json.gz`` (sourmash GTDB)
-     - ``sourpurge --sourdb_type gtdb``
+     - ``taxpurge --sourdb_type gtdb``
    * - ``fcs_script``
      - ``run_fcsadaptor.sh``
      - ``fcs_screen``
@@ -75,7 +75,7 @@ then those only needed by non-default options or optional steps (``sm_gtdbrep``,
      - ``fcs_screen`` (singularity)
 
 The sourmash databases and the FCS image are several GB each; download only the sourmash index
-matching how you'll call ``sourpurge --sourdb_type``.
+matching how you'll call ``taxpurge --sourdb_type``.
 
 Downloads are safe to interrupt: each file is written to a ``.tmp`` path and renamed on success,
 and files already present in any database folder are skipped on re-run unless ``--force`` is
@@ -112,8 +112,11 @@ Example
     # See what is available, what is already downloaded, and where
     AAFTF database
 
-    # Everything the default pipeline needs (phix univec euks proks mitodb sm_gbk)
+    # Everything the default pipeline needs (phix univec euks proks mitodb)
     AAFTF database required
+
+    # ... plus the sourmash index taxpurge uses (pipelines run with -p/--phylum)
+    AAFTF database required sm_gbk
 
     # ... plus the FCS-adaptor files for fcs_screen
     AAFTF database required fcs_script fcs_image
@@ -132,4 +135,4 @@ contains no databases. Build with ``--build-arg skip_db_download=0`` to run ``AA
 univec euks proks mitodb sm_gbk fcs_script fcs_image`` during ``%post`` and bake them into the
 image at ``/opt/aaftf_db``. Otherwise (and for the Docker image, which never includes them),
 bind-mount a database folder at ``/opt/aaftf_db`` (the container's ``$AAFTF_DB``) and run
-``AAFTF database NAME ...`` into it before using ``filter``/``vecscreen``/``sourpurge``.
+``AAFTF database NAME ...`` into it before using ``filter``/``vecscreen``/``taxpurge``.

@@ -66,9 +66,9 @@ Example
 
 .. code-block:: bash
 
-    AAFTF rmdup -c 16 -i genomes/STRAINX.sourpurge.fasta -o genomes/STRAINX.rmdup.fasta
+    AAFTF rmdup -c 16 -i genomes/STRAINX.covpurge.fasta -o genomes/STRAINX.rmdup.fasta
 
     # more thorough (checks every contig, not just those <= N75)
-    AAFTF rmdup -c 16 --exhaustive -i genomes/STRAINX.sourpurge.fasta -o genomes/STRAINX.rmdup.fasta
+    AAFTF rmdup -c 16 --exhaustive -i genomes/STRAINX.covpurge.fasta -o genomes/STRAINX.rmdup.fasta
 
 Next step: :doc:`sort` (optionally run :doc:`polish` first).

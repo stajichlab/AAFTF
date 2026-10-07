@@ -399,7 +399,7 @@ class TestExecute:
 
 class TestNextStepName:
     def test_splits_at_first_underscore(self):
-        assert next_step_name("strain_vecscreen.fasta", ".sourpurge.fasta") == "strain.sourpurge.fasta"
+        assert next_step_name("strain_vecscreen.fasta", ".taxpurge.fasta") == "strain.taxpurge.fasta"
 
     def test_splits_at_first_dot_without_underscore(self):
         assert next_step_name("strain.rmdup.fasta", ".polish.fasta") == "strain.polish.fasta"

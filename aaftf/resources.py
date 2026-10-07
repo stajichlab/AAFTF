@@ -25,9 +25,9 @@ DB_LINKS: dict[str, list[Any]] = {
     "sourmash_gbk": [{"version": "2017.11.07", "filename": "genbank-k31.lca.json.gz", "url": "https://osf.io/4f8n3/download"}],
     # first in list is default, will fix someday to allow choosing the version
     # TODO: the GTDB entries below download sourmash .dna.zip signature collections but save them
-    # under .lca.json.gz names, and sourpurge runs `sourmash lca classify --db`, which needs an LCA
+    # under .lca.json.gz names, and taxpurge runs `sourmash lca classify --db`, which needs an LCA
     # database -- so --sourdb_type gtdb / gtdbrep likely fail. Point these at LCA databases (or
-    # switch sourpurge to a classifier that takes zip collections). See TODO.md.
+    # switch taxpurge to a classifier that takes zip collections). See TODO.md.
     "sourmash_gtdbrep": [
         {"version": "rs220", "filename": "gtdb-rs220-reps.k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db.new/gtdb-rs220/gtdb-reps-rs220-k31.dna.zip"},  # noqa: E501
     ],
@@ -67,9 +67,9 @@ DATABASES = {
     "euks": {"filename": DB_LINKS["CONTAM_EUKS"][0].rsplit("/", 1)[-1], "url": DB_LINKS["CONTAM_EUKS"][0], "used_by": "vecscreen", "required": True},
     "proks": {"filename": DB_LINKS["CONTAM_PROKS"][0].rsplit("/", 1)[-1], "url": DB_LINKS["CONTAM_PROKS"][0], "used_by": "vecscreen", "required": True},
     "mitodb": {"filename": DB_LINKS["MITO"][0].rsplit("/", 1)[-1], "url": DB_LINKS["MITO"][0], "used_by": "vecscreen", "required": True},
-    "sm_gbk": {**{k: DB_LINKS["sourmash_gbk"][0][k] for k in ("filename", "url")}, "used_by": "sourpurge (--sourdb_type gbk)", "required": True},
-    "sm_gtdbrep": {**{k: DB_LINKS["sourmash_gtdbrep"][0][k] for k in ("filename", "url")}, "used_by": "sourpurge (--sourdb_type gtdbrep)", "required": False},
-    "sm_gtdb": {**{k: DB_LINKS["sourmash_gtdb"][0][k] for k in ("filename", "url")}, "used_by": "sourpurge (--sourdb_type gtdb)", "required": False},
+    "sm_gbk": {**{k: DB_LINKS["sourmash_gbk"][0][k] for k in ("filename", "url")}, "used_by": "taxpurge (--sourdb_type gbk)", "required": False},
+    "sm_gtdbrep": {**{k: DB_LINKS["sourmash_gtdbrep"][0][k] for k in ("filename", "url")}, "used_by": "taxpurge (--sourdb_type gtdbrep)", "required": False},
+    "sm_gtdb": {**{k: DB_LINKS["sourmash_gtdb"][0][k] for k in ("filename", "url")}, "used_by": "taxpurge (--sourdb_type gtdb)", "required": False},
     "fcs_script": {"filename": "run_fcsadaptor.sh", "url": FCSADAPTOR["EXEURL"] % FCSADAPTOR["VERSION"], "used_by": "fcs_screen", "required": False, "executable": True},
     "fcs_image": {
         "filename": FCSADAPTOR["SIFLOCAL"] % FCSADAPTOR["VERSION"],

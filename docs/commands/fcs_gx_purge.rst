@@ -5,7 +5,7 @@ fcs_gx_purge
 Purges contaminant contigs from an assembly using NCBI's **FCS-GX** tool -- a genome
 cross-contamination screen that classifies every contig/region against a comprehensive reference
 database of taxonomy-labeled genomes, rather than the k-mer/sketch-based approach used by
-:doc:`sourpurge`. This is an alternative to ``sourpurge`` for the taxonomic-contamination-purge
+:doc:`taxpurge`. This is an alternative to ``taxpurge`` for the taxonomic-contamination-purge
 step of the pipeline; pick one or the other (or run both and compare).
 
 Algorithm
@@ -29,7 +29,7 @@ Algorithm
 Requires the FCS-GX database
 ================================
 
-Unlike ``sourpurge``, FCS-GX needs a very large (hundreds of GB), memory-mapped reference
+Unlike ``taxpurge``, FCS-GX needs a very large (hundreds of GB), memory-mapped reference
 database set up separately per NCBI's instructions
 (https://github.com/ncbi/fcs/wiki/FCS-GX) -- AAFTF does not download or manage this database for
 you. ``-d/--db`` must point at that database (default placeholder:
@@ -77,4 +77,4 @@ Example
     AAFTF fcs_gx_purge -i genomes/STRAINX.vecscreen.fasta -o genomes/STRAINX.fcsgx.fasta \
         -d /fast_local/gxdb/all -t 4890
 
-Next step: :doc:`rmdup` (same as after :doc:`sourpurge`).
+Next step: :doc:`covpurge` (same as after :doc:`taxpurge`).

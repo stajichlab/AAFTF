@@ -13,7 +13,6 @@ dependencies:
   - bbmap>=39.80,<40        # bbduk.sh, shuffle.sh, reformat.sh (brings java)
   - spades
   - blast
-  - sourmash
   - bwa
   - samtools>=1.24,<2
   - minimap2
@@ -29,6 +28,7 @@ dependencies:
   - packaging
   # optional steps and non-default options
   - pigz
+  - sourmash                # taxpurge
   - fastp
   - trimmomatic
   - bowtie2

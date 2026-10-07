@@ -7,9 +7,9 @@
 
 ## Known issues
 
-* **sourpurge GTDB databases** (`aaftf/resources.py`, `sm_gtdb` / `sm_gtdbrep`): the URLs download
+* **taxpurge GTDB databases** (`aaftf/resources.py`, `sm_gtdb` / `sm_gtdbrep`): the URLs download
   sourmash `.dna.zip` signature collections, but the files are saved as `.lca.json.gz` and
-  `sourpurge` runs `sourmash lca classify --db`, which needs an LCA database. So
+  `taxpurge` runs `sourmash lca classify --db`, which needs an LCA database. So
   `--sourdb_type gtdb` / `gtdbrep` likely fail; the default `gbk` database is unaffected. Fix by
-  pointing these entries at LCA databases, or by switching sourpurge to a classifier that accepts
+  pointing these entries at LCA databases, or by switching taxpurge to a classifier that accepts
   zip collections (e.g. `sourmash gather` + `sourmash tax`).

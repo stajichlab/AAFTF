@@ -18,9 +18,8 @@ REQUIRED_TOOLS = {
     "spades.py": "assemble",
     "blastn": "vecscreen",
     "makeblastdb": "vecscreen",
-    "sourmash": "sourpurge",
-    "bwa": "sourpurge, filter (--aligner bwa), polish, depth (--aligner bwa)",
-    "samtools": "sourpurge, filter (--aligner bowtie2/bwa/minimap2), polish, depth",
+    "bwa": "covpurge, filter (--aligner bwa), polish, depth (--aligner bwa)",
+    "samtools": "covpurge, filter (--aligner bowtie2/bwa/minimap2), polish, depth",
     "minimap2": "rmdup, mito, depth, polish (nextpolish2, racon)",
     "flye": "assemble (--method flye), pipeline_long, pipeline_hybrid",
     "racon": "polish (--method racon), pipeline_long, pipeline_hybrid",
@@ -32,6 +31,7 @@ REQUIRED_TOOLS = {
 # tools only needed by optional steps or non-default options
 OPTIONAL_TOOLS = {
     "pigz": "faster read counting (falls back to gzip)",
+    "sourmash": "taxpurge (pipelines: only with -p/--phylum)",
     "fastp": "trim (--method fastp)",
     "trimmomatic": "trim (--method trimmomatic)",
     "bowtie2": "filter (--aligner bowtie2)",

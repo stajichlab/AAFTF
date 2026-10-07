@@ -368,7 +368,7 @@ class TestMainHelpGroups:
 
     def test_steps_group_has_every_step(self, capsys):
         names = self._section(self._help(capsys), "Steps")
-        steps = {"trim", "mito", "filter", "assemble", "vecscreen", "fcs_screen", "fcs_gx_purge", "sourpurge", "rmdup", "polish", "sort", "assess", "depth"}
+        steps = {"trim", "mito", "filter", "assemble", "vecscreen", "fcs_screen", "fcs_gx_purge", "taxpurge", "covpurge", "rmdup", "polish", "sort", "assess", "depth"}
         assert set(names) == steps
 
     def test_pipeline_group(self, capsys):

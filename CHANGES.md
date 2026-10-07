@@ -9,6 +9,20 @@ check the **Breaking changes** before updating scripts.
 
  - **`pipeline` renamed to `pipeline_short`** (same options and behaviour, no alias for the old name).
 
+ - **`sourpurge` split into `taxpurge` and `covpurge`** (no alias for the old name). `taxpurge` is the
+   sourmash taxonomy screen (`-p/--phylum`, `--sourdb`, `--sourdb_type`, `-k/--kmer`,
+   `--just-show-taxonomy`); `covpurge` is the bwa low-coverage screen (`-1/--read1` required,
+   `-2/--read2`, `-mc/--mincovpct`, `-c/--cpus`). Run `taxpurge` first so contaminants don't skew
+   `covpurge`'s coverage baseline. The pipelines write `{base}.taxpurge.fasta` and
+   `{base}.covpurge.fasta` instead of `{base}.sourpurge.fasta`.
+ - **`-p/--phylum` is optional in every pipeline**: without it `taxpurge` is skipped, so the pipelines
+   also run when the organism's taxonomy is unknown. `pipeline_short` and `pipeline_hybrid` always run
+   `covpurge`; `pipeline_long` does not (it needs Illumina reads).
+ - **sourmash and the `sm_gbk` database are now optional**: since the pipelines need them only with
+   `-p/--phylum`, `AAFTF dependency` lists sourmash with the optional tools, `AAFTF database required`
+   no longer downloads `sm_gbk` (fetch it with `AAFTF database sm_gbk`), and sourmash moved from the
+   pixi `default` environment (and `environment.yml`) to the `optional` feature (`complete`).
+
  - **`assemble --method` is required**: there is no default assembler any more (it was spades); pass
    `--method spades` to keep the old behaviour. The pipelines still choose one for you:
    `pipeline_short` uses spades and `pipeline_long` / `pipeline_hybrid` use flye.
@@ -52,10 +66,10 @@ check the **Breaking changes** before updating scripts.
    the next-command hint suggests `vecscreen` (polish after cleaning). `-1/--read1` is now required only for
    spades, megahit and unicycler. Flye is an optional tool (`dependency`, pixi `complete`).
  - **`pipeline_long`**: long-read pipeline assemble (flye) → vecscreen → rmdup → polish (racon) →
-   sort → assess; with `-p/--phylum` sourpurge also runs before rmdup as a taxonomy-only screen
-   (its coverage filter needs Illumina reads).
- - **`pipeline_hybrid`**: Illumina + long reads: trim → filter → assemble (flye) → vecscreen → sourpurge →
-   rmdup → polish (racon, then polypolish for paired or pypolca for single-end reads) → sort →
+   sort → assess; with `-p/--phylum` taxpurge also runs before rmdup (no covpurge, which needs
+   Illumina reads).
+ - **`pipeline_hybrid`**: Illumina + long reads: trim → filter → assemble (flye) → vecscreen → [taxpurge] →
+   covpurge → rmdup → polish (racon, then polypolish for paired or pypolca for single-end reads) → sort →
    assess (contigs are cleaned before polishing, so discarded contigs are never polished); `--method unicycler` assembles both read types with Unicycler and skips polishing.
 
  - **`dependency`** (was `check_dependencies`): checks the tools and Python packages in two groups —

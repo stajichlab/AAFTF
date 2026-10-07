@@ -12,7 +12,8 @@ Command Reference
    filter
    assemble
    vecscreen
-   sourpurge
+   taxpurge
+   covpurge
    fcs_screen
    fcs_gx_purge
    rmdup
@@ -51,9 +52,12 @@ Command Reference
    * - :doc:`vecscreen`
      - blastn, makeblastdb
      - Vector/Euk/Prok/Mito contamination screen
-   * - :doc:`sourpurge`
-     - sourmash, bwa, samtools
-     - Taxonomy + low-coverage contig purge
+   * - :doc:`taxpurge`
+     - sourmash
+     - Remove contigs classified outside the kept phyla (run by the pipelines only with ``-p``)
+   * - :doc:`covpurge`
+     - bwa, samtools
+     - Remove contigs with low Illumina read coverage
    * - :doc:`fcs_screen`
      - run_fcsadaptor.sh (singularity/docker)
      - (Optional) NCBI FCS-adaptor vector trimming
@@ -77,7 +81,7 @@ Command Reference
      - (Optional) Per-contig read-depth report + outlier flags
    * - :doc:`pipeline`
      - those of the steps it runs
-     - ``pipeline_short``: trim -> filter -> assemble -> vecscreen -> sourpurge -> rmdup -> sort -> assess
+     - ``pipeline_short``: trim -> filter -> assemble -> vecscreen -> [taxpurge] -> covpurge -> rmdup -> sort -> assess
        in one command; ``pipeline_long`` (long reads) and ``pipeline_hybrid`` (Illumina + long reads)
    * - :doc:`fix_tbl`
      - (none)

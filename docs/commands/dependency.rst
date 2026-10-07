@@ -15,11 +15,11 @@ groups, and printed in the order listed below:
 * **Needed by the default pipelines** (``REQUIRED_TOOLS`` / ``REQUIRED_PYTHON_PACKAGES`` in
   ``aaftf/dependency.py``) -- what ``pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid``
   need with their default settings: ``bbduk.sh``, ``shuffle.sh``, ``reformat.sh``, ``java``,
-  ``spades.py``, ``blastn``, ``makeblastdb``, ``sourmash``, ``bwa``, ``samtools``, ``minimap2``,
+  ``spades.py``, ``blastn``, ``makeblastdb``, ``bwa``, ``samtools``, ``minimap2``,
   ``flye``, ``racon``, ``polypolish``, ``pypolca``, ``freebayes``; Python packages
   ``biopython`` and ``psutil``.
 * **Optional steps and non-default options** (``OPTIONAL_TOOLS`` / ``OPTIONAL_PYTHON_PACKAGES``):
-  ``pigz``, ``fastp``, ``trimmomatic``, ``bowtie2``, ``bowtie2-build``, ``megahit``,
+  ``pigz``, ``sourmash`` (``taxpurge``), ``fastp``, ``trimmomatic``, ``bowtie2``, ``bowtie2-build``, ``megahit``,
   ``unicycler``, ``aaftf_polca.sh``, ``nextPolish2``, ``yak``, ``mosdepth``, ``NOVOPlasty.pl``, ``run_fcsadaptor.sh``, ``singularity``, ``apptainer``,
   ``docker``, ``run_gx.py``; Python package ``matplotlib`` (``depth`` plots).
 

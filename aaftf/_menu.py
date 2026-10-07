@@ -18,6 +18,7 @@ import argparse as ap
 
 import aaftf.assemble as assemble
 import aaftf.assess as assess
+import aaftf.covpurge as covpurge
 import aaftf.database as database
 import aaftf.dependency as dependency
 import aaftf.depth as depth
@@ -30,7 +31,7 @@ import aaftf.pipeline as pipeline
 import aaftf.polish as polish
 import aaftf.rmdup as rmdup
 import aaftf.sort as aaftf_sort
-import aaftf.sourpurge as sourpurge
+import aaftf.taxpurge as taxpurge
 import aaftf.trim as trim
 import aaftf.vecscreen as vecscreen
 from aaftf.utility import CustomHelpFormatter, SubcommandGroup
@@ -46,7 +47,8 @@ __all__ = [
     "vecscreen_menu",
     "fcs_screen_menu",
     "fcs_gx_purge_menu",
-    "sourpurge_menu",
+    "taxpurge_menu",
+    "covpurge_menu",
     "rmdup_menu",
     "polish_menu",
     "sort_menu",
@@ -74,7 +76,7 @@ def register_subcommands(parser: ap.ArgumentParser) -> ap._SubParsersAction:
         ("Setup (dependencies and databases)", [dependency_menu, database_menu]),
         (
             "Steps",
-            [trim_menu, mito_menu, filter_menu, assemble_menu, vecscreen_menu, sourpurge_menu, fcs_screen_menu, fcs_gx_purge_menu, rmdup_menu, polish_menu, sort_menu, assess_menu, depth_menu],
+            [trim_menu, mito_menu, filter_menu, assemble_menu, vecscreen_menu, taxpurge_menu, covpurge_menu, fcs_screen_menu, fcs_gx_purge_menu, rmdup_menu, polish_menu, sort_menu, assess_menu, depth_menu],
         ),
         ("Pipeline", [pipeline_short_menu, pipeline_long_menu, pipeline_hybrid_menu]),
         ("Annotation", [fix_tbl_menu]),
@@ -537,34 +539,30 @@ def fcs_gx_purge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     return parser_fcsgx
 
 
-def sourpurge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
-    """Add the sourpurge subcommand parser.
+def taxpurge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
+    """Add the taxpurge subcommand parser.
 
     Args:
         subparsers: The top-level subparsers action to add the parser to.
 
     Returns:
-        The new ``sourpurge`` subcommand parser.
+        The new ``taxpurge`` subcommand parser.
     """
-    parser_sour = subparsers.add_parser(
-        "sourpurge",
-        description="Purge contigs based on sourmash results",
-        help="Purge contigs based on sourmash results",
+    parser_tax = subparsers.add_parser(
+        "taxpurge",
+        description="Remove contigs that sourmash classifies outside the given phyla; unclassified contigs are kept",
+        help="Purge contigs by sourmash taxonomy",
         formatter_class=CustomHelpFormatter,
     )
 
-    required = parser_sour.add_argument_group("required arguments")
-    optional = parser_sour.add_argument_group("optional arguments")
+    required = parser_tax.add_argument_group("required arguments")
+    optional = parser_tax.add_argument_group("optional arguments")
 
     required.add_argument("-i", "--input", type=str, required=True, help="Input genome assembly FASTA", metavar="FASTA")
 
-    required.add_argument("-o", "--outfile", type=str, required=True, help="Output sourmash-purged assembly FASTA", metavar="FASTA")  # think about sensible replacement in future
+    required.add_argument("-o", "--outfile", type=str, required=True, help="Output taxonomy-purged assembly FASTA", metavar="FASTA")
 
     required.add_argument("-p", "--phylum", required=True, nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota", metavar="PHYLUM", type=str)
-
-    optional.add_argument("-1", "--read1", metavar="FASTQ", type=str, help="Read 1 (forward) FASTQ, or single-end FASTQ")
-
-    optional.add_argument("-2", "--read2", metavar="FASTQ", type=str, help="Read 2 (reverse) FASTQ for paired-end data")
 
     optional.add_argument("-w", "--workdir", "--tmpdir", type=str, dest="workdir", help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
@@ -572,23 +570,58 @@ def sourpurge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-k", "--kmer", default="31", help="SourMash LCA kmersize when taxonomy database was built")
 
-    optional.add_argument("-mc", "--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
-
     optional.add_argument(
         "--sourdb_type",
         default="gbk",
         choices=["gbk", "gtdbrep", "gtdb"],
-        help="Which sourpurge database to use.",
+        help="Which sourmash database to use.",
     )
 
     optional.add_argument("--just-show-taxonomy", dest="taxonomy", action="store_true", help="Show taxonomy information and exit")
+
+    add_verbosity_args(optional)
+
+    parser_tax.set_defaults(func=taxpurge.run)
+    return parser_tax
+
+
+def covpurge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
+    """Add the covpurge subcommand parser.
+
+    Args:
+        subparsers: The top-level subparsers action to add the parser to.
+
+    Returns:
+        The new ``covpurge`` subcommand parser.
+    """
+    parser_cov = subparsers.add_parser(
+        "covpurge",
+        description="Map Illumina reads to the assembly with bwa and remove contigs whose coverage is low compared to the N50 contigs' average coverage",
+        help="Purge contigs with low read coverage",
+        formatter_class=CustomHelpFormatter,
+    )
+
+    required = parser_cov.add_argument_group("required arguments")
+    optional = parser_cov.add_argument_group("optional arguments")
+
+    required.add_argument("-i", "--input", type=str, required=True, help="Input genome assembly FASTA", metavar="FASTA")
+
+    required.add_argument("-o", "--outfile", type=str, required=True, help="Output coverage-purged assembly FASTA", metavar="FASTA")
+
+    required.add_argument("-1", "--read1", type=str, required=True, help="Read 1 (forward) FASTQ, or single-end FASTQ", metavar="FASTQ")
+
+    optional.add_argument("-2", "--read2", metavar="FASTQ", type=str, help="Read 2 (reverse) FASTQ for paired-end data")
+
+    optional.add_argument("-w", "--workdir", "--tmpdir", type=str, dest="workdir", help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
+
+    optional.add_argument("-mc", "--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 
     optional.add_argument("-c", "--cpus", type=int, metavar="INT", default=1, help="Number of CPUs/threads to use")
 
     add_verbosity_args(optional)
 
-    parser_sour.set_defaults(func=sourpurge.run)
-    return parser_sour
+    parser_cov.set_defaults(func=covpurge.run)
+    return parser_cov
 
 
 def rmdup_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
@@ -881,7 +914,7 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_pipeline = subparsers.add_parser(
         "pipeline_short",
-        description="Run the AAFTF short-read (Illumina) pipeline: trim, filter, assemble, vecscreen, sourpurge, rmdup, sort and assess. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
+        description="Run the AAFTF short-read (Illumina) pipeline: trim, filter, assemble, vecscreen, taxpurge (only with -p/--phylum), covpurge, rmdup, sort and assess. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
         help="Run the AAFTF pipeline on Illumina reads",
         formatter_class=CustomHelpFormatter,
     )
@@ -893,7 +926,7 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     required.add_argument("-o", "--out", type=str, required=True, dest="basename", help="Output file prefix for every step's output files", metavar="PREFIX")
 
-    required.add_argument("-p", "--phylum", required=True, nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota", metavar="PHYLUM", type=str)
+    optional.add_argument("-p", "--phylum", nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota; when given, taxpurge removes contigs that sourmash classifies outside them; default: taxpurge is not run", metavar="PHYLUM", type=str)
 
     optional.add_argument("-2", "--read2", metavar="FASTQ", type=str, help="Read 2 (reverse) FASTQ for paired-end data")
 
@@ -913,7 +946,7 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-mc", "--mincontiglen", type=int, default=500, help="Minimum length of contigs to keep", metavar="BP")
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database; default: the one from 'AAFTF database'", metavar="FILE")
+    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database for taxpurge; default: the one from 'AAFTF database'", metavar="FILE")
 
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 
@@ -938,7 +971,7 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_pipeline = subparsers.add_parser(
         "pipeline_long",
-        description="Run the AAFTF long-read (ONT/PacBio) pipeline: assemble (flye), vecscreen, [sourpurge], rmdup, polish (racon), sort and assess. sourpurge runs only with -p/--phylum, as a taxonomy-only screen (its low-coverage filter needs Illumina reads). Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
+        description="Run the AAFTF long-read (ONT/PacBio) pipeline: assemble (flye), vecscreen, taxpurge (only with -p/--phylum), rmdup, polish (racon), sort and assess. covpurge is not run, since it needs Illumina reads. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
         help="Run the AAFTF pipeline on long reads",
         formatter_class=CustomHelpFormatter,
     )
@@ -954,9 +987,9 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("--genome_size", type=str, help="Estimated genome size for flye, e.g. 40m; default: estimated by flye", metavar="SIZE")
 
-    optional.add_argument("-p", "--phylum", nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota; when given, sourpurge screens the contigs by taxonomy only (no coverage filter); default: sourpurge is not run", metavar="PHYLUM", type=str)
+    optional.add_argument("-p", "--phylum", nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota; when given, taxpurge removes contigs that sourmash classifies outside them; default: taxpurge is not run", metavar="PHYLUM", type=str)
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database; default: the one from 'AAFTF database'", metavar="FILE")
+    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database for taxpurge; default: the one from 'AAFTF database'", metavar="FILE")
 
     optional.add_argument("-w", "--workdir", type=str, help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
@@ -985,7 +1018,7 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_pipeline = subparsers.add_parser(
         "pipeline_hybrid",
-        description="Run the AAFTF hybrid (Illumina + long-read) pipeline: trim, filter, assemble (flye on the long reads), vecscreen, sourpurge, rmdup, polish (racon, then polypolish for paired or pypolca for single-end Illumina reads), sort and assess. Polishing runs after the cleaning steps so discarded contigs are not polished. With --method unicycler both read types go to unicycler, which polishes its own assembly, so the polish steps are skipped. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
+        description="Run the AAFTF hybrid (Illumina + long-read) pipeline: trim, filter, assemble (flye on the long reads), vecscreen, taxpurge (only with -p/--phylum), covpurge, rmdup, polish (racon, then polypolish for paired or pypolca for single-end Illumina reads), sort and assess. Polishing runs after the cleaning steps so discarded contigs are not polished. With --method unicycler both read types go to unicycler, which polishes its own assembly, so the polish steps are skipped. Each step uses its own defaults (see AAFTF <step> -h); only the options below override them.",
         help="Run the AAFTF pipeline on Illumina plus long reads",
         formatter_class=CustomHelpFormatter,
     )
@@ -999,7 +1032,7 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     required.add_argument("-o", "--out", type=str, required=True, dest="basename", help="Output file prefix for every step's output files", metavar="PREFIX")
 
-    required.add_argument("-p", "--phylum", required=True, nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota", metavar="PHYLUM", type=str)
+    optional.add_argument("-p", "--phylum", nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota; when given, taxpurge removes contigs that sourmash classifies outside them; default: taxpurge is not run", metavar="PHYLUM", type=str)
 
     optional.add_argument("-2", "--read2", metavar="FASTQ", type=str, help="Read 2 (reverse) FASTQ for paired-end data")
 
@@ -1023,7 +1056,7 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-mc", "--mincontiglen", type=int, default=500, help="Minimum length of contigs to keep", metavar="BP")
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database; default: the one from 'AAFTF database'", metavar="FILE")
+    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database for taxpurge; default: the one from 'AAFTF database'", metavar="FILE")
 
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 

@@ -641,7 +641,7 @@ def next_step_name(outfile: str, suffix: str) -> str:
 
     Args:
         outfile: This step's output filename.
-        suffix: Suffix for the next step, e.g. ``".sourpurge.fasta"``.
+        suffix: Suffix for the next step, e.g. ``".taxpurge.fasta"``.
 
     Returns:
         The suggested filename.

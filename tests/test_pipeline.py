@@ -11,10 +11,10 @@ from aaftf._menu import register_subcommands
 
 pytestmark = pytest.mark.unit
 
-STEPS = ["trim", "filter", "assemble", "vecscreen", "sourpurge", "rmdup", "sort", "assess"]
+STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "sort", "assess"]
 _MODULE = {"filter": "aaftf_filter", "sort": "aaftf_sort"}
 # the kwarg that names each step's output file (trim and filter derive theirs from basename)
-_OUTPUT = {"assemble": "out", "polish": "outfile", "vecscreen": "outfile", "sourpurge": "outfile", "rmdup": "out", "sort": "out"}
+_OUTPUT = {"assemble": "out", "polish": "outfile", "vecscreen": "outfile", "taxpurge": "outfile", "covpurge": "outfile", "rmdup": "out", "sort": "out"}
 
 
 def _cli_defaults(step):
@@ -90,8 +90,8 @@ class TestDefaults:
             ("assemble", "merged"),
             ("vecscreen", "percent_id"),
             ("vecscreen", "stringency"),
-            ("sourpurge", "kmer"),
-            ("sourpurge", "sourdb_type"),
+            ("taxpurge", "kmer"),
+            ("taxpurge", "sourdb_type"),
             ("rmdup", "percent_id"),
             ("rmdup", "percent_cov"),
             ("sort", "name"),
@@ -114,11 +114,11 @@ class TestPipelineOptions:
         calls = _run_pipeline(tmp_path, memory=12)
         assert [calls[s]["memory"] for s in ("trim", "filter", "assemble")] == [12, 12, 12]
 
-    @pytest.mark.parametrize("step", ["trim", "filter", "assemble", "vecscreen", "sourpurge", "rmdup"])
+    @pytest.mark.parametrize("step", ["trim", "filter", "assemble", "vecscreen", "covpurge", "rmdup"])
     def test_cpus_passed(self, tmp_path, step):
         assert _run_pipeline(tmp_path, cpus=6)[step]["cpus"] == 6
 
-    @pytest.mark.parametrize("step", ["filter", "vecscreen", "sourpurge", "rmdup"])
+    @pytest.mark.parametrize("step", ["filter", "vecscreen", "taxpurge", "covpurge", "rmdup"])
     def test_workdir_passed(self, tmp_path, step):
         assert _run_pipeline(tmp_path, workdir="wd")[step]["workdir"] == "wd"
 
@@ -139,7 +139,8 @@ class TestPipelineOptions:
         assert calls["trim"]["minlen"] == 50
         assert calls["rmdup"]["minlen"] == calls["sort"]["minlen"] == 1000
         assert calls["assemble"]["method"] == "megahit"
-        assert (calls["sourpurge"]["mincovpct"], calls["sourpurge"]["sourdb"]) == (7, "db.zip")
+        assert (calls["covpurge"]["mincovpct"], calls["taxpurge"]["sourdb"]) == (7, "db.zip")
+        assert calls["taxpurge"]["phylum"] == ["Ascomycota"]
         assert calls["filter"]["screen_accessions"] == ["NC_1"]
 
     def test_pipeline_method_is_only_the_assembler(self, tmp_path):
@@ -154,18 +155,26 @@ class TestFileChaining:
         assert (calls["filter"]["read1"], calls["filter"]["read2"]) == (f"{base}_1P.fastq.gz", f"{base}_2P.fastq.gz")
         assert calls["assemble"]["read1"] == f"{base}_filtered_1.fastq.gz"
         assert calls["vecscreen"]["infile"] == f"{base}.spades.fasta"
-        assert calls["sourpurge"]["input"] == f"{base}.vecscreen.fasta"
-        assert calls["rmdup"]["input"] == f"{base}.sourpurge.fasta"
+        assert calls["taxpurge"]["input"] == f"{base}.vecscreen.fasta"
+        assert calls["covpurge"]["input"] == f"{base}.taxpurge.fasta"
+        assert (calls["covpurge"]["read1"], calls["covpurge"]["read2"]) == (f"{base}_filtered_1.fastq.gz", f"{base}_filtered_2.fastq.gz")
+        assert calls["rmdup"]["input"] == f"{base}.covpurge.fasta"
         assert calls["sort"]["input"] == f"{base}.rmdup.fasta"  # polish is optional and not run
         assert calls["assess"]["input"] == f"{base}.final.fasta"
 
     def test_single_end_reads_have_no_read2(self, tmp_path):
         calls = _run_pipeline(tmp_path, read2=False)
-        assert all(calls[s]["read2"] is None for s in ("trim", "filter", "assemble", "sourpurge"))
+        assert all(calls[s]["read2"] is None for s in ("trim", "filter", "assemble", "covpurge"))
+
+    def test_no_phylum_skips_taxpurge(self, tmp_path):
+        base = str(tmp_path / "sample")
+        calls = dict(_run_steps(pipeline.run_short, tmp_path, read1="R1.fq.gz", read2="R2.fq.gz"))
+        assert list(calls) == [s for s in STEPS if s != "taxpurge"]
+        assert calls["covpurge"]["input"] == f"{base}.vecscreen.fasta"
 
 
 LONG_STEPS = ["assemble", "vecscreen", "rmdup", "polish", "sort", "assess"]
-HYBRID_STEPS = ["trim", "filter", "assemble", "vecscreen", "sourpurge", "rmdup", "polish", "polish", "sort", "assess"]
+HYBRID_STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "polish", "polish", "sort", "assess"]
 
 
 def _run_long(tmp_path, **options):
@@ -191,7 +200,7 @@ class TestLongPipeline:
         assert (asm["method"], asm["longreads"], asm["read1"], asm["out"]) == ("flye", "ont.fq.gz", None, f"{base}.flye.fasta")
         assert (asm["longread_type"], asm["genome_size"], asm["cpus"]) == ("pacbio-hifi", "40m", 4)
         assert calls["vecscreen"]["infile"] == f"{base}.flye.fasta"
-        assert calls["rmdup"]["input"] == f"{base}.vecscreen.fasta"  # no sourpurge without Illumina reads
+        assert calls["rmdup"]["input"] == f"{base}.vecscreen.fasta"  # no taxpurge without --phylum, no covpurge without Illumina reads
         assert (calls["polish"]["method"], calls["polish"]["infile"], calls["polish"]["longreads"]) == ("racon", f"{base}.rmdup.fasta", "ont.fq.gz")
         assert calls["sort"]["input"] == f"{base}.racon.fasta"
 
@@ -199,16 +208,15 @@ class TestLongPipeline:
         calls = dict(_run_long(tmp_path, workdir="wd"))
         assert (calls["assemble"]["workdir"], calls["polish"]["workdir"]) == (str(Path("wd", "assemble_flye")), "wd")
 
-    def test_phylum_runs_taxonomy_only_sourpurge(self, tmp_path):
+    def test_phylum_runs_taxpurge(self, tmp_path):
         calls = _run_long(tmp_path, phylum=["Ascomycota"], sourdb="db.zip")
         base = str(tmp_path / "sample")
-        assert [step for step, _ in calls] == ["assemble", "vecscreen", "sourpurge", "rmdup", "polish", "sort", "assess"]
+        assert [step for step, _ in calls] == ["assemble", "vecscreen", "taxpurge", "rmdup", "polish", "sort", "assess"]
         steps = dict(calls)
-        purge = steps["sourpurge"]
+        purge = steps["taxpurge"]
         assert (purge["input"], purge["phylum"], purge["sourdb"]) == (f"{base}.vecscreen.fasta", ["Ascomycota"], "db.zip")
-        assert (purge["read1"], purge["read2"]) == (None, None)  # no coverage filter without Illumina reads
-        assert set(purge) == set(_cli_defaults("sourpurge")) | {"pipe"}
-        assert steps["rmdup"]["input"] == f"{base}.sourpurge.fasta"
+        assert set(purge) == set(_cli_defaults("taxpurge")) | {"pipe"}
+        assert steps["rmdup"]["input"] == f"{base}.taxpurge.fasta"
 
     def test_assemble_defaults_kept(self, tmp_path):
         asm = dict(_run_long(tmp_path))["assemble"]
@@ -233,7 +241,11 @@ class TestHybridPipeline:
         steps = dict(calls)
         assert steps["vecscreen"]["infile"] == f"{base}.flye.fasta"
         assert steps["sort"]["input"] == f"{base}.polypolish.fasta"
-        assert steps["sourpurge"]["read1"] == f"{base}_filtered_1.fastq.gz"
+        assert steps["covpurge"]["read1"] == f"{base}_filtered_1.fastq.gz"
+
+    def test_no_phylum_skips_taxpurge(self, tmp_path):
+        calls = _run_steps(pipeline.run_hybrid, tmp_path, read1="R1.fq.gz", read2="R2.fq.gz", longreads="ont.fq.gz")
+        assert [step for step, _ in calls] == [s for s in HYBRID_STEPS if s != "taxpurge"]
 
     def test_single_end_uses_pypolca(self, tmp_path):
         short = [kwargs for step, kwargs in _run_hybrid(tmp_path, read2=False) if step == "polish"][-1]

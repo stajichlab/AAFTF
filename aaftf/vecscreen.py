@@ -118,9 +118,9 @@ def run(
         mitochondria = str(Path(outdir, prefix + ".mitochondria.fasta"))
         _write_final_outputs(outfile_vec, contigs_to_remove, mito_hits, final_outfile, mitochondria)
 
-        next_out = next_step_name(final_outfile, ".sourpurge.fasta")
+        next_out = next_step_name(final_outfile, ".taxpurge.fasta")
         if not pipe:
-            logger.info("Your next command might be:\n" + "AAFTF sourpurge -i {:} -o {:} -c {:} --phylum {:}".format(final_outfile, next_out, cpus, "Ascomycota"))
+            logger.info("Your next command might be:\n" + "AAFTF taxpurge -i {:} -o {:} --phylum {:}".format(final_outfile, next_out, "Ascomycota"))
 
         cleanup_workdir(workdir, debug, custom_workdir)
     finally:

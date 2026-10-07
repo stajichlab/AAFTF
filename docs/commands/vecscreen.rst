@@ -97,7 +97,7 @@ Invocation
                     [-c INT] [-q] [-v]
 
 ``-i/--input`` (alias ``--infile``; assembly FASTA) and ``-o/--outfile`` are required. Unless
-``-q`` is given, the suggested next command (:doc:`sourpurge`) is printed at the end.
+``-q`` is given, the suggested next command (:doc:`taxpurge`) is printed at the end.
 
 Example
 =======
@@ -107,5 +107,5 @@ Example
     # writes genomes/STRAINX.vecscreen.fasta and genomes/STRAINX.vecscreen.mitochondria.fasta
     AAFTF vecscreen -c 16 -i genomes/STRAINX.spades.fasta -o genomes/STRAINX.vecscreen.fasta
 
-Next step: :doc:`sourpurge` (sourmash-based) or :doc:`fcs_gx_purge` (NCBI FCS-GX-based) --
+Next step: :doc:`taxpurge` (sourmash-based) or :doc:`fcs_gx_purge` (NCBI FCS-GX-based) --
 alternative approaches to the same taxonomic-contamination-purge step.

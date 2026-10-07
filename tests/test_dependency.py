@@ -63,7 +63,7 @@ class TestRun:
         out = capsys.readouterr().out
         assert "[MISSING] bowtie2" in out and "[MISSING] matplotlib" in out
 
-    @pytest.mark.parametrize("tool", ["spades.py", "bbduk.sh", "sourmash"])
+    @pytest.mark.parametrize("tool", ["spades.py", "bbduk.sh", "bwa"])
     def test_missing_pipeline_tool_is_an_error(self, tool):
         with pytest.raises(FileNotFoundError, match=tool):
             self._run(missing_tools={tool})

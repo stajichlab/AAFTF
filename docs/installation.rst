@@ -55,7 +55,7 @@ Three environments are defined, each installing AAFTF from the checkout in edita
    * - ``default``
      - default
      - Only what ``AAFTF pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid`` need with their
-       default settings (BBTools, SPAdes, BLAST+, sourmash, bwa, samtools, minimap2, Flye, Racon,
+       default settings (BBTools, SPAdes, BLAST+, bwa, samtools, minimap2, Flye, Racon,
        Polypolish, pypolca, freebayes). ``pixi install`` alone creates this one.
    * - ``complete``
      - default, optional
@@ -136,8 +136,8 @@ Checking the installation
 
 ``AAFTF dependency`` lists every external tool and Python package AAFTF uses, in two groups: those
 the ``pipeline_*`` subcommands need with their default settings (BBTools and Java, SPAdes, BLAST+,
-sourmash, bwa, samtools, minimap2, Flye, Racon, Polypolish, pypolca, freebayes; biopython, psutil), and those only needed by optional steps
-(``polish``, ``depth``, ``mito``, ``fcs_screen``, ``fcs_gx_purge``) or non-default options
+bwa, samtools, minimap2, Flye, Racon, Polypolish, pypolca, freebayes; biopython, psutil), and those only needed by optional steps
+(``taxpurge``, ``polish``, ``depth``, ``mito``, ``fcs_screen``, ``fcs_gx_purge``) or non-default options
 (e.g. ``filter --aligner bowtie2``, ``assemble --method megahit``). It exits with an error only
 when something from the first group is missing; ``-q`` prints just the OK/MISSING status.
 
@@ -148,7 +148,7 @@ when something from the first group is missing; ``-q`` prints just the OK/MISSIN
 Setting up the reference database (``AAFTF_DB``)
 =====================================================
 
-Several subcommands (``filter``, ``vecscreen``, ``sourpurge``, ``fcs_screen``) need UniVec, PhiX,
+Several subcommands (``filter``, ``vecscreen``, ``taxpurge``, ``fcs_screen``) need UniVec, PhiX,
 eukaryotic/prokaryotic/mitochondrial contamination screens, sourmash taxonomy databases, and/or
 the NCBI FCS-adaptor resources. Download them once with ``AAFTF database``; those subcommands then
 read them from the database folder (and tell you what to download if something is missing). Without
@@ -160,7 +160,7 @@ by ``:``, like ``$PATH``):
 
     export AAFTF_DB=/path/with/space/aaftf_db
     AAFTF database                                        # list databases
-    AAFTF database required   # what the default pipeline needs (phix univec euks proks mitodb sm_gbk)
+    AAFTF database required   # what the default pipeline needs (phix univec euks proks mitodb)
 
 See :doc:`commands/database` for the list of databases and which subcommands use each (the
 sourmash indices are large, so fetch only the one you need).

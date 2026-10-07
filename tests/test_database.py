@@ -168,8 +168,8 @@ class TestRequiredOptionalGroups:
         assert all(isinstance(entry["required"], bool) for entry in DATABASES.values())
 
     def test_required_set_is_what_the_default_pipeline_reads(self):
-        # filter reads phix + univec; vecscreen univec, euks, proks, mitodb; sourpurge (--sourdb_type gbk) sm_gbk
-        assert {abbr for abbr, e in DATABASES.items() if e["required"]} == {"phix", "univec", "euks", "proks", "mitodb", "sm_gbk"}
+        # filter reads phix + univec; vecscreen univec, euks, proks, mitodb (taxpurge and its sm_gbk run only with -p)
+        assert {abbr for abbr, e in DATABASES.items() if e["required"]} == {"phix", "univec", "euks", "proks", "mitodb"}
 
     def test_listing_shows_required_then_optional(self, monkeypatch, capsys, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
@@ -177,7 +177,7 @@ class TestRequiredOptionalGroups:
             run()
         out = capsys.readouterr().out
         required_at, optional_at = out.index("Needed by the default pipeline:"), out.index("Only for non-default options or optional steps:")
-        assert required_at < out.index("\n  phix ") < out.index("\n  sm_gbk ") < optional_at < out.index("\n  sm_gtdb ") < out.index("\n  fcs_image ")
+        assert required_at < out.index("\n  phix ") < out.index("\n  mitodb ") < optional_at < out.index("\n  sm_gbk ") < out.index("\n  sm_gtdb ") < out.index("\n  fcs_image ")
         assert "Other files" not in out  # heading only when the folder holds other files
 
     def test_other_files_get_their_own_heading(self, monkeypatch, capsys, tmp_path):
@@ -189,6 +189,6 @@ class TestRequiredOptionalGroups:
         assert out.index("Other files in the database folders:") < out.index("notes.txt")
 
     def test_required_and_optional_keywords(self):
-        assert _resolve(["required"]) == ["phix", "univec", "euks", "proks", "mitodb", "sm_gbk"]
-        assert _resolve(["optional"]) == ["sm_gtdbrep", "sm_gtdb", "fcs_script", "fcs_image"]
-        assert _resolve(["REQUIRED", "fcs_script"]) == ["phix", "univec", "euks", "proks", "mitodb", "sm_gbk", "fcs_script"]
+        assert _resolve(["required"]) == ["phix", "univec", "euks", "proks", "mitodb"]
+        assert _resolve(["optional"]) == ["sm_gbk", "sm_gtdbrep", "sm_gtdb", "fcs_script", "fcs_image"]
+        assert _resolve(["REQUIRED", "fcs_script"]) == ["phix", "univec", "euks", "proks", "mitodb", "fcs_script"]
