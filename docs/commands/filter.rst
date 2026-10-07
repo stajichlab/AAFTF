@@ -73,11 +73,13 @@ Invocation
 
 If ``-o/--out`` is not given, the prefix is derived from ``--read1``'s file name. Without
 ``-w/--workdir`` a temporary directory is used and removed afterwards (kept with ``-v`` or on
-failure); the step log is written to ``<workdir>/filter.log``.
+failure); the step log is written to ``<workdir>/filter.log``. In a reused ``-w`` directory,
+``contamdb.fa`` is rebuilt whenever its list of sources (or any source file) changes, and the
+aligner index and alignment are redone when they are older than ``contamdb.fa``.
 
 **Output:** paired mode writes ``{basename}_filtered_1.fastq.gz`` /
-``{basename}_filtered_2.fastq.gz``; single-end mode writes ``{basename}_filtered_U.fastq.gz``
-(bbduk) or ``{basename}_filtered.fastq.gz`` (other aligners).
+``{basename}_filtered_2.fastq.gz``; single-end mode writes ``{basename}_filtered_1.fastq.gz``
+(with every aligner).
 
 Example
 =======

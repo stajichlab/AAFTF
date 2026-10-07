@@ -98,6 +98,15 @@ check the **Breaking changes** before updating scripts.
 
 ### Changed
 
+ - **Single-end reads in the pipelines**: `pipeline_short` and `pipeline_hybrid` stopped after
+   `trim` on single-end reads, because they looked for `{base}_1P.fastq.gz` while `trim` writes
+   `{base}_1U.fastq.gz`; they now use `_1U`. `filter` writes single-end output as
+   `{base}_filtered_1.fastq.gz` with every aligner (was `_filtered_U` with bbduk and `_filtered`
+   with the others), the same name as read 1 of a pair.
+ - `filter` in a reused `-w` work directory rebuilds `contamdb.fa` when its sources change (e.g.
+   other `-a/-u/-s`), and redoes the aligner index and alignment when they are older than it;
+   before, an outdated database or BAM could be reused. The removed/kept read counts are now
+   computed the same way for every aligner (from the filtered FASTQ).
  - `filter`: every `--aligner` now screens the same sequences. The Illumina sequencing-artifact and
    lambda phage FASTAs bundled with BBTools are added to the combined contamination database, so
    bowtie2, bwa and minimap2 now remove them too (before, only bbduk did, through its built-in

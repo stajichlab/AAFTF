@@ -244,7 +244,8 @@ def _assemble_workdir(shared: dict[str, Any], method: str) -> dict[str, str]:
 
 def _trim_and_filter(read1: str, read2: str | None, basename: str, shared: dict[str, Any], minlen: int, screen_accessions: list[str] | None, screen_urls: list[str] | None) -> tuple[str, str | None]:
     """Run ``trim`` then ``filter`` on the Illumina reads; return the filtered (read1, read2) files."""
-    trimmed_1, trimmed_2 = basename + "_1P.fastq.gz", (basename + "_2P.fastq.gz" if read2 else None)
+    # trim writes {basename}_1P/_2P for paired reads, {basename}_1U for single-end reads
+    trimmed_1, trimmed_2 = (basename + "_1P.fastq.gz", basename + "_2P.fastq.gz") if read2 else (basename + "_1U.fastq.gz", None)
     filtered_1, filtered_2 = basename + "_filtered_1.fastq.gz", (basename + "_filtered_2.fastq.gz" if read2 else None)
     _run_step(trim, "trim", trimmed_1, shared, read1=read1, read2=read2, basename=basename, minlen=minlen)
     _run_step(aaftf_filter, "filter", filtered_1, shared, read1=trimmed_1, read2=trimmed_2, basename=basename, screen_accessions=screen_accessions, screen_urls=screen_urls)

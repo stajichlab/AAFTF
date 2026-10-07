@@ -31,7 +31,9 @@ def _run_steps(func, tmp_path, **options):
     def _fake(step):
         def _run(**kwargs):
             calls.append((step, kwargs))
-            outputs = {"trim": [f"{base}_1P.fastq.gz"], "filter": [f"{base}_filtered_1.fastq.gz"]}.get(step, [kwargs.get(_OUTPUT.get(step, ""))])
+            # trim writes _1P/_2P for paired reads and _1U for single-end reads, as aaftf.trim does
+            trimmed = f"{base}_1P.fastq.gz" if kwargs.get("read2") else f"{base}_1U.fastq.gz"
+            outputs = {"trim": [trimmed], "filter": [f"{base}_filtered_1.fastq.gz"]}.get(step, [kwargs.get(_OUTPUT.get(step, ""))])
             for out in filter(None, outputs):
                 Path(out).write_text("data")
 
@@ -165,6 +167,9 @@ class TestFileChaining:
     def test_single_end_reads_have_no_read2(self, tmp_path):
         calls = _run_pipeline(tmp_path, read2=False)
         assert all(calls[s]["read2"] is None for s in ("trim", "filter", "assemble", "covpurge"))
+        base = str(tmp_path / "sample")
+        assert calls["filter"]["read1"] == f"{base}_1U.fastq.gz"  # trim's single-end output
+        assert calls["assemble"]["read1"] == f"{base}_filtered_1.fastq.gz"
 
     def test_no_phylum_skips_taxpurge(self, tmp_path):
         base = str(tmp_path / "sample")

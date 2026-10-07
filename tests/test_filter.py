@@ -12,6 +12,7 @@ External network access and actual aligners are mocked throughout.
 """
 
 import gzip
+import os
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -353,11 +354,12 @@ class TestFilterRunBbduk:
         cmds, _ = _run_filter_bbduk(tmp_path, read1, read2)
         assert any("sample_filtered_1.fastq.gz" in " ".join(c) for c in cmds)
 
-    def test_se_output_uses_u_suffix(self, tmp_path):
+    def test_se_output_uses_filtered_1(self, tmp_path):
+        """Single-end output has the same name as read 1 of a pair, which the pipelines expect."""
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         cmds, _ = _run_filter_bbduk(tmp_path, read1, read2=None)
         cmd_str = " ".join(cmds[0])
-        assert "sample_filtered_U.fastq.gz" in cmd_str
+        assert "out=sample_filtered_1.fastq.gz" in cmd_str
 
     def test_se_hint_is_a_valid_assemble_command(self, tmp_path, caplog):
         """The single-end hint passes the reads as -1 (assemble requires --method and -1), not only --merged."""
@@ -366,7 +368,7 @@ class TestFilterRunBbduk:
         with caplog.at_level(logging.INFO, logger="aaftf"):
             _run_filter_bbduk(tmp_path, str(tmp_path / "sample_R1.fastq.gz"), read2=None)
         hint = caplog.text.split("Your next command might be:")[-1]
-        assert "AAFTF assemble --method spades -1 sample_filtered_U.fastq.gz" in hint and "--merged" not in hint
+        assert "AAFTF assemble --method spades -1 sample_filtered_1.fastq.gz -c" in hint and "--merged" not in hint
 
     def test_command_starts_with_bbduk(self, tmp_path):
         read1 = str(tmp_path / "sample_R1.fastq.gz")
@@ -385,12 +387,12 @@ class TestFilterRunBbduk:
     def test_basename_derived_from_underscore_split(self, tmp_path):
         read1 = str(tmp_path / "MySample_R1.fastq.gz")
         cmds, _ = _run_filter_bbduk(tmp_path, read1)
-        assert any("MySample_filtered_U.fastq.gz" in " ".join(c) for c in cmds)
+        assert any("MySample_filtered_1.fastq.gz" in " ".join(c) for c in cmds)
 
     def test_explicit_basename_preserved(self, tmp_path):
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         cmds, _ = _run_filter_bbduk(tmp_path, read1, basename="custom")
-        assert any("custom_filtered_U.fastq.gz" in " ".join(c) for c in cmds)
+        assert any("custom_filtered_1.fastq.gz" in " ".join(c) for c in cmds)
 
 
 # ---------------------------------------------------------------------------
@@ -419,8 +421,7 @@ def _run_filter_aligner(tmp_path, aligner, read1, read2=None, **extra):
         with patch("aaftf.filter.count_fastq", return_value=100):
             with patch("aaftf.filter.run_cmd", side_effect=lambda cmd, *a, **kw: cmds.append(cmd)):
                 with patch("aaftf.filter.align_to_sorted_bam", side_effect=_fake_align):
-                    with patch("aaftf.filter.bam_read_count", return_value=(50, 50)):
-                        run(**vars(args))
+                    run(**vars(args))
     return cmds, align_cmds, args
 
 
@@ -443,7 +444,7 @@ class TestFilterRunAligners:
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         cmds, _, args = _run_filter_aligner(tmp_path, aligner, read1)
         bam = str(Path(args.workdir, "sample_contam_db.bam"))
-        assert ["samtools", "fastq", "-f", "4", "-0", "sample_filtered.fastq.gz", bam] in cmds
+        assert ["samtools", "fastq", "-f", "4", "-0", "sample_filtered_1.fastq.gz", bam] in cmds
 
     @pytest.mark.parametrize("aligner", ["bwa", "bowtie2"])
     def test_index_built(self, tmp_path, aligner):
@@ -490,13 +491,38 @@ class TestFilterRunAligners:
         _, align_cmds, _ = _run_filter_aligner(tmp_path, "minimap2", read1)
         assert align_cmds == [["minimap2", "-ax", "sr", "-t", "1", "contamdb.fa", read1]]
 
-    def test_existing_bam_skips_alignment(self, tmp_path):
+    def test_rerun_reuses_contamdb_and_bam(self, tmp_path):
+        """A rerun in the same work directory with unchanged sources rebuilds and realigns nothing."""
+        read1 = str(tmp_path / "sample_R1.fastq.gz")
+        _run_filter_aligner(tmp_path, "bwa", read1)
+        contamdb = tmp_path / "workdir" / "contamdb.fa"
+        built = contamdb.stat().st_mtime_ns
+        cmds, align_cmds, _ = _run_filter_aligner(tmp_path, "bwa", read1)
+        assert align_cmds == []
+        assert not any(c[:2] == ["bwa", "index"] for c in cmds)
+        assert contamdb.stat().st_mtime_ns == built
+        assert any(c[:2] == ["samtools", "fastq"] for c in cmds)
+
+    def test_stale_bam_is_realigned(self, tmp_path):
+        """A BAM older than contamdb.fa (e.g. left from an earlier database) is not reused."""
         workdir = tmp_path / "workdir"
         workdir.mkdir()
-        (workdir / "sample_contam_db.bam").touch()
-        cmds, align_cmds, _ = _run_filter_aligner(tmp_path, "bwa", str(tmp_path / "sample_R1.fastq.gz"))
-        assert align_cmds == []
-        assert any(c[:2] == ["samtools", "fastq"] for c in cmds)
+        bam = workdir / "sample_contam_db.bam"
+        bam.touch()
+        os.utime(bam, (0, 0))
+        _, align_cmds, _ = _run_filter_aligner(tmp_path, "bwa", str(tmp_path / "sample_R1.fastq.gz"))
+        assert len(align_cmds) == 1
+
+    def test_changed_sources_rebuild_contamdb_and_realign(self, tmp_path):
+        """Adding a screening source rebuilds contamdb.fa even though no source file is newer."""
+        read1 = str(tmp_path / "sample_R1.fastq.gz")
+        extra = tmp_path / "extra.fa"
+        extra.write_text(">extra\nACGT\n")
+        os.utime(extra, (0, 0))
+        _run_filter_aligner(tmp_path, "bwa", read1)
+        _, align_cmds, args = _run_filter_aligner(tmp_path, "bwa", read1, screen_local=[str(extra)])
+        assert ">extra" in Path(args.workdir, "contamdb.fa").read_text()
+        assert len(align_cmds) == 1
 
 
 class TestFilterDatabases:
