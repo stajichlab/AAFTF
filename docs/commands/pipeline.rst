@@ -43,11 +43,21 @@ aborts with an error if the expected output was not produced.
 
 Steps intentionally **not** included in ``pipeline_short`` (marked "(Optional)" in ``AAFTF -h``) -- run
 these manually if needed: :doc:`mito` (to screen mitochondrial reads out, run it before
-:doc:`filter` and pass its output to ``filter --screen_local``), :doc:`fcs_screen`, :doc:`fcs_gx_purge` (alternatives/complements to :doc:`vecscreen` /
-:doc:`taxpurge`), :doc:`polish` (recommended only with long reads; polishing a short-read-only
+:doc:`filter` and pass its output to ``filter --screen_local``), :doc:`polish` (recommended only with long reads; polishing a short-read-only
 assembly with the same reads rarely helps), :doc:`depth` (coverage QC of the final assembly), :doc:`fix_tbl` (post-FCS
 annotation coordinate fixups), and :doc:`database` (run once, ahead of time, to populate
 ``$AAFTF_DB``).
+
+Optional steps the pipelines run on request, in every pipeline:
+
+* :doc:`fcs_screen` (NCBI FCS-adaptor adaptor/vector screen, with ``--fcs_screen``; needs a
+  container engine and ``AAFTF database fcs_script fcs_image``), right after :doc:`vecscreen`,
+  writing ``{base}.fcs_screen.fasta``.
+* A taxonomic screen, **one of**: :doc:`taxpurge` (sourmash, with ``-p/--phylum``) or
+  :doc:`fcs_gx_purge` (NCBI FCS-GX, with ``--fcs_gx_db DB --taxid INT``; the FCS-GX database is set
+  up separately), writing ``{base}.taxpurge.fasta`` or ``{base}.fcs_gx.fasta``. FCS-GX covers
+  NCBI's full taxonomy, so it replaces taxpurge rather than being combined with it; giving both
+  options is an error.
 
 Cutoffs / defaults
 ------------------
@@ -91,6 +101,13 @@ Cutoffs / defaults
    * - ``--mincovpct``
      - 5
      - covpurge low-coverage removal threshold (percent of N50-contig coverage)
+   * - ``--fcs_screen``, ``--container_engine``
+     - off; ``--container_engine``: fcs_screen's default (singularity)
+     - Also run :doc:`fcs_screen` (NCBI FCS-adaptor) after vecscreen
+   * - ``--fcs_gx_db``, ``--taxid``
+     - off
+     - Run :doc:`fcs_gx_purge` (NCBI FCS-GX) with this database and NCBI taxonomy ID instead of
+       taxpurge (not with ``-p``); ``--taxid`` is required with ``--fcs_gx_db``
 
 Invocation
 ----------
@@ -101,7 +118,8 @@ Invocation
                          [-c CPUS] [-m MEMORY] [-ml MINLEN]
                          [-mc MINCONTIGLEN] [--method {spades,megahit,unicycler}]
                          [-a ACCESSIONS ...] [-u URLS ...] [--sourdb DB ...]
-                         [--mincovpct PCT] [-w WORKDIR]
+                         [--mincovpct PCT] [--fcs_screen] [--container_engine ENGINE]
+                         [--fcs_gx_db DB --taxid INT] [-w WORKDIR]
                          [--assembler_args ARG ...] [--tmpdir DIR] [-q] [-v]
 
 ``-1/--read1`` and ``-o/--out`` (basename) are required.

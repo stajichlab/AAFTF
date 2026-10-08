@@ -35,7 +35,7 @@ Short reads (pipeline_short)
    :align: center
 
    digraph pipeline_short {
-       graph [bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
+       graph [compound=true, bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
        node [shape=box, style="rounded,filled", fillcolor="#e3ecf9", color="#3d6aa8", fontname="Helvetica", fontsize=11, width=2.3, height=0.5, margin="0.12,0.05"]
        edge [color="#3d4852", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5f6b7a"]
        reads [label="Illumina FASTQ\nR1/R2 or single-end", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
@@ -50,7 +50,11 @@ Short reads (pipeline_short)
            covpurge [label=<<b>covpurge</b><br/><font point-size="9">drop low-coverage contigs</font>>]
            rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
        }
-       taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash taxonomy screen</font>>, style="rounded,dashed", fillcolor=white]
+       subgraph cluster_taxonomy { label="Taxonomic screen (optional, one of)"
+           taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash, with -p</font>>, style="rounded,dashed", fillcolor=white]
+           fcs_gx [label=<<b>fcs_gx_purge</b><br/><font point-size="9">NCBI FCS-GX, with --fcs_gx_db</font>>, style="rounded,dashed", fillcolor=white]
+       }
+       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_finish { label="Finishing"
            sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
            assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
@@ -60,11 +64,14 @@ Short reads (pipeline_short)
        reads -> trim -> filter -> assemble -> vecscreen -> covpurge -> rmdup -> sort -> assess [weight=10]
        trim -> mito [style=dashed]
        mito -> filter [style=dashed, label=" --screen_local"]
-       vecscreen -> taxpurge [style=dashed, label=" with --phylum"]
-       taxpurge -> covpurge [style=dashed]
+       vecscreen -> fcs_screen [style=dashed]
+       {rank=same; vecscreen; fcs_screen}
+       vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
+       fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
+       fcs_gx -> covpurge [style=dashed, ltail=cluster_taxonomy]
        assess -> depth [style=dashed]
        {rank=same; filter; mito}
-       {rank=same; covpurge; taxpurge}
+       {rank=same; covpurge; taxpurge; fcs_gx}
        {rank=same; assess; depth}
    }
 
@@ -171,7 +178,7 @@ Long reads (pipeline_long)
    :align: center
 
    digraph pipeline_long {
-       graph [bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
+       graph [compound=true, bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
        node [shape=box, style="rounded,filled", fillcolor="#e3ecf9", color="#3d6aa8", fontname="Helvetica", fontsize=11, width=2.3, height=0.5, margin="0.12,0.05"]
        edge [color="#3d4852", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5f6b7a"]
        reads [label="long-read FASTQ\nONT or PacBio", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
@@ -180,7 +187,11 @@ Long reads (pipeline_long)
            vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
            rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
        }
-       taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash taxonomy screen</font>>, style="rounded,dashed", fillcolor=white]
+       subgraph cluster_taxonomy { label="Taxonomic screen (optional, one of)"
+           taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash, with -p</font>>, style="rounded,dashed", fillcolor=white]
+           fcs_gx [label=<<b>fcs_gx_purge</b><br/><font point-size="9">NCBI FCS-GX, with --fcs_gx_db</font>>, style="rounded,dashed", fillcolor=white]
+       }
+       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_polish { label="Polishing"
            racon [label=<<b>polish</b><br/><font point-size="9">racon with the long reads</font>>]
        }
@@ -191,10 +202,13 @@ Long reads (pipeline_long)
        depth [label=<<b>depth</b><br/><font point-size="9">optional coverage report</font>>, style="rounded,dashed", fillcolor=white]
 
        reads -> assemble -> vecscreen -> rmdup -> racon -> sort -> assess [weight=10]
-       vecscreen -> taxpurge [style=dashed, label=" with --phylum"]
-       taxpurge -> rmdup [style=dashed]
+       vecscreen -> fcs_screen [style=dashed]
+       {rank=same; vecscreen; fcs_screen}
+       vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
+       fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
+       fcs_gx -> rmdup [style=dashed, ltail=cluster_taxonomy]
        assess -> depth [style=dashed]
-       {rank=same; rmdup; taxpurge}
+       {rank=same; rmdup; taxpurge; fcs_gx}
        {rank=same; assess; depth}
    }
 
@@ -274,7 +288,7 @@ Illumina + long reads (pipeline_hybrid)
    :align: center
 
    digraph pipeline_hybrid {
-       graph [bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
+       graph [compound=true, bgcolor="white", pad="0.2", fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, newrank=true, labeljust=l, color="#9aa5b1", style="rounded,dashed"]
        node [shape=box, style="rounded,filled", fillcolor="#e3ecf9", color="#3d6aa8", fontname="Helvetica", fontsize=11, width=2.3, height=0.5, margin="0.12,0.05"]
        edge [color="#3d4852", arrowsize=0.7, fontname="Helvetica", fontsize=9, fontcolor="#5f6b7a"]
        illumina [label="Illumina FASTQ\nR1/R2 or single-end", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
@@ -289,7 +303,11 @@ Illumina + long reads (pipeline_hybrid)
            covpurge [label=<<b>covpurge</b><br/><font point-size="9">drop low-coverage contigs</font>>]
            rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
        }
-       taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash taxonomy screen</font>>, style="rounded,dashed", fillcolor=white]
+       subgraph cluster_taxonomy { label="Taxonomic screen (optional, one of)"
+           taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash, with -p</font>>, style="rounded,dashed", fillcolor=white]
+           fcs_gx [label=<<b>fcs_gx_purge</b><br/><font point-size="9">NCBI FCS-GX, with --fcs_gx_db</font>>, style="rounded,dashed", fillcolor=white]
+       }
+       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_polish { label="Polishing (flye only)"
            racon [label=<<b>polish</b><br/><font point-size="9">racon with the long reads</font>>]
            short [label=<<b>polish</b><br/><font point-size="9">polypolish (paired) / pypolca (single-end)</font>>]
@@ -303,11 +321,14 @@ Illumina + long reads (pipeline_hybrid)
        longreads -> assemble [weight=10]
        filter -> assemble [style=dashed, label=" unicycler"]
        assemble -> vecscreen -> covpurge -> rmdup -> racon -> short -> sort -> assess [weight=10]
-       vecscreen -> taxpurge [style=dashed, label=" with --phylum"]
-       taxpurge -> covpurge [style=dashed]
+       vecscreen -> fcs_screen [style=dashed]
+       {rank=same; vecscreen; fcs_screen}
+       vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
+       fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
+       fcs_gx -> covpurge [style=dashed, ltail=cluster_taxonomy]
        rmdup -> sort [style=dashed, label=" unicycler", constraint=false]
        {rank=same; illumina; longreads}
-       {rank=same; covpurge; taxpurge}
+       {rank=same; covpurge; taxpurge; fcs_gx}
    }
 
 With ``--method unicycler``, Unicycler assembles both read types and polishes its own assembly, so
@@ -399,12 +420,14 @@ Step by step (trim and filter the Illumina reads as in :ref:`workflow-short` fir
 Optional steps
 ==============
 
-None of the ``pipeline_*`` subcommands run these; run them separately when needed:
+None of the ``pipeline_*`` subcommands run these by default:
 
 * :doc:`commands/mito` -- assemble the mitochondrial genome from paired Illumina reads, then pass it
   to ``filter --screen_local`` to screen its reads out.
 * :doc:`commands/fcs_screen` / :doc:`commands/fcs_gx_purge` -- NCBI FCS-based adaptor and
-  cross-contamination screening, in place of or alongside :doc:`commands/taxpurge`.
+  cross-contamination screening. The pipelines run ``fcs_screen`` (adaptors) right after
+  vecscreen with ``--fcs_screen``, and ``fcs_gx_purge`` instead of :doc:`commands/taxpurge` with
+  ``--fcs_gx_db DB --taxid INT``: FCS-GX covers NCBI's full taxonomy, so the two are not combined.
 * :doc:`commands/polish` -- other polishers (pypolca, POLCA, NextPolish2) or extra rounds.
 * :doc:`commands/depth` -- per-contig read-depth report of the final assembly, with Illumina
   and/or long reads.

@@ -11,6 +11,10 @@ Three pipelines, one per kind of sequencing data:
   → sort → assess. With ``--method unicycler`` both read types go to Unicycler, which polishes its own
   assembly, so the polish steps are skipped.
 
+Optionally, NCBI FCS-adaptor (``fcs_screen``, ``--fcs_screen``) also screens the contigs for
+adaptors right after vecscreen, and NCBI FCS-GX (``fcs_gx_purge``, ``--fcs_gx_db``) is the
+taxonomic screen instead of taxpurge.
+
 All three share the same order: the contigs are cleaned (vecscreen, taxpurge, covpurge, rmdup) before
 any polishing, so no time is spent polishing contigs that are then discarded. ``taxpurge`` runs only
 when ``--phylum`` is given, so the pipelines also work when the organism's taxonomy is unknown.
@@ -29,6 +33,8 @@ from typing import Any
 import aaftf.assemble as assemble
 import aaftf.assess as assess
 import aaftf.covpurge as covpurge
+import aaftf.fcs_gx_purge as fcs_gx_purge
+import aaftf.fcs_screen as fcs_screen
 import aaftf.filter as aaftf_filter
 import aaftf.polish as polish
 import aaftf.rmdup as rmdup
@@ -60,6 +66,10 @@ def run_short(
     mincontiglen: int = 500,
     workdir: str | None = None,
     sourdb: list[str] | None = None,
+    fcs_screen_run: bool = False,
+    container_engine: str | None = None,
+    fcs_gx_db: str | None = None,
+    taxid: int | None = None,
     mincovpct: int = 5,
     debug: bool = False,
     quiet: bool = False,
@@ -83,21 +93,28 @@ def run_short(
         mincontiglen: Minimum contig length kept by ``rmdup`` and ``sort``.
         workdir: Working directory for steps that take ``-w/--workdir``; None keeps each step's default.
         sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
+        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) after ``vecscreen``.
+        container_engine: ``fcs_screen`` container engine; None keeps its default.
+        fcs_gx_db: FCS-GX database; when given, ``fcs_gx_purge`` runs instead of ``taxpurge``
+            (so not with ``phylum``), with ``taxid``.
+        taxid: NCBI taxonomy ID of the organism, for ``fcs_gx_purge`` (required with ``fcs_gx_db``).
         mincovpct: Minimum percent of N50 coverage below which ``covpurge`` removes contigs.
         debug: Show debug output and keep temporary files in every step.
         quiet: Only show warnings and errors in every step.
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ...); ignored.
 
     Raises:
+        ValueError: If ``fcs_gx_db`` is given without ``taxid``, or together with ``phylum``.
         RuntimeError: If a step finishes without producing its expected output file.
     """
+    fcs = _fcs_options(fcs_screen_run, container_engine, fcs_gx_db, taxid, phylum)
     shared = _shared(cpus, memory, workdir, debug, quiet)
     filtered_1, filtered_2 = _trim_and_filter(read1, read2, basename, shared, minlen, screen_accessions, screen_urls)
 
     assembly = basename + f".{method}.fasta"
     _run_step(assemble, "assemble", assembly, shared, **_assemble_workdir(shared, method), read1=filtered_1, read2=filtered_2, out=assembly, method=method, tmpdir=tmpdir, assembler_args=assembler_args)
 
-    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), {"read1": filtered_1, "read2": filtered_2, "mincovpct": mincovpct})
+    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), {"read1": filtered_1, "read2": filtered_2, "mincovpct": mincovpct}, fcs=fcs)
 
 
 def run_long(
@@ -107,6 +124,10 @@ def run_long(
     genome_size: str | None = None,
     phylum: list[str] | None = None,
     sourdb: list[str] | None = None,
+    fcs_screen_run: bool = False,
+    container_engine: str | None = None,
+    fcs_gx_db: str | None = None,
+    taxid: int | None = None,
     cpus: int = 1,
     assembler_args: list[str] | None = None,
     memory: int | None = None,
@@ -128,6 +149,11 @@ def run_long(
         genome_size: Estimated genome size for Flye (e.g. ``40m``), or None to let Flye estimate it.
         phylum: Phyla whose sourmash matches are kept by ``taxpurge``; None skips ``taxpurge``.
         sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
+        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) after ``vecscreen``.
+        container_engine: ``fcs_screen`` container engine; None keeps its default.
+        fcs_gx_db: FCS-GX database; when given, ``fcs_gx_purge`` runs instead of ``taxpurge``
+            (so not with ``phylum``), with ``taxid``.
+        taxid: NCBI taxonomy ID of the organism, for ``fcs_gx_purge`` (required with ``fcs_gx_db``).
         cpus: Threads for every step that takes ``-c/--cpus``.
         assembler_args: Extra arguments passed through to Flye.
         memory: Memory in GB for steps that take ``-m/--memory``; None keeps each step's default.
@@ -138,11 +164,13 @@ def run_long(
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ...); ignored.
 
     Raises:
+        ValueError: If ``fcs_gx_db`` is given without ``taxid``, or together with ``phylum``.
         RuntimeError: If a step finishes without producing its expected output file.
     """
+    fcs = _fcs_options(fcs_screen_run, container_engine, fcs_gx_db, taxid, phylum)
     shared = _shared(cpus, memory, workdir, debug, quiet)
     assembly = _assemble_flye(longreads, basename, shared, longread_type, genome_size, assembler_args)
-    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), polish_steps=[{"method": "racon", "longreads": longreads}])
+    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), polish_steps=[{"method": "racon", "longreads": longreads}], fcs=fcs)
 
 
 def run_hybrid(
@@ -164,6 +192,10 @@ def run_hybrid(
     mincontiglen: int = 500,
     workdir: str | None = None,
     sourdb: list[str] | None = None,
+    fcs_screen_run: bool = False,
+    container_engine: str | None = None,
+    fcs_gx_db: str | None = None,
+    taxid: int | None = None,
     mincovpct: int = 5,
     debug: bool = False,
     quiet: bool = False,
@@ -195,17 +227,23 @@ def run_hybrid(
         mincontiglen: Minimum contig length kept by ``rmdup`` and ``sort``.
         workdir: Working directory for steps that take ``-w/--workdir``; None keeps each step's default.
         sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
+        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) after ``vecscreen``.
+        container_engine: ``fcs_screen`` container engine; None keeps its default.
+        fcs_gx_db: FCS-GX database; when given, ``fcs_gx_purge`` runs instead of ``taxpurge``
+            (so not with ``phylum``), with ``taxid``.
+        taxid: NCBI taxonomy ID of the organism, for ``fcs_gx_purge`` (required with ``fcs_gx_db``).
         mincovpct: Minimum percent of N50 coverage below which ``covpurge`` removes contigs.
         debug: Show debug output and keep temporary files in every step.
         quiet: Only show warnings and errors in every step.
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ...); ignored.
 
     Raises:
-        ValueError: If ``method`` is not ``flye`` or ``unicycler``.
+        ValueError: If ``method`` is not ``flye`` or ``unicycler``, or ``fcs_gx_db`` is given without ``taxid`` or with ``phylum``.
         RuntimeError: If a step finishes without producing its expected output file.
     """
     if method not in ("flye", "unicycler"):
         raise ValueError(f"pipeline_hybrid --method must be flye or unicycler, not {method}")
+    fcs = _fcs_options(fcs_screen_run, container_engine, fcs_gx_db, taxid, phylum)
     shared = _shared(cpus, memory, workdir, debug, quiet)
     filtered_1, filtered_2 = _trim_and_filter(read1, read2, basename, shared, minlen, screen_accessions, screen_urls)
 
@@ -219,12 +257,30 @@ def run_hybrid(
         polish_steps = [{"method": "racon", "longreads": longreads}, {"method": short_method, "read1": filtered_1, "read2": filtered_2}]
 
     covpurge_options = {"read1": filtered_1, "read2": filtered_2, "mincovpct": mincovpct}
-    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), covpurge_options, polish_steps)
+    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), covpurge_options, polish_steps, fcs=fcs)
 
 
 def _shared(cpus: int, memory: int | None, workdir: str | None, debug: bool, quiet: bool) -> dict[str, Any]:
     """Return the options passed to every step that has an option of the same name."""
     return {"cpus": cpus, "memory": memory, "workdir": workdir, "debug": debug, "quiet": quiet}
+
+
+def _fcs_options(fcs_screen_run: bool, container_engine: str | None, fcs_gx_db: str | None, taxid: int | None, phylum: list[str] | None) -> dict[str, dict[str, Any] | None]:
+    """Return the ``fcs_screen`` and ``fcs_gx_purge`` options (None for a step that is not run).
+
+    ``fcs_gx_purge`` (NCBI FCS-GX, against NCBI's full taxonomy) is the alternative to
+    ``taxpurge``, not a step before it, so the two are not combined.
+
+    Raises:
+        ValueError: If ``fcs_gx_db`` is given without ``taxid``, or together with ``phylum``.
+    """
+    if fcs_gx_db and taxid is None:
+        raise ValueError("--fcs_gx_db needs --taxid, the NCBI taxonomy ID of the organism (e.g. 4890 for Ascomycota)")
+    if fcs_gx_db and phylum:
+        raise ValueError("choose one taxonomic screen: -p/--phylum (taxpurge) or --fcs_gx_db (FCS-GX, which covers NCBI's full taxonomy)")
+    screen = ({"container_engine": container_engine} if container_engine else {}) if fcs_screen_run else None
+    gx = {"db": fcs_gx_db, "taxid": taxid} if fcs_gx_db else None
+    return {"fcs_screen": screen, "fcs_gx_purge": gx}
 
 
 def _taxpurge_options(phylum: list[str] | None, sourdb: list[str] | None) -> dict[str, Any] | None:
@@ -272,8 +328,9 @@ def _clean_and_finish(
     taxpurge_options: dict[str, Any] | None = None,
     covpurge_options: dict[str, Any] | None = None,
     polish_steps: list[dict[str, Any]] | tuple[()] = (),
+    fcs: dict[str, dict[str, Any] | None] | None = None,
 ) -> None:
-    """Run vecscreen → taxpurge → covpurge → rmdup → polish → sort → assess on ``assembly``.
+    """Run vecscreen → fcs_screen → taxpurge or fcs_gx_purge → covpurge → rmdup → polish → sort → assess on ``assembly``.
 
     Polishing comes after the cleaning steps so contigs that are discarded are never polished.
 
@@ -286,11 +343,22 @@ def _clean_and_finish(
         covpurge_options: ``covpurge`` options (reads, mincovpct), or None to skip ``covpurge``.
         polish_steps: ``polish`` options for each polishing round, in order; each needs ``method``
             and writes ``{basename}.{method}.fasta``, which the next round (or ``sort``) reads.
+        fcs: ``fcs_screen`` / ``fcs_gx_purge`` options (from ``_fcs_options``); a step whose
+            options are None, or all of them when ``fcs`` is None, is skipped.
     """
     vecscreen_file = basename + ".vecscreen.fasta"
     _run_step(vecscreen, "vecscreen", vecscreen_file, shared, infile=assembly, outfile=vecscreen_file)
 
     rmdup_input = vecscreen_file
+    fcs = fcs or {}
+    if fcs.get("fcs_screen") is not None:
+        fcs_screen_file = basename + ".fcs_screen.fasta"
+        _run_step(fcs_screen, "fcs_screen", fcs_screen_file, shared, infile=rmdup_input, outfile=fcs_screen_file, **fcs["fcs_screen"])
+        rmdup_input = fcs_screen_file
+    if fcs.get("fcs_gx_purge") is not None:
+        fcs_gx_file = basename + ".fcs_gx.fasta"
+        _run_step(fcs_gx_purge, "fcs_gx_purge", fcs_gx_file, shared, input=rmdup_input, outfile=fcs_gx_file, **fcs["fcs_gx_purge"])
+        rmdup_input = fcs_gx_file
     if taxpurge_options is not None:
         taxpurge_file = basename + ".taxpurge.fasta"
         _run_step(taxpurge, "taxpurge", taxpurge_file, shared, input=rmdup_input, outfile=taxpurge_file, **taxpurge_options)

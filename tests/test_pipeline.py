@@ -14,7 +14,7 @@ pytestmark = pytest.mark.unit
 STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "sort", "assess"]
 _MODULE = {"filter": "aaftf_filter", "sort": "aaftf_sort"}
 # the kwarg that names each step's output file (trim and filter derive theirs from basename)
-_OUTPUT = {"assemble": "out", "polish": "outfile", "vecscreen": "outfile", "taxpurge": "outfile", "covpurge": "outfile", "rmdup": "out", "sort": "out"}
+_OUTPUT = {"assemble": "out", "polish": "outfile", "vecscreen": "outfile", "fcs_screen": "outfile", "fcs_gx_purge": "outfile", "taxpurge": "outfile", "covpurge": "outfile", "rmdup": "out", "sort": "out"}
 
 
 def _cli_defaults(step):
@@ -39,7 +39,7 @@ def _run_steps(func, tmp_path, **options):
 
         return _run
 
-    patches = [patch(f"aaftf.pipeline.{_MODULE.get(step, step)}.run", side_effect=_fake(step)) for step in STEPS + ["polish"]]
+    patches = [patch(f"aaftf.pipeline.{_MODULE.get(step, step)}.run", side_effect=_fake(step)) for step in STEPS + ["polish", "fcs_screen", "fcs_gx_purge"]]
     for p in patches:
         p.start()
     try:
@@ -305,3 +305,49 @@ class TestPipelineParsers:
 
         with patch.object(sys, "argv", ["AAFTF", "pipeline_long", "-o", "s"]), pytest.raises(SystemExit):
             main()
+
+
+class TestFcsSteps:
+    """--fcs_screen / --fcs_gx_db add NCBI FCS-adaptor and FCS-GX right after vecscreen, in every pipeline."""
+
+    def test_not_run_by_default(self, tmp_path):
+        assert not {"fcs_screen", "fcs_gx_purge"} & set(_run_pipeline(tmp_path))
+
+    def test_fcs_gx_replaces_taxpurge(self, tmp_path):
+        """FCS-GX is the taxonomic screen instead of taxpurge: vecscreen → fcs_screen → fcs_gx_purge → covpurge."""
+        base = str(tmp_path / "sample")
+        calls = _run_steps(pipeline.run_short, tmp_path, read1="R1.fq.gz", read2="R2.fq.gz", fcs_screen_run=True, container_engine="docker", fcs_gx_db="/gxdb/all", taxid=5062)
+        assert [step for step, _ in calls][3:7] == ["vecscreen", "fcs_screen", "fcs_gx_purge", "covpurge"]
+        steps = dict(calls)
+        assert "taxpurge" not in steps
+        assert (steps["fcs_screen"]["infile"], steps["fcs_screen"]["container_engine"]) == (f"{base}.vecscreen.fasta", "docker")
+        assert (steps["fcs_gx_purge"]["input"], steps["fcs_gx_purge"]["db"], steps["fcs_gx_purge"]["taxid"]) == (f"{base}.fcs_screen.fasta", "/gxdb/all", 5062)
+        assert steps["covpurge"]["input"] == f"{base}.fcs_gx.fasta"
+        for step in ("fcs_screen", "fcs_gx_purge"):
+            assert set(steps[step]) == set(_cli_defaults(step)) | {"pipe"}, step
+
+    def test_fcs_screen_with_taxpurge(self, tmp_path):
+        """fcs_screen (adaptors, not taxonomy) combines with taxpurge."""
+        base = str(tmp_path / "sample")
+        steps = dict(_run_steps(pipeline.run_short, tmp_path, read1="R1.fq.gz", read2="R2.fq.gz", phylum=["Ascomycota"], fcs_screen_run=True))
+        assert steps["taxpurge"]["input"] == f"{base}.fcs_screen.fasta" and "fcs_gx_purge" not in steps
+
+    @pytest.mark.parametrize("func", [pipeline.run_short, pipeline.run_long, pipeline.run_hybrid])
+    def test_phylum_and_fcs_gx_db_are_alternatives(self, tmp_path, func):
+        with pytest.raises(ValueError, match="choose one taxonomic screen"):
+            func(read1="R1.fq.gz", longreads="ont.fq.gz", basename=str(tmp_path / "s"), phylum=["Ascomycota"], fcs_gx_db="/gxdb/all", taxid=4890)
+
+    def test_fcs_screen_alone_keeps_its_engine_default(self, tmp_path):
+        steps = dict(_run_steps(pipeline.run_long, tmp_path, longreads="ont.fq.gz", fcs_screen_run=True))
+        assert steps["fcs_screen"]["container_engine"] == _cli_defaults("fcs_screen")["container_engine"]
+        assert steps["rmdup"]["input"].endswith(".fcs_screen.fasta")
+
+    @pytest.mark.parametrize("func", [pipeline.run_short, pipeline.run_long, pipeline.run_hybrid])
+    def test_fcs_gx_db_needs_taxid(self, tmp_path, func):
+        with pytest.raises(ValueError, match="--taxid"):
+            func(read1="R1.fq.gz", longreads="ont.fq.gz", basename=str(tmp_path / "s"), fcs_gx_db="/gxdb/all")
+
+    def test_hybrid_runs_them_too(self, tmp_path):
+        calls = _run_steps(pipeline.run_hybrid, tmp_path, read1="R1.fq.gz", read2="R2.fq.gz", longreads="ont.fq.gz", fcs_gx_db="/gxdb/all", taxid=4890)
+        steps = [step for step, _ in calls]
+        assert steps.index("vecscreen") < steps.index("fcs_gx_purge") < steps.index("covpurge")

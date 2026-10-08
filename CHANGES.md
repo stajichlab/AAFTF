@@ -61,6 +61,11 @@ check the **Breaking changes** before updating scripts.
 
 ### Added
 
+ - `pipeline_short`, `pipeline_long` and `pipeline_hybrid` can run NCBI FCS-adaptor and FCS-GX on the
+   contigs: `--fcs_screen` (with `--container_engine`) runs `fcs_screen` right after vecscreen, and
+   `--fcs_gx_db DB --taxid INT` runs `fcs_gx_purge` as the taxonomic screen instead of `taxpurge`
+   (FCS-GX covers NCBI's full taxonomy; `-p` and `--fcs_gx_db` together are an error). Both are off
+   by default.
  - **`assemble --method flye`**: Flye long-read assembly (`-lr/--longreads`, `--longread_type`
    default `nano-hq`, `--genome_size`); resumes a previous run in the workdir with `--resume`, and
    the next-command hint suggests `vecscreen` (polish after cleaning). `-1/--read1` is now required only for

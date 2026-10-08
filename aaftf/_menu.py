@@ -968,6 +968,14 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         metavar="DB",
     )
 
+    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
+
+    optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
+
+    optional.add_argument("--fcs_gx_db", type=str, help="NCBI FCS-GX database (e.g. /path/gxdb/all); when given, contaminant contigs are removed with FCS-GX (fcs_gx_purge) instead of taxpurge, which -p/--phylum would run; needs --taxid", metavar="DB")
+
+    optional.add_argument("--taxid", type=int, help="NCBI taxonomy ID of the organism, for --fcs_gx_db (e.g. 4890 for Ascomycota)", metavar="INT")
+
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 
     optional.add_argument("-c", "--cpus", type=int, metavar="INT", default=1, help="Number of CPUs/threads to use")
@@ -1017,6 +1025,14 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         help="sourmash databases for taxpurge, installed with 'AAFTF database': gbk-fungi or gbk-fungi-lite, gtdb-reps or gtdb-reps-lite, human-hg38; default: taxpurge's default (gbk-fungi-lite gtdb-reps-lite human-hg38). For your own databases run AAFTF taxpurge itself",
         metavar="DB",
     )
+
+    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
+
+    optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
+
+    optional.add_argument("--fcs_gx_db", type=str, help="NCBI FCS-GX database (e.g. /path/gxdb/all); when given, contaminant contigs are removed with FCS-GX (fcs_gx_purge) instead of taxpurge, which -p/--phylum would run; needs --taxid", metavar="DB")
+
+    optional.add_argument("--taxid", type=int, help="NCBI taxonomy ID of the organism, for --fcs_gx_db (e.g. 4890 for Ascomycota)", metavar="INT")
 
     optional.add_argument("-w", "--workdir", type=str, help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
@@ -1091,6 +1107,14 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         help="sourmash databases for taxpurge, installed with 'AAFTF database': gbk-fungi or gbk-fungi-lite, gtdb-reps or gtdb-reps-lite, human-hg38; default: taxpurge's default (gbk-fungi-lite gtdb-reps-lite human-hg38). For your own databases run AAFTF taxpurge itself",
         metavar="DB",
     )
+
+    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
+
+    optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
+
+    optional.add_argument("--fcs_gx_db", type=str, help="NCBI FCS-GX database (e.g. /path/gxdb/all); when given, contaminant contigs are removed with FCS-GX (fcs_gx_purge) instead of taxpurge, which -p/--phylum would run; needs --taxid", metavar="DB")
+
+    optional.add_argument("--taxid", type=int, help="NCBI taxonomy ID of the organism, for --fcs_gx_db (e.g. 4890 for Ascomycota)", metavar="INT")
 
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 

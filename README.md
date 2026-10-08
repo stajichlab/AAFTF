@@ -96,8 +96,8 @@ or pass `--fcs_script`/`--image`). `fcs_gx_purge` needs an FCS-GX database set u
 | 3 | `assemble` | Assemble - SPAdes, MEGAHIT, Unicycler or Flye (long reads); `--method` is required | assembly FASTA |
 | 4 | `vecscreen` | BLAST-based vector/contaminant screen of contigs, following NCBI VecScreen | cleaned FASTA (and `.mitochondria.fasta`) |
 | 5 | `taxpurge` | Drop contigs sourmash classifies outside your phyla (`-p`); the pipelines run it only when given `-p` | purged FASTA |
-| - | `fcs_screen` | (Optional) NCBI FCS-adaptor vector screen | cleaned FASTA |
-| - | `fcs_gx_purge` | (Optional) Drop the contigs NCBI FCS-GX marks EXCLUDE | purged FASTA |
+| - | `fcs_screen` | (Optional; pipelines: `--fcs_screen`) NCBI FCS-adaptor vector screen | cleaned FASTA |
+| - | `fcs_gx_purge` | (Optional; pipelines: `--fcs_gx_db DB --taxid INT`, instead of `taxpurge`) Drop the contigs NCBI FCS-GX marks EXCLUDE | purged FASTA |
 | 6 | `covpurge` | Drop contigs with low Illumina read coverage (bwa) | purged FASTA |
 | 7 | `rmdup` | Remove duplicate and contained contigs (minimap2) | deduplicated FASTA |
 | - | `polish` | (Optional) Polish with Polypolish (default), pypolca, NextPolish2 or Racon; recommended only with long reads | polished FASTA |
