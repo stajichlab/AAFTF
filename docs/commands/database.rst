@@ -34,7 +34,8 @@ which subcommands use it, and the folder it is stored in (or ``not downloaded``,
 remote size). Like ``AAFTF dependency``, the list is split in two: the databases ``AAFTF pipeline_short``
 needs with its default settings (``phix``, ``univec``, ``euks``, ``proks``, ``mitodb``),
 then those only needed by non-default options or optional steps (the sourmash databases and their lineage CSVs,
-``fcs_script``, ``fcs_image``); any other files found in the database folders are listed last.
+``fcs_script``, ``fcs_image``); anything else directly in the database folders is listed last (a subfolder as one
+entry, without its contents or size).
 
 .. list-table::
    :header-rows: 1

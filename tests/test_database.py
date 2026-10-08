@@ -197,6 +197,18 @@ class TestRequiredOptionalGroups:
         out = capsys.readouterr().out
         assert out.index("Other files in the database folders:") < out.index("notes.txt")
 
+    def test_other_files_lists_only_the_top_level(self, monkeypatch, capsys, tmp_path):
+        """A subfolder is one entry (name/); the files inside it are not listed."""
+        (tmp_path / "old_run").mkdir()
+        (tmp_path / "old_run" / "inner.sst").write_text("x")
+        (tmp_path / "top.txt").write_text("x")
+        monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+        with patch("aaftf.database._remote_size", return_value=1024):
+            run()
+        out = capsys.readouterr().out
+        assert "old_run/" in out and "top.txt" in out
+        assert "inner.sst" not in out
+
     def test_required_and_optional_keywords(self):
         assert _resolve(["required"]) == ["phix", "univec", "euks", "proks", "mitodb"]
         assert _resolve(["optional"]) == ["gbk-fungi", "gbk-fungi-lineages", "gbk-fungi-lite", "gbk-euks-lineages", "gtdb-reps", "gtdb-reps-lineages", "gtdb-reps-lite", "human-hg38", "fcs_script", "fcs_image"]

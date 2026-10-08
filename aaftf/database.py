@@ -103,16 +103,20 @@ def _list_db() -> None:
                 size_label, location = ("unknown" if size is None else _human_size(size)), "not downloaded"
             rows.append((abbr, entry["filename"], size_label, entry["used_by"], location))
 
-    # Any other files present that aren't databases (e.g. leftover reports)
+    # Anything else directly in the database folders (e.g. leftover reports); subfolders are listed
+    # as one entry, without their size and without listing their contents
     known_files = {entry["filename"] for entry in DATABASES.values()}
     other_start = len(rows)
     for folder in folders:
         if not folder.is_dir():
             continue
-        for f in sorted(f for f in folder.rglob("*") if f.is_file() and f.name not in known_files):
-            size = f.stat().st_size
-            downloaded_total += size
-            rows.append(("-", str(f.relative_to(folder)), _human_size(size), "-", f"{folder} (other file)"))
+        for f in sorted(f for f in folder.iterdir() if f.name not in known_files):
+            if f.is_dir():
+                rows.append(("-", f"{f.name}/", "-", "-", f"{folder} (other folder)"))
+            elif f.is_file():
+                size = f.stat().st_size
+                downloaded_total += size
+                rows.append(("-", f.name, _human_size(size), "-", f"{folder} (other file)"))
 
     if len(rows) > other_start:
         section_starts[other_start] = "Other files in the database folders:"
