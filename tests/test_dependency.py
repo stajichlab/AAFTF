@@ -24,11 +24,15 @@ class TestRun:
     """Only tools and packages the default pipeline needs make `dependency` fail."""
 
     def _run(self, missing_tools=(), missing_imports=()):
+        """Run ``dependency.run()`` with every tool and package present except the ones listed.
+
+        Both tools and imports are faked, so the result does not depend on what is installed
+        where the tests run (e.g. CI's ``pip install .[dev]`` has no sourmash plugin).
+        """
+        from types import ModuleType
         from unittest.mock import patch
 
         from aaftf import dependency
-
-        real_import = dependency.importlib.import_module
 
         def _which(tool):
             return None if tool in missing_tools else f"/opt/bin/{tool}"
@@ -36,7 +40,7 @@ class TestRun:
         def _import(name):
             if name in missing_imports:
                 raise ImportError(name)
-            return real_import(name)
+            return ModuleType(name)
 
         with patch("aaftf.dependency.shutil.which", side_effect=_which), patch("aaftf.dependency.importlib.import_module", side_effect=_import):
             dependency.run()
