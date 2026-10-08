@@ -1,13 +1,13 @@
 """Hard-coded URLs, accessions and database definitions used across AAFTF.
 
-Holds the NCBI/EBI download locations for contaminant and vector databases, sourmash LCA
+Holds the NCBI/EBI download locations for contaminant and vector databases, sourmash sketch
 databases, NCBI FCS-adaptor release details, and the
 ``DATABASES`` table that ``AAFTF database`` downloads from.
 """
 
 from typing import Any
 
-__all__ = ["NCBI", "CONTAMINANT_ACCESSIONS", "DB_LINKS", "EUTILS", "SEQ_DBS", "FCSADAPTOR", "DATABASES"]
+__all__ = ["NCBI", "CONTAMINANT_ACCESSIONS", "DB_LINKS", "EUTILS", "SEQ_DBS", "FCSADAPTOR", "SOURMASH_DATABASES", "SOURMASH_LINEAGES", "TAXPURGE_DEFAULT_DATABASES", "DATABASES"]
 
 
 # base URL of the NCBI FTP site
@@ -22,20 +22,26 @@ DB_LINKS: dict[str, list[Any]] = {
     "CONTAM_EUKS": [f"{NCBI}/pub/kitts/contam_in_euks.fa.gz"],
     "CONTAM_PROKS": [f"{NCBI}/pub/kitts/contam_in_prok.fa"],
     "MITO": [f"{NCBI}/refseq/release/mitochondrion/" + "mitochondrion.1.1.genomic.fna.gz"],
-    "sourmash_gbk": [{"version": "2017.11.07", "filename": "genbank-k31.lca.json.gz", "url": "https://osf.io/4f8n3/download"}],
-    # first in list is default, will fix someday to allow choosing the version
-    # TODO: the GTDB entries below download sourmash .dna.zip signature collections but save them
-    # under .lca.json.gz names, and taxpurge runs `sourmash lca classify --db`, which needs an LCA
-    # database -- so --sourdb_type gtdb / gtdbrep likely fail. Point these at LCA databases (or
-    # switch taxpurge to a classifier that takes zip collections). See TODO.md.
-    "sourmash_gtdbrep": [
-        {"version": "rs220", "filename": "gtdb-rs220-reps.k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db.new/gtdb-rs220/gtdb-reps-rs220-k31.dna.zip"},  # noqa: E501
-    ],
-    # first in list is default, will fix someday to allow choosing the version
-    "sourmash_gtdb": [
-        {"version": "rs220", "filename": "gtdb-rs220-k31.lca.json.gz", "url": "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db.new/gtdb-rs220/gtdb-rs220-k31.dna.zip"},  # noqa: E501
-    ],
 }
+
+# sourmash sketch collections (all k=31) for `taxpurge`, by `--sourdb` name: the sketch file, its
+# lineage CSV (DATABASES abbreviation; None when taxpurge writes it itself) and the sketches'
+# `scaled` (one hash kept per `scaled` bp, so 10000 is 10x smaller but needs ~10x longer contigs)
+_SM = "https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db"
+SOURMASH_DATABASES: dict[str, dict[str, Any]] = {
+    "gbk-fungi": {"lineages": "gbk-fungi-lineages", "scaled": 1000, "filename": "genbank-20250408-fungi-k31.zip", "url": f"{_SM}/genbank-2025.04/genbank-20250408-fungi-k31.zip", "about": "GenBank 2025.04 fungi, all genomes (5.3 GB)"},
+    "gbk-fungi-lite": {"lineages": "gbk-euks-lineages", "scaled": 10000, "filename": "genbank-euks-2025.01-fungi.k31.sig.zip", "url": f"{_SM}/genbank-euks-2025.01/fungi.k31.sig.zip", "about": "GenBank 2025.01 eukaryote collection, fungi (170 MB)"},
+    "gtdb-reps": {"lineages": "gtdb-reps-lineages", "scaled": 1000, "filename": "gtdb-rs226-reps.k31.sig.zip", "url": f"{_SM}/gtdb-rs226/gtdb-rs226-reps.k31.sig.zip", "about": "GTDB rs226 representative genomes, bacteria and archaea (3.9 GB)"},
+    "gtdb-reps-lite": {"lineages": "gtdb-reps-lineages", "scaled": 10000, "filename": "gtdb-rs226-reps.k31-sc10k.sig.zip", "url": f"{_SM}/gtdb-rs226/gtdb-rs226-reps.k31-sc10k.sig.zip", "about": "GTDB rs226 representative genomes, bacteria and archaea (447 MB)"},
+    "human-hg38": {"lineages": None, "scaled": 1000, "filename": "hg38-entire.sig.zip", "url": f"{_SM}/hg38/hg38-entire.sig.zip", "about": "human reference genome hg38 (55 MB)"},
+}
+SOURMASH_LINEAGES = {
+    "gbk-fungi-lineages": {"filename": "genbank-20250408-lineages.fungi.csv", "url": f"{_SM}/genbank-2025.04/lineages.fungi.csv"},
+    "gbk-euks-lineages": {"filename": "genbank-euks-2025.01-eukaryotes.lineages.csv", "url": f"{_SM}/genbank-euks-2025.01/eukaryotes.lineages.csv"},
+    "gtdb-reps-lineages": {"filename": "gtdb-rs226-reps.lineages.csv", "url": f"{_SM}/gtdb-rs226/gtdb-rs226-reps.lineages.csv"},
+}
+# `taxpurge --sourdb` default (also downloaded by `AAFTF database taxpurge`)
+TAXPURGE_DEFAULT_DATABASES = ["gbk-fungi-lite", "gtdb-reps-lite", "human-hg38"]
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
@@ -58,7 +64,7 @@ FCSADAPTOR = {
 }
 
 # Databases `AAFTF database` can fetch, keyed by abbreviation. `used_by` lists the subcommands that
-# read each one; `required` marks those `AAFTF pipeline_short` needs with its default settings (the rest are
+# read each one; `with` lists companion databases downloaded along with it; `required` marks those `AAFTF pipeline_short` needs with its default settings (the rest are
 # only for non-default options or optional steps); `executable` marks files that must be runnable
 # after download.
 DATABASES = {
@@ -67,9 +73,8 @@ DATABASES = {
     "euks": {"filename": DB_LINKS["CONTAM_EUKS"][0].rsplit("/", 1)[-1], "url": DB_LINKS["CONTAM_EUKS"][0], "used_by": "vecscreen", "required": True},
     "proks": {"filename": DB_LINKS["CONTAM_PROKS"][0].rsplit("/", 1)[-1], "url": DB_LINKS["CONTAM_PROKS"][0], "used_by": "vecscreen", "required": True},
     "mitodb": {"filename": DB_LINKS["MITO"][0].rsplit("/", 1)[-1], "url": DB_LINKS["MITO"][0], "used_by": "vecscreen", "required": True},
-    "sm_gbk": {**{k: DB_LINKS["sourmash_gbk"][0][k] for k in ("filename", "url")}, "used_by": "taxpurge (--sourdb_type gbk)", "required": False},
-    "sm_gtdbrep": {**{k: DB_LINKS["sourmash_gtdbrep"][0][k] for k in ("filename", "url")}, "used_by": "taxpurge (--sourdb_type gtdbrep)", "required": False},
-    "sm_gtdb": {**{k: DB_LINKS["sourmash_gtdb"][0][k] for k in ("filename", "url")}, "used_by": "taxpurge (--sourdb_type gtdb)", "required": False},
+    **{name: {"filename": entry["filename"], "url": entry["url"], "used_by": f"taxpurge (--sourdb {name})", "required": False, "with": [entry["lineages"]] if entry["lineages"] else []} for name, entry in SOURMASH_DATABASES.items()},
+    **{name: {**entry, "used_by": "taxpurge (lineages of " + ", ".join(db for db, e in SOURMASH_DATABASES.items() if e["lineages"] == name) + ")", "required": False} for name, entry in SOURMASH_LINEAGES.items()},
     "fcs_script": {"filename": "run_fcsadaptor.sh", "url": FCSADAPTOR["EXEURL"] % FCSADAPTOR["VERSION"], "used_by": "fcs_screen", "required": False, "executable": True},
     "fcs_image": {
         "filename": FCSADAPTOR["SIFLOCAL"] % FCSADAPTOR["VERSION"],

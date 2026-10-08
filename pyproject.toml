@@ -124,7 +124,8 @@ aaftf = { path = ".", editable = true }
 # ---------------------------------------------------------------------------
 [tool.pixi.feature.optional.dependencies]
 pigz = "*"
-sourmash = "*"           # taxpurge (pipelines run it only with -p/--phylum)
+sourmash = ">=4.8"       # taxpurge (pipelines run it only with -p/--phylum)
+sourmash_plugin_branchwater = ">=0.9.15"  # taxpurge: fastmultigather
 bowtie2 = "*"
 fastp = "*"
 trimmomatic = "*"

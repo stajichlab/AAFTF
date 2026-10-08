@@ -21,7 +21,8 @@ groups, and printed in the order listed below:
 * **Optional steps and non-default options** (``OPTIONAL_TOOLS`` / ``OPTIONAL_PYTHON_PACKAGES``):
   ``pigz``, ``sourmash`` (``taxpurge``), ``fastp``, ``trimmomatic``, ``bowtie2``, ``bowtie2-build``, ``megahit``,
   ``unicycler``, ``aaftf_polca.sh``, ``nextPolish2``, ``yak``, ``mosdepth``, ``NOVOPlasty.pl``, ``run_fcsadaptor.sh``, ``singularity``, ``apptainer``,
-  ``docker``, ``run_gx.py``; Python package ``matplotlib`` (``depth`` plots).
+  ``docker``, ``run_gx.py``; Python packages ``matplotlib`` (``depth`` plots) and
+  ``sourmash_plugin_branchwater`` (``taxpurge``).
 
 For each tool an ``[OK]`` line shows where it was found, and a ``[MISSING]`` line shows which
 subcommands/options use it (e.g. ``used by: filter (--aligner bowtie2)``). Python packages are

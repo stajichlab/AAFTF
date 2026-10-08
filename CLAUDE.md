@@ -35,7 +35,7 @@ See [AGENTS.md](AGENTS.md) for full development guidelines, code style, and comm
 | `filter` | `aaftf/filter.py` | bbduk.sh, bowtie2, bwa, minimap2, samtools |
 | `assemble` | `aaftf/assemble.py` | spades.py, megahit, unicycler, flye |
 | `vecscreen` | `aaftf/vecscreen.py` | blastn, makeblastdb |
-| `taxpurge` | `aaftf/taxpurge.py` | sourmash |
+| `taxpurge` | `aaftf/taxpurge.py` | sourmash + sourmash_plugin_branchwater (`fastmultigather`, `tax genome`) |
 | `covpurge` | `aaftf/covpurge.py` | bwa, samtools |
 | `fcs_screen` | `aaftf/fcs_screen.py` | run_fcsadaptor.sh (singularity/docker) |
 | `fcs_gx_purge` | `aaftf/fcs_gx_purge.py` | run_gx.py (NCBI FCS-GX) |
@@ -60,7 +60,7 @@ Keyword parameters of each `run()` (besides the trailing `**kwargs`):
 - **filter**: `read1`, `read2`, `workdir`, `cpus`, `screen_accessions`, `screen_urls`, `screen_local`, `basename`, `aligner`, `memory`, `debug`, `pipe`
 - **assemble**: `out`, `method` (required, no default), `read1`, `workdir`, `cpus`, `memory`, `isolate`, `careful`, `assembler_args`, `tmpdir`, `read2`, `longreads`, `merged`, `longread_type`, `genome_size`, `debug`, `pipe`. `read1` is optional in the parser (required by spades/megahit/unicycler; `flye` needs `longreads` instead).
 - **vecscreen**: `infile`, `outfile`, `workdir`, `cpus`, `percent_id`, `stringency`, `debug`, `pipe`
-- **taxpurge**: `input`, `outfile`, `phylum`, `workdir`, `sourdb`, `sourdb_type`, `kmer`, `taxonomy`, `debug`, `pipe`
+- **taxpurge**: `input`, `outfile`, `phylum`, `workdir`, `sourdb` (names in `resources.SOURMASH_DATABASES` — `gbk-fungi`/`gbk-fungi-lite`, `gtdb-reps`/`gtdb-reps-lite`, `human-hg38` — or paths of sketch collections / RocksDB indexes; None = `resources.TAXPURGE_DEFAULT_DATABASES`), `taxonomy_csv`, `kmer`, `min_hashes`, `cpus`, `taxonomy`, `debug`, `pipe`. Each database is searched separately at its own `scaled` (threshold = `min_hashes` x scaled bp; memory of the largest one) and each contig takes the classification with the most matched bp. `AAFTF database` downloads a sourmash database together with its lineage CSV (`with` in `DATABASES`); `AAFTF database taxpurge` gets the default set
 - **covpurge**: `input`, `outfile`, `read1`, `read2`, `workdir`, `cpus`, `mincovpct`, `debug`, `pipe`
 - **fcs_screen**: `infile`, `outfile`, `container_engine`, `workdir`, `image`, `prok`, `fcs_script`, `debug`, `pipe`
 - **fcs_gx_purge**: `input`, `outfile`, `workdir`, `taxid`, `db`, `debug`, `pipe`
@@ -115,7 +115,7 @@ Run standalone, `polish` defaults to `<input prefix>.polished.fasta` and `depth`
 - samtools >= 1.13 (pixi pins >= 1.24; needed for `sort --write-index` and `flagstat -O tsv`). No samtools version branching: aligner → sorted BAM pipelines use `utility.align_to_sorted_bam()`, which pipes SAM straight into `samtools sort` and writes the `.bai` index in the same step
 - minimap2 >= 2.17
 - mosdepth >= 0.3
-- sourmash >= 4.x (LCA-based classification)
+- sourmash >= 4.8 with sourmash_plugin_branchwater >= 0.9.15 (`taxpurge`: `fastmultigather` + `tax genome`)
 - SPAdes >= 3.15 for `assemble`
 - NCBI FCS-adaptor 0.5.5 (hard-coded in `resources.py`)
 

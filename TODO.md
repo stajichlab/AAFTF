@@ -7,9 +7,7 @@
 
 ## Known issues
 
-* **taxpurge GTDB databases** (`aaftf/resources.py`, `sm_gtdb` / `sm_gtdbrep`): the URLs download
-  sourmash `.dna.zip` signature collections, but the files are saved as `.lca.json.gz` and
-  `taxpurge` runs `sourmash lca classify --db`, which needs an LCA database. So
-  `--sourdb_type gtdb` / `gtdbrep` likely fail; the default `gbk` database is unaffected. Fix by
-  pointing these entries at LCA databases, or by switching taxpurge to a classifier that accepts
-  zip collections (e.g. `sourmash gather` + `sourmash tax`).
+* **taxpurge memory**: `fastmultigather` loads the sketch collections into memory (GTDB rs226
+  representatives + GenBank fungi together: ~1.1 billion hashes). The branchwater RocksDB indexes
+  (`sourmash scripts index`, or the published `gtdb-rs226-reps.k31.rocksdb`) are searched on disk
+  and would cut memory a lot; consider supporting them in `taxpurge --sourdb`.

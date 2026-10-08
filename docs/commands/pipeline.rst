@@ -77,8 +77,8 @@ Cutoffs / defaults
      - none
      - Passed to assemble
    * - ``-p/--phylum``, ``--sourdb``
-     - none (taxpurge not run); ``--sourdb``: the one from ``AAFTF database``
-     - Phyla kept, and the sourmash database, for taxpurge
+     - none (taxpurge not run); ``--sourdb``: ``gbk-fungi-lite gtdb-reps-lite human-hg38``
+     - Phyla kept, and the sourmash databases (see :doc:`taxpurge`), for taxpurge
    * - ``--method``
      - spades
      - Assembler method (spades / megahit / unicycler)
@@ -100,7 +100,7 @@ Invocation
     AAFTF pipeline_short -1 FASTQ [-2 FASTQ] -o BASENAME [-p PHYLUM [PHYLUM ...]]
                          [-c CPUS] [-m MEMORY] [-ml MINLEN]
                          [-mc MINCONTIGLEN] [--method {spades,megahit,unicycler}]
-                         [-a ACCESSIONS ...] [-u URLS ...] [--sourdb PATH]
+                         [-a ACCESSIONS ...] [-u URLS ...] [--sourdb DB ...]
                          [--mincovpct PCT] [-w WORKDIR]
                          [--assembler_args ARG ...] [--tmpdir DIR] [-q] [-v]
 
@@ -156,7 +156,7 @@ coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipel
      - Phyla whose contigs taxpurge keeps
    * - ``--sourdb``
      - from ``AAFTF database``
-     - sourmash LCA database for taxpurge
+     - sourmash databases for taxpurge (see :doc:`taxpurge`)
    * - ``--assembler_args``
      - none
      - Passed to assemble
@@ -171,7 +171,7 @@ coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipel
 
     AAFTF pipeline_long -lr FASTQ -o PREFIX
                         [--longread_type {nano-raw,nano-hq,pacbio-raw,pacbio-hifi}]
-                        [--genome_size SIZE] [-p PHYLUM [PHYLUM ...]] [--sourdb FILE]
+                        [--genome_size SIZE] [-p PHYLUM [PHYLUM ...]] [--sourdb DB ...]
                         [-w DIR] [--assembler_args ARG]
                         [-mc BP] [-c INT] [-m GB] [-q] [-v]
 
@@ -208,7 +208,7 @@ in ``pipeline_long``. ``-m/--memory`` is passed to trim, filter, assemble and po
                           [--genome_size SIZE] [-w DIR] [--tmpdir DIR]
                           [--assembler_args ARG] [-ml BP]
                           [-a [ACCESSION ...]] [-u [URL ...]] [-mc BP]
-                          [--sourdb FILE] [--mincovpct PCT] [-c INT]
+                          [--sourdb DB ...] [--mincovpct PCT] [-c INT]
                           [-m GB] [-q] [-v]
 
 .. code-block:: bash

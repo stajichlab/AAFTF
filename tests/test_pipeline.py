@@ -93,7 +93,8 @@ class TestDefaults:
             ("vecscreen", "percent_id"),
             ("vecscreen", "stringency"),
             ("taxpurge", "kmer"),
-            ("taxpurge", "sourdb_type"),
+            ("taxpurge", "sourdb"),
+            ("taxpurge", "min_hashes"),
             ("rmdup", "percent_id"),
             ("rmdup", "percent_cov"),
             ("sort", "name"),
@@ -137,11 +138,11 @@ class TestPipelineOptions:
         assert _run_pipeline(tmp_path, debug=True)[step]["debug"] is True
 
     def test_step_specific_options(self, tmp_path):
-        calls = _run_pipeline(tmp_path, minlen=50, mincontiglen=1000, method="megahit", mincovpct=7, sourdb="db.zip", screen_accessions=["NC_1"])
+        calls = _run_pipeline(tmp_path, minlen=50, mincontiglen=1000, method="megahit", mincovpct=7, sourdb=["gbk-fungi"], screen_accessions=["NC_1"])
         assert calls["trim"]["minlen"] == 50
         assert calls["rmdup"]["minlen"] == calls["sort"]["minlen"] == 1000
         assert calls["assemble"]["method"] == "megahit"
-        assert (calls["covpurge"]["mincovpct"], calls["taxpurge"]["sourdb"]) == (7, "db.zip")
+        assert (calls["covpurge"]["mincovpct"], calls["taxpurge"]["sourdb"]) == (7, ["gbk-fungi"])
         assert calls["taxpurge"]["phylum"] == ["Ascomycota"]
         assert calls["filter"]["screen_accessions"] == ["NC_1"]
 
@@ -214,12 +215,12 @@ class TestLongPipeline:
         assert (calls["assemble"]["workdir"], calls["polish"]["workdir"]) == (str(Path("wd", "assemble_flye")), "wd")
 
     def test_phylum_runs_taxpurge(self, tmp_path):
-        calls = _run_long(tmp_path, phylum=["Ascomycota"], sourdb="db.zip")
+        calls = _run_long(tmp_path, phylum=["Ascomycota"], sourdb=["gbk-fungi"])
         base = str(tmp_path / "sample")
         assert [step for step, _ in calls] == ["assemble", "vecscreen", "taxpurge", "rmdup", "polish", "sort", "assess"]
         steps = dict(calls)
         purge = steps["taxpurge"]
-        assert (purge["input"], purge["phylum"], purge["sourdb"]) == (f"{base}.vecscreen.fasta", ["Ascomycota"], "db.zip")
+        assert (purge["input"], purge["phylum"], purge["sourdb"]) == (f"{base}.vecscreen.fasta", ["Ascomycota"], ["gbk-fungi"])
         assert set(purge) == set(_cli_defaults("taxpurge")) | {"pipe"}
         assert steps["rmdup"]["input"] == f"{base}.taxpurge.fasta"
 

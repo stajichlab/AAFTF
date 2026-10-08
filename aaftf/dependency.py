@@ -58,6 +58,7 @@ REQUIRED_PYTHON_PACKAGES = {
 
 OPTIONAL_PYTHON_PACKAGES = {
     "matplotlib": "matplotlib",  # depth plots
+    "sourmash_plugin_branchwater": "sourmash_plugin_branchwater",  # taxpurge (sourmash scripts fastmultigather)
 }
 
 logger = logging.getLogger(__name__)

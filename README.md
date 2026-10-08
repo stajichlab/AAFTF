@@ -29,7 +29,7 @@ the pipelines use by default):
 
 | Tool | Used by |
 |---|---|
-| [sourmash](https://sourmash.readthedocs.io/) >=4 ([paper](https://pubmed.ncbi.nlm.nih.gov/31508216/)) | `taxpurge` (run by the pipelines only with `-p/--phylum`; also needs `AAFTF database sm_gbk`) |
+| [sourmash](https://sourmash.readthedocs.io/) >=4.8 ([paper](https://pubmed.ncbi.nlm.nih.gov/31508216/)) + [branchwater plugin](https://github.com/sourmash-bio/sourmash_plugin_branchwater) | `taxpurge` (run by the pipelines only with `-p/--phylum`; also needs its databases, see below) |
 | [fastp](https://github.com/OpenGene/fastp), [Trimmomatic](https://github.com/usadellab/Trimmomatic) | `trim --method fastp` / `trimmomatic` |
 | [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) | `filter --aligner bowtie2` (`bwa` and `minimap2` are the other alternatives) |
 | [MEGAHIT](https://github.com/voutcn/megahit), [Unicycler](https://github.com/rrwick/Unicycler) | `assemble --method megahit` / `unicycler` (also `pipeline_short`/`pipeline_hybrid --method`) |
@@ -72,7 +72,7 @@ writable one. The steps only read databases; download them once with `AAFTF data
 $ export AAFTF_DB=/path/with/space/aaftf_db   # or a shared, system-wide location
 $ AAFTF database                                        # list databases and where they are stored
 $ AAFTF database required     # what the default pipeline needs: phix univec euks proks mitodb
-$ AAFTF database sm_gbk       # sourmash index for taxpurge (pipelines with -p/--phylum)
+$ AAFTF database taxpurge     # sourmash databases for taxpurge (pipelines with -p), ~0.7 GB
 ```
 
 `fcs_screen` also needs the FCS-adaptor script and container image (`AAFTF database fcs_script fcs_image`,

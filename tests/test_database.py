@@ -88,7 +88,16 @@ class TestResolve:
         assert _resolve(["UNIVEC", "Contam_In_Prok.FA"]) == ["univec", "proks"]
 
     def test_all_and_duplicates(self):
-        assert _resolve(["univec", "all", "UniVec"]) == ["univec"] + [a for a in DATABASES if a != "univec"]
+        selected = _resolve(["univec", "all", "UniVec"])
+        assert selected[0] == "univec" and sorted(selected) == sorted(DATABASES) and len(selected) == len(set(selected))
+
+    def test_sourmash_database_brings_its_lineages(self):
+        assert _resolve(["gtdb-reps-lite"]) == ["gtdb-reps-lite", "gtdb-reps-lineages"]
+        assert _resolve(["gtdb-reps", "gtdb-reps-lite"]) == ["gtdb-reps", "gtdb-reps-lineages", "gtdb-reps-lite"]
+        assert _resolve(["human-hg38"]) == ["human-hg38"]  # taxpurge writes its lineage itself
+
+    def test_taxpurge_keyword_is_its_default_databases(self):
+        assert _resolve(["taxpurge"]) == ["gbk-fungi-lite", "gbk-euks-lineages", "gtdb-reps-lite", "gtdb-reps-lineages", "human-hg38"]
 
     def test_unknown_name_raises(self):
         with pytest.raises(ValueError) as exc:
@@ -168,7 +177,7 @@ class TestRequiredOptionalGroups:
         assert all(isinstance(entry["required"], bool) for entry in DATABASES.values())
 
     def test_required_set_is_what_the_default_pipeline_reads(self):
-        # filter reads phix + univec; vecscreen univec, euks, proks, mitodb (taxpurge and its sm_gbk run only with -p)
+        # filter reads phix + univec; vecscreen univec, euks, proks, mitodb (taxpurge and its sourmash databases run only with -p)
         assert {abbr for abbr, e in DATABASES.items() if e["required"]} == {"phix", "univec", "euks", "proks", "mitodb"}
 
     def test_listing_shows_required_then_optional(self, monkeypatch, capsys, tmp_path):
@@ -177,7 +186,7 @@ class TestRequiredOptionalGroups:
             run()
         out = capsys.readouterr().out
         required_at, optional_at = out.index("Needed by the default pipeline:"), out.index("Only for non-default options or optional steps:")
-        assert required_at < out.index("\n  phix ") < out.index("\n  mitodb ") < optional_at < out.index("\n  sm_gbk ") < out.index("\n  sm_gtdb ") < out.index("\n  fcs_image ")
+        assert required_at < out.index("\n  phix ") < out.index("\n  mitodb ") < optional_at < out.index("\n  gbk-fungi ") < out.index("\n  human-hg38 ") < out.index("\n  fcs_image ")
         assert "Other files" not in out  # heading only when the folder holds other files
 
     def test_other_files_get_their_own_heading(self, monkeypatch, capsys, tmp_path):
@@ -190,5 +199,5 @@ class TestRequiredOptionalGroups:
 
     def test_required_and_optional_keywords(self):
         assert _resolve(["required"]) == ["phix", "univec", "euks", "proks", "mitodb"]
-        assert _resolve(["optional"]) == ["sm_gbk", "sm_gtdbrep", "sm_gtdb", "fcs_script", "fcs_image"]
+        assert _resolve(["optional"]) == ["gbk-fungi", "gbk-fungi-lineages", "gbk-fungi-lite", "gbk-euks-lineages", "gtdb-reps", "gtdb-reps-lineages", "gtdb-reps-lite", "human-hg38", "fcs_script", "fcs_image"]
         assert _resolve(["REQUIRED", "fcs_script"]) == ["phix", "univec", "euks", "proks", "mitodb", "fcs_script"]

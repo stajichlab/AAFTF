@@ -10,17 +10,99 @@ given ``-p/--phylum``.
 Algorithm
 =========
 
-1. Computes a per-contig sourmash sketch (``sourmash compute -k KMER --scaled=1000 --singleton``)
-   and classifies each contig with ``sourmash lca classify`` against a reference LCA database. The
-   database is either user-supplied (``--sourdb``) or the one installed by ``AAFTF database`` for
-   ``--sourdb_type``: ``gbk`` -> ``sm_gbk`` (GenBank k=31, the default), ``gtdbrep`` ->
-   ``sm_gtdbrep``, ``gtdb`` -> ``sm_gtdb`` (exit code 2 if it is not installed).
-2. Only rows with status exactly ``found`` are classified: a contig is removed if none of the
-   names given to ``-p/--phylum`` matches (exactly, case-sensitive) any rank of its lineage.
-   Contigs with *no* classification (``nomatch``) are kept, since sourmash can't classify
-   novel/divergent sequence.
-3. The remaining contigs are written to ``-o/--outfile``, and a copy of the raw sourmash
-   classification CSV is saved as ``{input_basename}.sourmash-taxonomy.csv`` next to the input.
+1. Sketches each contig (``sourmash sketch dna -p k=KMER,scaled=1000 --singleton``).
+2. Searches the contig sketches against each ``--sourdb`` database in turn, at that database's
+   resolution (``scaled``), with ``sourmash scripts fastmultigather`` from the `branchwater plugin
+   <https://github.com/sourmash-bio/sourmash_plugin_branchwater>`_. A contig matches a database
+   genome when they share at least ``--min_hashes`` sketch hashes, i.e. about ``--min_hashes`` x
+   ``scaled`` bp of sequence.
+3. Classifies the matches of each database with ``sourmash tax genome``. A contig matched in
+   several databases takes the classification with the most matched sequence, so a contig of the
+   target organism is not called a contaminant because a (contaminated) reference genome contains
+   a little of it.
+4. Removes classified contigs whose lineage contains none of the ``-p/--phylum`` names (exact,
+   case-sensitive match at any rank; GTDB rank prefixes such as ``p__`` are optional). Unclassified
+   contigs are kept, since sourmash can't classify novel or divergent sequence.
+5. Writes the remaining contigs to ``-o/--outfile`` and saves the chosen classifications as
+   ``{input_basename}.sourmash-taxonomy.csv`` next to the input; contigs missing from it were not
+   classified.
+
+Databases
+=========
+
+Install them with ``AAFTF database NAME`` (which also downloads the lineage CSV), or ``AAFTF
+database taxpurge`` for the default set. All are k=31.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 52 15 15
+
+   * - ``--sourdb`` name
+     - Contents
+     - Size
+     - ``scaled``
+   * - ``gbk-fungi``
+     - GenBank 2025.04 fungal genomes (21,135)
+     - 5.3 GB
+     - 1000
+   * - ``gbk-fungi-lite`` (default)
+     - GenBank 2025.01 eukaryote collection, fungi (~6,300 genomes)
+     - 170 MB
+     - 10000
+   * - ``gtdb-reps``
+     - GTDB rs226 representative genomes: bacteria and archaea (143,384)
+     - 3.9 GB
+     - 1000
+   * - ``gtdb-reps-lite`` (default)
+     - the same genomes at lower resolution
+     - 447 MB
+     - 10000
+   * - ``human-hg38`` (default)
+     - human reference genome hg38 (taxpurge writes its one-line lineage CSV itself)
+     - 55 MB
+     - 1000
+
+Pick one fungal and one GTDB database (any combination), and add ``human-hg38`` to catch human
+contamination. Search the target organism's group too (the fungi databases for a fungal
+assembly): with bacteria alone, contigs of your organism can be called bacterial, because some
+bacterial genome assemblies contain sequence from other organisms. ``--sourdb`` also takes paths
+of other sourmash sketch collections (their ``scaled`` is read from the collection) or branchwater
+RocksDB indexes (assumed ``scaled=1000``), with their lineage CSVs in ``--taxonomy_csv``.
+
+**Lite or full.** At ``scaled=10000`` a contig needs about ``--min_hashes`` x 10 kb of sequence
+matching one genome to be classified, at ``scaled=1000`` about ``--min_hashes`` x 1 kb. In a test
+(yeast assembly with *E. coli*, *Cutibacterium acnes* and human chr21 contigs mixed in, 4 threads):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 18 22 20
+
+   * - Databases
+     - Time / memory
+     - Contaminants removed
+     - Yeast wrongly removed
+   * - ``gbk-fungi-lite gtdb-reps-lite human-hg38`` (default)
+     - 43 s / 1.1 GB
+     - bacteria 38/315 (none under 5 kb), human 33/40
+     - 0/698
+   * - ``gbk-fungi gtdb-reps`` (bacteria only, measured with ``--min_hashes 3``)
+     - 3.7 min / 7.5 GB [#]_
+     - bacteria 143/315 (about 1 in 7 under 5 kb)
+     - 2/698 (3-4 kb)
+
+.. [#] Peak with ``gbk-fungi`` searched from a RocksDB index (see below); with its ``.zip``,
+   memory is higher.
+
+Use the full databases when short contaminant contigs matter and memory allows; contaminants on
+short contigs are otherwise better caught by :doc:`covpurge` or :doc:`fcs_gx_purge`.
+
+**Memory.** Each database is searched separately, so memory is that of the largest one. Branchwater
+RocksDB indexes are searched from disk and use much less memory: download the published
+``gtdb-rs226-reps.k31.rocksdb.tar.gz`` from the `sourmash databases
+<https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs226/>`_, or build one with
+``sourmash scripts index DATABASE.zip -o DATABASE.rocksdb -k 31 -s 1000`` (``gbk-fungi``: about
+30 min, 6 GB of memory and 8.6 GB of disk), and pass its path to ``--sourdb`` with the lineage CSV
+in ``--taxonomy_csv``.
 
 Intermediate files and ``taxpurge.log`` are written to the work directory, which is kept when
 given with ``-w``, with ``-v``, or when the run fails. Unless ``-q`` is given, the suggested next
@@ -40,13 +122,21 @@ Cutoffs / defaults
      - *(required)*
      - Phylum/phyla to **keep** (e.g. ``Ascomycota``); anything classified outside this set is
        removed
+   * - ``--sourdb``
+     - gbk-fungi-lite gtdb-reps-lite human-hg38
+     - Databases to search (see above), or paths of sourmash sketch collections / RocksDB indexes
+   * - ``--taxonomy_csv``
+     - none
+     - Lineage CSVs for databases given as paths
+   * - ``--min_hashes``
+     - 2
+     - Sketch hashes a contig must share with a database genome to match it (x ``scaled`` = bp)
    * - ``-k/--kmer``
      - 31
-     - sourmash k-mer size (must match the database's k-mer size)
-   * - ``--sourdb_type``
-     - gbk
-     - gbk (GenBank) / gtdbrep / gtdb sourmash LCA database from ``AAFTF database``
-       (ignored when ``--sourdb`` is given)
+     - sourmash k-mer size (must be in the databases)
+   * - ``-c/--cpus``
+     - 1
+     - Threads for ``fastmultigather``
 
 Invocation
 ==========
@@ -54,10 +144,10 @@ Invocation
 .. code-block:: text
 
     AAFTF taxpurge -i FASTA -o FASTA -p PHYLUM [PHYLUM ...] [-w DIR]
-                   [--sourdb FILE] [-k KMER] [--sourdb_type {gbk,gtdbrep,gtdb}]
-                   [--just-show-taxonomy] [-q] [-v]
+                   [--sourdb DB [DB ...]] [--taxonomy_csv CSV [CSV ...]] [-k KMER]
+                   [--min_hashes INT] [-c INT] [--just-show-taxonomy] [-q] [-v]
 
-``--just-show-taxonomy`` logs the distinct lineages found, saves
+``--just-show-taxonomy`` logs how many contigs fall in each phylum, saves
 ``{input_basename}.sourmash-taxonomy.csv`` next to the input, and returns without purging or writing
 an output assembly (useful to check which phyla are present before choosing ``--phylum``).
 
@@ -66,8 +156,14 @@ Example
 
 .. code-block:: bash
 
-    AAFTF taxpurge -i genomes/STRAINX.vecscreen.fasta -o genomes/STRAINX.taxpurge.fasta \
+    AAFTF database taxpurge    # the default databases, once (~0.7 GB)
+    AAFTF taxpurge -c 8 -i genomes/STRAINX.vecscreen.fasta -o genomes/STRAINX.taxpurge.fasta \
         --phylum Ascomycota
+
+    # Full-resolution databases: shorter contaminant contigs caught, more memory
+    AAFTF database gbk-fungi gtdb-reps human-hg38
+    AAFTF taxpurge -c 8 -i genomes/STRAINX.vecscreen.fasta -o genomes/STRAINX.taxpurge.fasta \
+        --phylum Ascomycota --sourdb gbk-fungi gtdb-reps human-hg38
 
     # Preview classifications before deciding which phylum to keep
     AAFTF taxpurge -i genomes/STRAINX.vecscreen.fasta -o /dev/null \

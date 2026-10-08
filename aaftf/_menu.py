@@ -122,14 +122,16 @@ def database_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     parser_database = subparsers.add_parser(
         "database",
         formatter_class=CustomHelpFormatter,
-        description=("List AAFTF reference databases (with no arguments), or download the named ones into the database folder ($AAFTF_DB, else ~/.cache/aaftf). Name databases by abbreviation or file name, or use 'all'."),
+        description=(
+            "List AAFTF reference databases (with no arguments), or download the named ones into the database folder ($AAFTF_DB, else ~/.cache/aaftf). Name databases by abbreviation or file name, or use a group: 'required', 'optional', 'taxpurge' (taxpurge's default sourmash databases) or 'all'. A sourmash database is downloaded with its lineage CSV."
+        ),
         help="List or download AAFTF reference databases",
     )
     parser_database.add_argument(
         "databases",
         nargs="*",
         metavar="DATABASE",
-        help="Databases to download, by abbreviation (e.g. univec) or file name (e.g. UniVec), or 'all'. Omit to list the databases and where they are stored.",
+        help="Databases to download, by abbreviation (e.g. univec, gtdb-reps-lite) or file name (e.g. UniVec), or a group (required, optional, taxpurge, all). Omit to list the databases and where they are stored.",
     )
     optional = parser_database.add_argument_group("optional arguments")
     optional.add_argument(
@@ -550,7 +552,7 @@ def taxpurge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_tax = subparsers.add_parser(
         "taxpurge",
-        description="Remove contigs that sourmash classifies outside the given phyla; unclassified contigs are kept",
+        description="Remove contigs that sourmash classifies outside the given phyla; unclassified contigs are kept. Contigs are searched against sourmash databases with the branchwater plugin's fastmultigather and classified with sourmash tax genome.",
         help="Purge contigs by sourmash taxonomy",
         formatter_class=CustomHelpFormatter,
     )
@@ -566,16 +568,21 @@ def taxpurge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-w", "--workdir", "--tmpdir", type=str, dest="workdir", help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database; default: the one from 'AAFTF database'", metavar="FILE")
-
-    optional.add_argument("-k", "--kmer", default="31", help="SourMash LCA kmersize when taxonomy database was built")
-
     optional.add_argument(
-        "--sourdb_type",
-        default="gbk",
-        choices=["gbk", "gtdbrep", "gtdb"],
-        help="Which sourmash database to use.",
+        "--sourdb",
+        type=str,
+        nargs="+",
+        help="sourmash databases to search (all k=31), installed with 'AAFTF database': gbk-fungi (GenBank fungi, scaled=1000, 5.3 GB) or gbk-fungi-lite (scaled=10000, 170 MB); gtdb-reps (GTDB rs226 representatives: bacteria and archaea, scaled=1000, 3.9 GB) or gtdb-reps-lite (scaled=10000, 447 MB); human-hg38 (55 MB). The lite databases are smaller and use less memory but only classify contigs of ~20 kb or more. Paths of sourmash sketch collections or RocksDB indexes also work (give their lineages with --taxonomy_csv). Default: gbk-fungi-lite gtdb-reps-lite human-hg38",
+        metavar="DB",
     )
+
+    optional.add_argument("--taxonomy_csv", type=str, nargs="+", help="Lineage CSV files for databases given as paths with --sourdb", metavar="CSV")
+
+    optional.add_argument("-k", "--kmer", default="31", help="k-mer size of the contig sketches; must be one the databases contain (31 for the installed databases)")
+
+    optional.add_argument("--min_hashes", type=int, default=2, help="Minimum number of sketch hashes a contig must share with a database genome to match it: about this many x 1 kb (scaled=1000 databases) or x 10 kb (lite databases) of matching sequence; contigs with less stay unclassified (and kept)", metavar="INT")
+
+    optional.add_argument("-c", "--cpus", type=int, metavar="INT", default=1, help="Number of CPUs/threads to use")
 
     optional.add_argument("--just-show-taxonomy", dest="taxonomy", action="store_true", help="Show taxonomy information and exit")
 
@@ -946,7 +953,14 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-mc", "--mincontiglen", type=int, default=500, help="Minimum length of contigs to keep", metavar="BP")
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database for taxpurge; default: the one from 'AAFTF database'", metavar="FILE")
+    optional.add_argument(
+        "--sourdb",
+        type=str,
+        nargs="+",
+        choices=["gbk-fungi", "gbk-fungi-lite", "gtdb-reps", "gtdb-reps-lite", "human-hg38"],
+        help="sourmash databases for taxpurge, installed with 'AAFTF database': gbk-fungi or gbk-fungi-lite, gtdb-reps or gtdb-reps-lite, human-hg38; default: taxpurge's default (gbk-fungi-lite gtdb-reps-lite human-hg38). For your own databases run AAFTF taxpurge itself",
+        metavar="DB",
+    )
 
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 
@@ -989,7 +1003,14 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-p", "--phylum", nargs="+", help="Phylum or phyla whose contigs are kept, e.g. Ascomycota; when given, taxpurge removes contigs that sourmash classifies outside them; default: taxpurge is not run", metavar="PHYLUM", type=str)
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database for taxpurge; default: the one from 'AAFTF database'", metavar="FILE")
+    optional.add_argument(
+        "--sourdb",
+        type=str,
+        nargs="+",
+        choices=["gbk-fungi", "gbk-fungi-lite", "gtdb-reps", "gtdb-reps-lite", "human-hg38"],
+        help="sourmash databases for taxpurge, installed with 'AAFTF database': gbk-fungi or gbk-fungi-lite, gtdb-reps or gtdb-reps-lite, human-hg38; default: taxpurge's default (gbk-fungi-lite gtdb-reps-lite human-hg38). For your own databases run AAFTF taxpurge itself",
+        metavar="DB",
+    )
 
     optional.add_argument("-w", "--workdir", type=str, help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
@@ -1056,7 +1077,14 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("-mc", "--mincontiglen", type=int, default=500, help="Minimum length of contigs to keep", metavar="BP")
 
-    optional.add_argument("--sourdb", type=str, help="sourmash LCA (k-31) taxonomy database for taxpurge; default: the one from 'AAFTF database'", metavar="FILE")
+    optional.add_argument(
+        "--sourdb",
+        type=str,
+        nargs="+",
+        choices=["gbk-fungi", "gbk-fungi-lite", "gtdb-reps", "gtdb-reps-lite", "human-hg38"],
+        help="sourmash databases for taxpurge, installed with 'AAFTF database': gbk-fungi or gbk-fungi-lite, gtdb-reps or gtdb-reps-lite, human-hg38; default: taxpurge's default (gbk-fungi-lite gtdb-reps-lite human-hg38). For your own databases run AAFTF taxpurge itself",
+        metavar="DB",
+    )
 
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 

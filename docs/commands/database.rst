@@ -33,7 +33,7 @@ Run ``AAFTF database`` with no arguments to list every database: its short name,
 which subcommands use it, and the folder it is stored in (or ``not downloaded``, with the
 remote size). Like ``AAFTF dependency``, the list is split in two: the databases ``AAFTF pipeline_short``
 needs with its default settings (``phix``, ``univec``, ``euks``, ``proks``, ``mitodb``),
-then those only needed by non-default options or optional steps (``sm_gbk``, ``sm_gtdbrep``, ``sm_gtdb``,
+then those only needed by non-default options or optional steps (the sourmash databases and their lineage CSVs,
 ``fcs_script``, ``fcs_image``); any other files found in the database folders are listed last.
 
 .. list-table::
@@ -58,15 +58,24 @@ then those only needed by non-default options or optional steps (``sm_gbk``, ``s
    * - ``mitodb``
      - ``mitochondrion.1.1.genomic.fna.gz`` (RefSeq mitochondria)
      - ``vecscreen``
-   * - ``sm_gbk``
-     - ``genbank-k31.lca.json.gz`` (sourmash GenBank)
-     - ``taxpurge --sourdb_type gbk``
-   * - ``sm_gtdbrep``
-     - ``gtdb-rs220-reps.k31.lca.json.gz`` (sourmash GTDB representatives)
-     - ``taxpurge --sourdb_type gtdbrep``
-   * - ``sm_gtdb``
-     - ``gtdb-rs220-k31.lca.json.gz`` (sourmash GTDB)
-     - ``taxpurge --sourdb_type gtdb``
+   * - ``gbk-fungi`` (+ ``gbk-fungi-lineages``)
+     - ``genbank-20250408-fungi-k31.zip`` (5.3 GB; GenBank 2025.04 fungi, k=31, scaled=1000) and
+       ``genbank-20250408-lineages.fungi.csv``
+     - ``taxpurge --sourdb gbk-fungi``
+   * - ``gbk-fungi-lite`` (+ ``gbk-euks-lineages``)
+     - ``genbank-euks-2025.01-fungi.k31.sig.zip`` (170 MB; GenBank 2025.01 fungi, scaled=10000) and
+       ``genbank-euks-2025.01-eukaryotes.lineages.csv``
+     - ``taxpurge --sourdb gbk-fungi-lite`` (default)
+   * - ``gtdb-reps`` (+ ``gtdb-reps-lineages``)
+     - ``gtdb-rs226-reps.k31.sig.zip`` (3.9 GB; GTDB rs226 representatives, bacteria and archaea,
+       scaled=1000) and ``gtdb-rs226-reps.lineages.csv``
+     - ``taxpurge --sourdb gtdb-reps``
+   * - ``gtdb-reps-lite`` (+ ``gtdb-reps-lineages``)
+     - ``gtdb-rs226-reps.k31-sc10k.sig.zip`` (447 MB; the same genomes at scaled=10000)
+     - ``taxpurge --sourdb gtdb-reps-lite`` (default)
+   * - ``human-hg38``
+     - ``hg38-entire.sig.zip`` (55 MB; human hg38, scaled=1000)
+     - ``taxpurge --sourdb human-hg38`` (default)
    * - ``fcs_script``
      - ``run_fcsadaptor.sh``
      - ``fcs_screen``
@@ -74,8 +83,10 @@ then those only needed by non-default options or optional steps (``sm_gbk``, ``s
      - ``fcs-adaptor.0.5.5.sif``
      - ``fcs_screen`` (singularity)
 
-The sourmash databases and the FCS image are several GB each; download only the sourmash index
-matching how you'll call ``taxpurge --sourdb_type``.
+The sourmash databases and the FCS image are several GB each. ``taxpurge`` needs both files
+(sketches and lineages) of each database it searches; naming a sourmash database downloads its
+lineage CSV with it, and ``taxpurge`` downloads the default set (``gbk-fungi-lite``,
+``gtdb-reps-lite``, ``human-hg38``; ~0.7 GB).
 
 Downloads are safe to interrupt: each file is written to a ``.tmp`` path and renamed on success,
 and files already present in any database folder are skipped on re-run unless ``--force`` is
@@ -115,8 +126,8 @@ Example
     # Everything the default pipeline needs (phix univec euks proks mitodb)
     AAFTF database required
 
-    # ... plus the sourmash index taxpurge uses (pipelines run with -p/--phylum)
-    AAFTF database required sm_gbk
+    # ... plus the sourmash databases taxpurge searches (pipelines run with -p/--phylum)
+    AAFTF database required taxpurge
 
     # ... plus the FCS-adaptor files for fcs_screen
     AAFTF database required fcs_script fcs_image
@@ -132,7 +143,7 @@ Container usage
 
 The Singularity definition (``AAFTF.def``) defaults to ``skip_db_download=1``, so the image
 contains no databases. Build with ``--build-arg skip_db_download=0`` to run ``AAFTF database phix
-univec euks proks mitodb sm_gbk fcs_script fcs_image`` during ``%post`` and bake them into the
+univec euks proks mitodb taxpurge fcs_script fcs_image`` during ``%post`` and bake them into the
 image at ``/opt/aaftf_db``. Otherwise (and for the Docker image, which never includes them),
 bind-mount a database folder at ``/opt/aaftf_db`` (the container's ``$AAFTF_DB``) and run
 ``AAFTF database NAME ...`` into it before using ``filter``/``vecscreen``/``taxpurge``.

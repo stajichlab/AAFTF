@@ -10,7 +10,7 @@
 #   IMAGE_TAG  — Docker image tag to use                  (default: latest)
 #
 # To download the AAFTF databases into ./aaftf_db:
-#   docker compose run --rm aaftf AAFTF database phix univec euks proks mitodb sm_gbk fcs_script fcs_image
+#   docker compose run --rm aaftf AAFTF database phix univec euks proks mitodb taxpurge fcs_script fcs_image
 
 services:
   aaftf:

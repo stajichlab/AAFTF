@@ -28,7 +28,8 @@ dependencies:
   - packaging
   # optional steps and non-default options
   - pigz
-  - sourmash                # taxpurge
+  - sourmash>=4.8           # taxpurge
+  - sourmash_plugin_branchwater>=0.9.15
   - fastp
   - trimmomatic
   - bowtie2

@@ -10,7 +10,7 @@ check the **Breaking changes** before updating scripts.
  - **`pipeline` renamed to `pipeline_short`** (same options and behaviour, no alias for the old name).
 
  - **`sourpurge` split into `taxpurge` and `covpurge`** (no alias for the old name). `taxpurge` is the
-   sourmash taxonomy screen (`-p/--phylum`, `--sourdb`, `--sourdb_type`, `-k/--kmer`,
+   sourmash taxonomy screen (`-p/--phylum`, `--sourdb`, `--threshold`, `-k/--kmer`,
    `--just-show-taxonomy`); `covpurge` is the bwa low-coverage screen (`-1/--read1` required,
    `-2/--read2`, `-mc/--mincovpct`, `-c/--cpus`). Run `taxpurge` first so contaminants don't skew
    `covpurge`'s coverage baseline. The pipelines write `{base}.taxpurge.fasta` and
@@ -98,6 +98,23 @@ check the **Breaking changes** before updating scripts.
 
 ### Changed
 
+ - **`taxpurge` uses current sourmash databases and commands** instead of `sourmash lca
+   classify` and its 2017 LCA databases. Contigs are searched with the branchwater plugin's
+   `sourmash scripts fastmultigather`, one database at a time at its own resolution, and classified
+   with `sourmash tax genome`; a contig matched in several databases takes the classification with
+   the most matched sequence. `--sourdb` takes one or more of `gbk-fungi` / `gbk-fungi-lite`
+   (GenBank fungi, `scaled=1000` / `10000`), `gtdb-reps` / `gtdb-reps-lite` (GTDB rs226
+   representatives, bacteria and archaea) and `human-hg38`, or paths of sketch collections /
+   RocksDB indexes (with `--taxonomy_csv`); it replaces `--sourdb_type`. The default,
+   `gbk-fungi-lite gtdb-reps-lite human-hg38`, is ~0.7 GB (`AAFTF database taxpurge`) and needs
+   ~1 GB of memory; the full-resolution databases (~9 GB) also classify shorter contigs.
+   `--min_hashes` (default 2) sets the minimum match and `-c/--cpus` the threads. In a test (yeast
+   assembly with *E. coli*, *C. acnes* and human contigs mixed in) the default removed 38 of 315
+   bacterial and 33 of 40 human contigs and no yeast contig; the full databases removed 143 of 315
+   bacterial contigs (the LCA version: 1 with its old defaults). The old `sm_gbk`, `sm_gtdbrep`
+   and `sm_gtdb` LCA files are no longer used. Needs `sourmash_plugin_branchwater`.
+ - `AAFTF database`: naming a sourmash database also downloads its lineage CSV, and `taxpurge`
+   downloads `taxpurge`'s default databases.
  - **Single-end reads in the pipelines**: `pipeline_short` and `pipeline_hybrid` stopped after
    `trim` on single-end reads, because they looked for `{base}_1P.fastq.gz` while `trim` writes
    `{base}_1U.fastq.gz`; they now use `_1U`. `filter` writes single-end output as
@@ -133,6 +150,8 @@ check the **Breaking changes** before updating scripts.
 
 ### Fixed
 
+ - `taxpurge --sourdb_type gtdb` / `gtdbrep` failed: they downloaded GTDB `.zip` collections,
+   which `sourmash lca classify` cannot read. `taxpurge` now reads such collections directly.
  - `assemble --merged`: with paired reads SPAdes got the merged reads as a separate single-read
    library (`--s1`); they are now the paired library's merged reads (`--merged`), and single-end
    input uses `-s` (plus `--s 2` for merged reads) instead of the deprecated `--s1`/`--s2`/`--pe1-*`
@@ -167,9 +186,9 @@ check the **Breaking changes** before updating scripts.
 
 ### Known issues
 
- - `sourpurge --sourdb_type gtdb` / `gtdbrep`: the GTDB databases are downloaded as sourmash `.dna.zip`
-   collections but `sourmash lca classify` needs LCA databases, so these options likely fail (the
-   default `gbk` database works). See `TODO.md`.
+ - `taxpurge` classifies only about 1 in 7 contaminant contigs under 5 kb, and can misclassify a
+   few short contigs of the target organism; short contaminant contigs are better caught by
+   `covpurge` or `fcs_gx_purge`.
 
 ### Internal
 

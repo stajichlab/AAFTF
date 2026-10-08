@@ -59,7 +59,7 @@ def run_short(
     screen_urls: list[str] | None = None,
     mincontiglen: int = 500,
     workdir: str | None = None,
-    sourdb: str | None = None,
+    sourdb: list[str] | None = None,
     mincovpct: int = 5,
     debug: bool = False,
     quiet: bool = False,
@@ -82,7 +82,7 @@ def run_short(
         screen_urls: URLs of sequences to screen out of the reads in ``filter``.
         mincontiglen: Minimum contig length kept by ``rmdup`` and ``sort``.
         workdir: Working directory for steps that take ``-w/--workdir``; None keeps each step's default.
-        sourdb: Sourmash LCA database for ``taxpurge``.
+        sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
         mincovpct: Minimum percent of N50 coverage below which ``covpurge`` removes contigs.
         debug: Show debug output and keep temporary files in every step.
         quiet: Only show warnings and errors in every step.
@@ -106,7 +106,7 @@ def run_long(
     longread_type: str = "nano-hq",
     genome_size: str | None = None,
     phylum: list[str] | None = None,
-    sourdb: str | None = None,
+    sourdb: list[str] | None = None,
     cpus: int = 1,
     assembler_args: list[str] | None = None,
     memory: int | None = None,
@@ -127,7 +127,7 @@ def run_long(
         longread_type: Flye read type (``nano-raw``, ``nano-hq``, ``pacbio-raw`` or ``pacbio-hifi``).
         genome_size: Estimated genome size for Flye (e.g. ``40m``), or None to let Flye estimate it.
         phylum: Phyla whose sourmash matches are kept by ``taxpurge``; None skips ``taxpurge``.
-        sourdb: Sourmash LCA database for ``taxpurge``.
+        sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
         cpus: Threads for every step that takes ``-c/--cpus``.
         assembler_args: Extra arguments passed through to Flye.
         memory: Memory in GB for steps that take ``-m/--memory``; None keeps each step's default.
@@ -163,7 +163,7 @@ def run_hybrid(
     screen_urls: list[str] | None = None,
     mincontiglen: int = 500,
     workdir: str | None = None,
-    sourdb: str | None = None,
+    sourdb: list[str] | None = None,
     mincovpct: int = 5,
     debug: bool = False,
     quiet: bool = False,
@@ -194,7 +194,7 @@ def run_hybrid(
         screen_urls: URLs of sequences to screen out of the Illumina reads in ``filter``.
         mincontiglen: Minimum contig length kept by ``rmdup`` and ``sort``.
         workdir: Working directory for steps that take ``-w/--workdir``; None keeps each step's default.
-        sourdb: Sourmash LCA database for ``taxpurge``.
+        sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
         mincovpct: Minimum percent of N50 coverage below which ``covpurge`` removes contigs.
         debug: Show debug output and keep temporary files in every step.
         quiet: Only show warnings and errors in every step.
@@ -227,9 +227,14 @@ def _shared(cpus: int, memory: int | None, workdir: str | None, debug: bool, qui
     return {"cpus": cpus, "memory": memory, "workdir": workdir, "debug": debug, "quiet": quiet}
 
 
-def _taxpurge_options(phylum: list[str] | None, sourdb: str | None) -> dict[str, Any] | None:
-    """Return the ``taxpurge`` options, or None (skip ``taxpurge``) when no ``phylum`` is given."""
-    return {"phylum": phylum, "sourdb": sourdb} if phylum else None
+def _taxpurge_options(phylum: list[str] | None, sourdb: list[str] | None) -> dict[str, Any] | None:
+    """Return the ``taxpurge`` options, or None (skip ``taxpurge``) when no ``phylum`` is given.
+
+    ``sourdb`` is passed only when given, so ``taxpurge`` otherwise keeps its own default database.
+    """
+    if not phylum:
+        return None
+    return {"phylum": phylum} | ({"sourdb": sourdb} if sourdb else {})
 
 
 def _assemble_workdir(shared: dict[str, Any], method: str) -> dict[str, str]:

@@ -13,7 +13,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from aaftf.resources import DATABASES
+from aaftf.resources import DATABASES, TAXPURGE_DEFAULT_DATABASES
 from aaftf.utility import db_dirs, db_file, db_write_dir, download_file, find_db_file, open_url, warn_if_home_cache
 
 __all__ = ["run"]
@@ -27,7 +27,8 @@ def run(databases: list[str] | None = None, force: bool = False, **kwargs: Any) 
 
     Args:
         databases: Database abbreviations or file names (case-insensitive), or ``required``
-            (what the default pipeline needs), ``optional`` (the rest) or ``all``. When empty,
+            (what the default pipeline needs), ``optional`` (the rest), ``taxpurge`` (its default
+            sourmash databases) or ``all``. When empty,
             list the databases instead of downloading.
         force: Re-download even if a copy already exists (into the first
             writable database folder).
@@ -128,7 +129,7 @@ def _list_db() -> None:
     print("-" * (name_w + file_w + size_w + used_w + 20))
     print(f"  {'Downloaded':<32} {_human_size(downloaded_total):>10}")
     print(f"  {'Not yet downloaded (estimated)':<32} {pending_label:>10}")
-    print("\nDownload with: AAFTF database NAME [NAME ...]   (abbreviation or file name, or 'required', 'optional', 'all')")
+    print("\nDownload with: AAFTF database NAME [NAME ...]   (abbreviation or file name, or 'required', 'optional', 'taxpurge', 'all')")
 
 
 def _human_size(num_bytes: float) -> str:
@@ -171,7 +172,9 @@ def _resolve(names: list[str]) -> list[str]:
 
     Args:
         names: Database abbreviations or file names (case-insensitive), or ``required`` (what the
-            default pipeline needs), ``optional`` (the rest) or ``all``.
+            default pipeline needs), ``optional`` (the rest), ``taxpurge`` (``taxpurge``'s default
+            sourmash databases) or ``all``. A database's companions (``with``, e.g. a sourmash
+            database's lineage CSV) are added after it.
 
     Returns:
         Keys of ``DATABASES`` in the order first requested.
@@ -190,6 +193,8 @@ def _resolve(names: list[str]) -> list[str]:
         key = name.lower()
         if key == "all":
             matches = list(DATABASES)
+        elif key == "taxpurge":
+            matches = list(TAXPURGE_DEFAULT_DATABASES)
         elif key in ("required", "optional"):
             matches = [abbr for abbr, entry in DATABASES.items() if entry["required"] is (key == "required")]
         elif key in lookup:
@@ -197,9 +202,12 @@ def _resolve(names: list[str]) -> list[str]:
         else:
             unknown.append(name)
             continue
-        selected.extend(abbr for abbr in matches if abbr not in selected)
+        for abbr in matches:
+            for item in [abbr, *DATABASES[abbr].get("with", [])]:
+                if item not in selected:
+                    selected.append(item)
 
     if unknown:
-        choices = f"Choose from: {', '.join(DATABASES)} (or their file names), or 'required', 'optional', 'all'. Run 'AAFTF database' to list them."
+        choices = f"Choose from: {', '.join(DATABASES)} (or their file names), or 'required', 'optional', 'taxpurge', 'all'. Run 'AAFTF database' to list them."
         raise ValueError(f"unknown database(s): {', '.join(unknown)}\n{choices}")
     return selected
