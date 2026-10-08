@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from aaftf.resources import SOURMASH_DATABASES, TAXPURGE_DEFAULT_DATABASES
-from aaftf.utility import cleanup_workdir, close_step_log, fasta_stats, filter_fasta, make_workdir, next_step_name, require_databases, run_cmd
+from aaftf.utility import cleanup_workdir, close_step_log, db_dirs, fasta_stats, filter_fasta, find_db_index, make_workdir, next_step_name, require_databases, run_cmd
 
 __all__ = ["run"]
 
@@ -144,11 +144,20 @@ def _resolve_databases(sourdb: list[str], taxonomy_csv: list[str], workdir: str)
     for item in sourdb:
         if item in SOURMASH_DATABASES:
             entry = SOURMASH_DATABASES[item]
-            names = [item] + ([entry["lineages"]] if entry["lineages"] else [])
+            # its RocksDB index (what `AAFTF database` installs) is searched from disk; the sketch
+            # file, kept by `AAFTF database --no-build`, is loaded into memory
+            index = find_db_index(entry["rocksdb"])
+            if not index and "filename" not in entry:  # only published as an index
+                raise FileNotFoundError(f"missing database: {item} ({entry['rocksdb']}; searched {', '.join(str(d) for d in db_dirs())})\nDownload it first: AAFTF database {item}")
+            names = ([] if index else [item]) + ([entry["lineages"]] if entry["lineages"] else [])
             paths = require_databases(names, hint=f"(AAFTF database {item} downloads both) or pass --sourdb PATH with --taxonomy_csv")
-            databases.append((paths[0], entry["scaled"]))
+            if index:
+                logger.info(f"Using the RocksDB index {index} for {item}")
+                databases.append((index, entry["scaled"]))
+            else:
+                databases.append((paths.pop(0), entry["scaled"]))
             if entry["lineages"]:
-                lineages.append(paths[1])
+                lineages.append(paths[0])
             else:  # human-hg38 is published without one
                 human = Path(workdir, "human-hg38.lineages.csv")
                 human.write_text(_HUMAN_LINEAGE)

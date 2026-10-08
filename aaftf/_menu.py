@@ -139,6 +139,12 @@ def database_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         action="store_true",
         help="Re-download files even if they already exist",
     )
+    optional.add_argument(
+        "--no-build",
+        dest="no_build",
+        action="store_true",
+        help="For sourmash databases without a published RocksDB index (gbk-fungi, gbk-fungi-lite, human-hg38), download the sketch file only instead of building the index from it (and removing it). The index needs much less memory in taxpurge.",
+    )
     add_verbosity_args(optional)
     parser_database.set_defaults(func=database.run)
     return parser_database

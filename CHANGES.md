@@ -115,6 +115,14 @@ check the **Breaking changes** before updating scripts.
    and `sm_gtdb` LCA files are no longer used. Needs `sourmash_plugin_branchwater`.
  - `AAFTF database`: naming a sourmash database also downloads its lineage CSV, and `taxpurge`
    downloads `taxpurge`'s default databases.
+ - Sourmash databases are installed as branchwater RocksDB indexes, which `taxpurge` searches from
+   disk with much less memory (`gbk-fungi` from its index: ~1 GB): `AAFTF database gtdb-reps` /
+   `gtdb-reps-lite` download and unpack the published index; `gbk-fungi`, `gbk-fungi-lite` and
+   `human-hg38` are downloaded as sketch files, indexed locally and the sketch files removed
+   (listed as "fulfilled by rocksdb"). `AAFTF database --no-build` keeps those sketch files
+   instead, and `taxpurge` searches whichever is installed.
+ - `AAFTF database` lists only the top level of the database folders under "Other files" (a
+   subfolder as one entry), and lists each sketch file with its index on the row below it.
  - **Single-end reads in the pipelines**: `pipeline_short` and `pipeline_hybrid` stopped after
    `trim` on single-end reads, because they looked for `{base}_1P.fastq.gz` while `trim` writes
    `{base}_1U.fastq.gz`; they now use `_1U`. `filter` writes single-end output as

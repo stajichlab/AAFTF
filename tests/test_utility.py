@@ -32,6 +32,7 @@ from aaftf.utility import (
     fasta_stats,
     filter_fasta,
     find_db_file,
+    find_db_index,
     home_db_cache,
     make_workdir,
     next_step_name,
@@ -488,6 +489,15 @@ class TestDatabaseFolders:
         (shared / "UniVec").write_text("shared")
         assert find_db_file("UniVec") == str(shared.resolve() / "UniVec")
         assert find_db_file("missing") is None
+
+    def test_find_db_index_needs_a_complete_rocksdb_folder(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+        index = tmp_path / "db.rocksdb"
+        index.mkdir()
+        assert find_db_index("db.rocksdb") is None  # no CURRENT file: empty or partly copied
+        (index / "CURRENT").write_text("MANIFEST-000005\n")
+        assert find_db_index("db.rocksdb") == str(tmp_path.resolve() / "db.rocksdb")
+        assert find_db_index("missing.rocksdb") is None
 
     def test_matches_with_or_without_gz(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))

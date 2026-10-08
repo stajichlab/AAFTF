@@ -52,6 +52,7 @@ __all__ = [
     "basename_from_reads",
     "require_databases",
     "find_db_file",
+    "find_db_index",
     "db_dirs",
     "home_db_cache",
     "db_file",
@@ -717,6 +718,24 @@ def find_db_file(name: str) -> str | None:
         for candidate in (name, alt):
             if (folder / candidate).is_file():
                 return str(folder / candidate)
+    return None
+
+
+def find_db_index(name: str) -> str | None:
+    """Return the first RocksDB index folder ``name`` in ``db_dirs()``, or None.
+
+    Only a folder holding RocksDB's ``CURRENT`` file counts, so an empty or partly copied folder
+    is not used.
+
+    Args:
+        name: Index folder name, e.g. ``gtdb-rs226-reps.k31.rocksdb``.
+
+    Returns:
+        Path of the first index found, or None.
+    """
+    for folder in db_dirs():
+        if (folder / name / "CURRENT").is_file():
+            return str(folder / name)
     return None
 
 

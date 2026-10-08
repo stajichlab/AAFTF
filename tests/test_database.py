@@ -197,6 +197,35 @@ class TestRequiredOptionalGroups:
         out = capsys.readouterr().out
         assert out.index("Other files in the database folders:") < out.index("notes.txt")
 
+    def _listing(self, monkeypatch, capsys, db):
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        with patch("aaftf.database._remote_size", return_value=1024):
+            run()
+        return capsys.readouterr().out.splitlines()
+
+    def _index(self, folder):
+        folder.mkdir(parents=True)
+        (folder / "CURRENT").write_text("MANIFEST-000005\n")
+
+    def test_built_index_listed_under_its_sketch_file(self, monkeypatch, capsys, tmp_path):
+        """The index row follows its sketch file's row; a sketch file replaced by it is "fulfilled by rocksdb"."""
+        self._index(tmp_path / "hg38-entire.rocksdb")
+        lines = self._listing(monkeypatch, capsys, tmp_path)
+        row = next(i for i, line in enumerate(lines) if line.startswith("  human-hg38 "))
+        assert "hg38-entire.sig.zip" in lines[row] and "fulfilled by rocksdb" in lines[row]
+        assert "1.0 KB" in lines[row]  # the sketch file's download size (mocked), not "-"
+        assert "hg38-entire.rocksdb" in lines[row + 1] and str(tmp_path.resolve()) in lines[row + 1]
+        fungi = next(i for i, line in enumerate(lines) if line.startswith("  gbk-fungi "))
+        assert "not downloaded" in lines[fungi] and "genbank-20250408-fungi-k31.rocksdb" in lines[fungi + 1] and "not built" in lines[fungi + 1]
+        assert not any("Other files" in line for line in lines)
+
+    def test_published_index_is_the_database_row(self, monkeypatch, capsys, tmp_path):
+        self._index(tmp_path / "gtdb-rs226-reps.k31.rocksdb")
+        lines = self._listing(monkeypatch, capsys, tmp_path)
+        row = next(line for line in lines if line.startswith("  gtdb-reps "))
+        assert "gtdb-rs226-reps.k31.rocksdb" in row and str(tmp_path.resolve()) in row
+        assert not any(".sig.zip" in line and "gtdb-rs226-reps.k31" in line for line in lines)  # no sketch file entry
+
     def test_other_files_lists_only_the_top_level(self, monkeypatch, capsys, tmp_path):
         """A subfolder is one entry (name/); the files inside it are not listed."""
         (tmp_path / "old_run").mkdir()
@@ -211,5 +240,108 @@ class TestRequiredOptionalGroups:
 
     def test_required_and_optional_keywords(self):
         assert _resolve(["required"]) == ["phix", "univec", "euks", "proks", "mitodb"]
-        assert _resolve(["optional"]) == ["gbk-fungi", "gbk-fungi-lineages", "gbk-fungi-lite", "gbk-euks-lineages", "gtdb-reps", "gtdb-reps-lineages", "gtdb-reps-lite", "human-hg38", "fcs_script", "fcs_image"]
+        assert _resolve(["optional"]) == [
+            "gbk-fungi",
+            "gbk-fungi-lineages",
+            "gbk-fungi-lite",
+            "gbk-euks-lineages",
+            "gtdb-reps",
+            "gtdb-reps-lineages",
+            "gtdb-reps-lite",
+            "human-hg38",
+            "fcs_script",
+            "fcs_image",
+        ]
         assert _resolve(["REQUIRED", "fcs_script"]) == ["phix", "univec", "euks", "proks", "mitodb", "fcs_script"]
+
+
+class TestInstallIndex:
+    """Sourmash databases are installed as RocksDB indexes: unpacked from a published archive, or built."""
+
+    def _archive(self, tmp_path, folder):
+        import tarfile
+
+        src = tmp_path / "src" / folder
+        src.mkdir(parents=True)
+        (src / "CURRENT").write_text("MANIFEST-000005\n")
+        (src / "000001.sst").write_text("x")
+        archive = tmp_path / f"{folder}.tar.gz"
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(src, arcname=folder)
+        return archive
+
+    def _fake_download(self, archive=None):
+        def download(url, dest, force=False):
+            Path(dest).parent.mkdir(parents=True, exist_ok=True)
+            Path(dest).write_bytes(archive.read_bytes() if archive and url.endswith(".tar.gz") else b"x")
+            return dest
+
+        return download
+
+    def _fake_index(self, cmds):
+        def index(cmd, debug=False, **kw):
+            cmds.append(cmd)
+            out = Path(cmd[cmd.index("-o") + 1])
+            out.mkdir()
+            (out / "CURRENT").write_text("MANIFEST-000005\n")
+
+        return index
+
+    def test_published_archive_unpacked_into_place(self, monkeypatch, tmp_path):
+        db = tmp_path / "db"
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        archive = self._archive(tmp_path, "gtdb-rs226-reps.k31-sc10k.sig.rocksdb")
+        with patch("aaftf.database.download_file", side_effect=self._fake_download(archive)):
+            run(databases=["gtdb-reps-lite"])
+        index = db / "gtdb-rs226-reps.k31-sc10k.sig.rocksdb"
+        assert (index / "CURRENT").is_file() and (index / "000001.sst").is_file()
+        assert sorted(p.name for p in db.iterdir()) == ["gtdb-rs226-reps.k31-sc10k.sig.rocksdb", "gtdb-rs226-reps.lineages.csv"]  # archive and temp folder removed
+
+    def test_archive_without_the_index_folder_fails_and_leaves_nothing(self, monkeypatch, tmp_path):
+        db = tmp_path / "db"
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        archive = self._archive(tmp_path, "something-else.rocksdb")
+        with patch("aaftf.database.download_file", side_effect=self._fake_download(archive)):
+            with pytest.raises(RuntimeError, match="gtdb-reps-lite"):
+                run(databases=["gtdb-reps-lite"])
+        assert not any(p.name.startswith("gtdb-rs226-reps.k31-sc10k.sig.rocksdb") for p in db.iterdir())
+
+    def test_built_from_its_sketch_file_which_is_then_removed(self, monkeypatch, tmp_path):
+        db = tmp_path / "db"
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        cmds = []
+        with patch("aaftf.database.download_file", side_effect=self._fake_download()), patch("aaftf.database.run_cmd", side_effect=self._fake_index(cmds)), patch("aaftf.database.require_tools"):
+            run(databases=["human-hg38"])
+        assert cmds[0][:4] == ["sourmash", "scripts", "index", str(db.resolve() / "hg38-entire.sig.zip")]
+        assert cmds[0][-4:] == ["-k", "31", "-s", "1000"]
+        assert (db / "hg38-entire.rocksdb" / "CURRENT").is_file()
+        assert not (db / "hg38-entire.sig.zip").exists()  # replaced by the index
+
+    def test_no_build_keeps_the_sketch_file(self, monkeypatch, tmp_path):
+        db = tmp_path / "db"
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        with patch("aaftf.database.download_file", side_effect=self._fake_download()), patch("aaftf.database.run_cmd") as rc:
+            run(databases=["human-hg38"], no_build=True)
+        rc.assert_not_called()
+        assert (db / "hg38-entire.sig.zip").is_file() and not (db / "hg38-entire.rocksdb").exists()
+
+    def test_sketch_file_in_another_folder_is_not_removed(self, monkeypatch, tmp_path):
+        """A sketch file in a second (e.g. shared) $AAFTF_DB folder is used to build, but kept."""
+        mine, shared = tmp_path / "mine", tmp_path / "shared"
+        mine.mkdir()
+        shared.mkdir()
+        (shared / "hg38-entire.sig.zip").write_text("x")
+        monkeypatch.setenv("AAFTF_DB", f"{mine}{os.pathsep}{shared}")
+        with patch("aaftf.database.run_cmd", side_effect=self._fake_index([])), patch("aaftf.database.require_tools"):
+            run(databases=["human-hg38"])
+        assert (mine / "hg38-entire.rocksdb" / "CURRENT").is_file() and (shared / "hg38-entire.sig.zip").is_file()
+
+    def test_already_present_index_is_skipped(self, monkeypatch, tmp_path):
+        db = tmp_path / "db"
+        (db / "hg38-entire.rocksdb").mkdir(parents=True)
+        (db / "hg38-entire.rocksdb" / "CURRENT").write_text("x")
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        with patch("aaftf.database.run_cmd") as rc, patch("aaftf.database.download_file") as dl:
+            run(databases=["human-hg38"])
+        rc.assert_not_called()
+        dl.assert_not_called()

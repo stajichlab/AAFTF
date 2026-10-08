@@ -169,15 +169,20 @@ def _fake_require(names, hint=None):
     return [f"/db/{name}" for name in names]
 
 
+def _fake_index(name):
+    """find_db_index stand-in: the GTDB databases (published only as indexes) are installed."""
+    return f"/db/{name}" if name.startswith("gtdb-") else None
+
+
 def test_installed_database_names(tmp_path):
     """Each name gets its own scaled; lite and full databases sharing a lineage CSV pass it once."""
-    with patch("aaftf.taxpurge.require_databases", side_effect=_fake_require):
+    with patch("aaftf.taxpurge.require_databases", side_effect=_fake_require), patch("aaftf.taxpurge.find_db_index", side_effect=_fake_index):
         _, cmds = _run(tmp_path, [], sourdb=["gbk-fungi", "gtdb-reps", "gtdb-reps-lite"], taxonomy_csv=None)
     gathers = [c for c in cmds if c[:3] == ["sourmash", "scripts", "fastmultigather"]]
     assert [(c[4], c[c.index("-s") + 1], c[c.index("-t") + 1]) for c in gathers] == [
-        ("/db/gbk-fungi", "1000", "2000"),
-        ("/db/gtdb-reps", "1000", "2000"),
-        ("/db/gtdb-reps-lite", "10000", "20000"),
+        ("/db/gbk-fungi", "1000", "2000"),  # its sketch file (kept with --no-build): no index installed
+        ("/db/gtdb-rs226-reps.k31.rocksdb", "1000", "2000"),
+        ("/db/gtdb-rs226-reps.k31-sc10k.sig.rocksdb", "10000", "20000"),
     ]
     tax = next(c for c in cmds if c[:3] == ["sourmash", "tax", "genome"])
     assert tax[tax.index("-t") + 1 : tax.index("-F")] == ["/db/gbk-fungi-lineages", "/db/gtdb-reps-lineages"]
@@ -192,10 +197,50 @@ def test_human_hg38_lineage_written(tmp_path):
     assert "hg38-entire,Eukaryota,Chordata" in lineage_csv.read_text()
 
 
+def _install(db_dir, *names):
+    """Put empty stand-ins for these DATABASES entries (sketch files, lineage CSVs) in ``db_dir``."""
+    from aaftf.resources import DATABASES
+
+    for name in names:
+        (db_dir / DATABASES[name]["filename"]).write_text("")
+
+
+def test_rocksdb_index_used_when_present(tmp_path, monkeypatch):
+    """With its RocksDB index installed, a named database is searched from the index; its .zip is not needed."""
+    db_dir = tmp_path / "db"
+    db_dir.mkdir()
+    monkeypatch.setenv("AAFTF_DB", str(db_dir))
+    _install(db_dir, "gtdb-reps-lineages")
+    index = db_dir / "gtdb-rs226-reps.k31.rocksdb"
+    index.mkdir()
+    (index / "CURRENT").write_text("MANIFEST-000005\n")
+    _, cmds = _run(tmp_path, [], sourdb=["gtdb-reps"], taxonomy_csv=None)
+    gather = next(c for c in cmds if c[:3] == ["sourmash", "scripts", "fastmultigather"])
+    assert gather[4] == str(db_dir.resolve() / "gtdb-rs226-reps.k31.rocksdb") and gather[gather.index("-s") + 1] == "1000"
+
+
+def test_sketch_file_used_without_rocksdb_index(tmp_path, monkeypatch):
+    """After `AAFTF database --no-build`, the sketch file is searched."""
+    db_dir = tmp_path / "db"
+    db_dir.mkdir()
+    monkeypatch.setenv("AAFTF_DB", str(db_dir))
+    _install(db_dir, "gbk-fungi-lite", "gbk-euks-lineages")
+    (db_dir / "genbank-euks-2025.01-fungi.k31.rocksdb").mkdir()  # incomplete: no CURRENT file
+    _, cmds = _run(tmp_path, [], sourdb=["gbk-fungi-lite"], taxonomy_csv=None)
+    gather = next(c for c in cmds if c[:3] == ["sourmash", "scripts", "fastmultigather"])
+    assert gather[4] == str(db_dir.resolve() / "genbank-euks-2025.01-fungi.k31.sig.zip")
+
+
+def test_published_index_database_missing_says_how_to_get_it(tmp_path, monkeypatch):
+    monkeypatch.setenv("AAFTF_DB", str(tmp_path / "db"))
+    with pytest.raises(FileNotFoundError, match="AAFTF database gtdb-reps-lite"):
+        _run(tmp_path, [], sourdb=["gtdb-reps-lite"], taxonomy_csv=None)
+
+
 def test_default_databases(tmp_path):
-    with patch("aaftf.taxpurge.require_databases", side_effect=_fake_require) as req:
+    with patch("aaftf.taxpurge.require_databases", side_effect=_fake_require) as req, patch("aaftf.taxpurge.find_db_index", side_effect=_fake_index):
         _run(tmp_path, [], sourdb=None, taxonomy_csv=None)
-    assert [c.args[0] for c in req.call_args_list] == [["gbk-fungi-lite", "gbk-euks-lineages"], ["gtdb-reps-lite", "gtdb-reps-lineages"], ["human-hg38"]]
+    assert [c.args[0] for c in req.call_args_list] == [["gbk-fungi-lite", "gbk-euks-lineages"], ["gtdb-reps-lineages"], ["human-hg38"]]
 
 
 def test_database_path_without_lineages_raises(tmp_path):

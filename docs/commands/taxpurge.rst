@@ -90,19 +90,22 @@ matching one genome to be classified, at ``scaled=1000`` about ``--min_hashes`` 
      - bacteria 143/315 (about 1 in 7 under 5 kb)
      - 2/698 (3-4 kb)
 
-.. [#] Peak with ``gbk-fungi`` searched from a RocksDB index (see below); with its ``.zip``,
-   memory is higher.
+.. [#] Peak with ``gbk-fungi`` searched from its RocksDB index (see below); with its sketch file
+   (``AAFTF database --no-build``), memory is higher.
 
 Use the full databases when short contaminant contigs matter and memory allows; contaminants on
 short contigs are otherwise better caught by :doc:`covpurge` or :doc:`fcs_gx_purge`.
 
-**Memory.** Each database is searched separately, so memory is that of the largest one. Branchwater
-RocksDB indexes are searched from disk and use much less memory: download the published
-``gtdb-rs226-reps.k31.rocksdb.tar.gz`` from the `sourmash databases
-<https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs226/>`_, or build one with
-``sourmash scripts index DATABASE.zip -o DATABASE.rocksdb -k 31 -s 1000`` (``gbk-fungi``: about
-30 min, 6 GB of memory and 8.6 GB of disk), and pass its path to ``--sourdb`` with the lineage CSV
-in ``--taxonomy_csv``.
+**Memory and RocksDB indexes.** Each database is searched separately, so memory is that of the
+largest one. ``AAFTF database`` installs each database as a branchwater RocksDB index, which is
+searched from disk and uses much less memory: ``gtdb-reps`` and ``gtdb-reps-lite`` are downloaded as
+published indexes; ``gbk-fungi``, ``gbk-fungi-lite`` and ``human-hg38`` are downloaded as sketch
+files, indexed locally (``gbk-fungi``: about 30 min, 6 GB of memory, 8.6 GB of disk) and the
+sketch files removed. ``AAFTF database --no-build`` keeps the sketch files of those three
+instead; ``taxpurge`` then searches the sketch file, loading it into memory. With all three
+default databases as indexes, the test above took 37 s and 1.2 GB; with ``gbk-fungi`` from its
+index plus ``gtdb-reps-lite`` and ``human-hg38``, 39 s and 1.1 GB. Other RocksDB indexes can be
+passed to ``--sourdb`` as paths, with their lineage CSVs in ``--taxonomy_csv``.
 
 Intermediate files and ``taxpurge.log`` are written to the work directory, which is kept when
 given with ``-w``, with ``-v``, or when the run fails. Unless ``-q`` is given, the suggested next

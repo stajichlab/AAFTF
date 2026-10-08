@@ -87,7 +87,14 @@ entry, without its contents or size).
 The sourmash databases and the FCS image are several GB each. ``taxpurge`` needs both files
 (sketches and lineages) of each database it searches; naming a sourmash database downloads its
 lineage CSV with it, and ``taxpurge`` downloads the default set (``gbk-fungi-lite``,
-``gtdb-reps-lite``, ``human-hg38``; ~0.7 GB).
+``gtdb-reps-lite``, ``human-hg38``; ~0.7 GB). Sourmash databases are installed in their final
+form, a RocksDB index (searched from disk by ``taxpurge``, with much less memory): ``gtdb-reps`` and
+``gtdb-reps-lite`` as the published index (its archive is downloaded and unpacked in a temporary
+folder, so an interrupted run leaves nothing half-done), the others by downloading the sketch file,
+building the index from it (``sourmash scripts index``) and removing the sketch file, which is then
+listed as "fulfilled by rocksdb", with the index on the row below it. ``--no-build`` downloads
+those sketch files without building their indexes (``taxpurge`` then searches the sketch files).
+See :doc:`taxpurge`.
 
 Downloads are safe to interrupt: each file is written to a ``.tmp`` path and renamed on success,
 and files already present in any database folder are skipped on re-run unless ``--force`` is

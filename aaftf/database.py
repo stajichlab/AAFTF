@@ -7,14 +7,17 @@ or ``all``) downloads them into the database folder (see
 ``utility.db_dirs``), so later AAFTF commands reuse the cached files.
 """
 
+import contextlib
 import logging
 import os
+import tarfile
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 from aaftf.resources import DATABASES, TAXPURGE_DEFAULT_DATABASES
-from aaftf.utility import db_dirs, db_file, db_write_dir, download_file, find_db_file, open_url, warn_if_home_cache
+from aaftf.utility import db_dirs, db_file, db_write_dir, download_file, find_db_file, find_db_index, open_url, require_tools, run_cmd, safe_remove, warn_if_home_cache
 
 __all__ = ["run"]
 
@@ -22,21 +25,25 @@ __all__ = ["run"]
 logger = logging.getLogger(__name__)
 
 
-def run(databases: list[str] | None = None, force: bool = False, **kwargs: Any) -> None:
+def run(databases: list[str] | None = None, force: bool = False, no_build: bool = False, **kwargs: Any) -> None:
     """Execute the ``database`` subcommand.
+
+    Each sourmash database is prepared as a RocksDB index, its final form: a published index is
+    downloaded and unpacked, otherwise the sketch file is downloaded, indexed, and deleted.
 
     Args:
         databases: Database abbreviations or file names (case-insensitive), or ``required``
             (what the default pipeline needs), ``optional`` (the rest), ``taxpurge`` (its default
-            sourmash databases) or ``all``. When empty,
-            list the databases instead of downloading.
-        force: Re-download even if a copy already exists (into the first
+            sourmash databases) or ``all``. When empty, list the databases instead of downloading.
+        force: Re-download (and rebuild) even if a copy already exists (into the first
             writable database folder).
+        no_build: For a sourmash database without a published index, download its sketch file
+            only, without building (and replacing it with) the RocksDB index.
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ``debug``, ...); ignored.
 
     Raises:
         ValueError: If a database name is not recognised.
-        RuntimeError: If any download fails.
+        RuntimeError: If any download or index build fails.
     """
     if not databases:
         _list_db()
@@ -50,20 +57,131 @@ def run(databases: list[str] | None = None, force: bool = False, **kwargs: Any) 
     errors = []
     for abbr in selected:
         entry = DATABASES[abbr]
-        dest = db_file(entry["filename"], force=force)
-        already_present = Path(dest).exists() and not force
         try:
-            download_file(entry["url"], dest, force=force)
+            if entry.get("index"):
+                _install_index_archive(entry, force)
+            elif entry.get("build_index") and not no_build:
+                _build_index(entry, force)
+            else:
+                dest = db_file(entry["filename"], force=force)
+                already_present = Path(dest).exists() and not force
+                download_file(entry["url"], dest, force=force)
+                if entry.get("executable") and not already_present:
+                    os.chmod(dest, 0o555)
         except Exception as e:
             errors.append(f"{abbr} ({entry['filename']}): {e}")
-            continue
-        if entry.get("executable") and not already_present:
-            os.chmod(dest, 0o555)
 
     if errors:
         hint = "Re-run the same command later; files already downloaded are skipped unless you pass --force."
         raise RuntimeError("Some downloads failed:\n" + "\n".join(errors) + f"\n{hint}")
     logger.info("Download complete. Run 'AAFTF database' to see where each database is stored.")
+
+
+def _install_index_archive(entry: dict[str, Any], force: bool) -> None:
+    """Download a published RocksDB index archive and unpack it into the database folder.
+
+    The archive is downloaded and unpacked in a temporary folder, and the index moved into place
+    only once complete (it must hold RocksDB's ``CURRENT`` file), so an interrupted run never
+    leaves a partial index that a later run, or ``taxpurge``, would use. The archive is deleted.
+
+    Args:
+        entry: The ``DATABASES`` entry: ``filename`` is the index folder, ``url`` its archive.
+        force: Re-install even if the index is already present.
+
+    Raises:
+        RuntimeError: If the archive does not hold the expected index folder.
+    """
+    existing = find_db_index(entry["filename"])
+    if existing and not force:
+        logger.info(f"Already present: {existing}")
+        return
+    with _staging(entry["filename"]) as tmp:
+        archive = download_file(entry["url"], str(tmp / Path(entry["url"]).name))
+        logger.info(f"Unpacking {Path(archive).name} ...")
+        _extract_archive(archive, tmp)
+        safe_remove(archive)
+        _move_index(tmp / entry["filename"])
+
+
+def _build_index(entry: dict[str, Any], force: bool) -> None:
+    """Build a sourmash database's RocksDB index from its sketch file, then delete the sketch file.
+
+    The sketch file is downloaded first if needed. The index is built in a temporary folder and
+    moved into place only once complete. The sketch file is deleted only from the folder AAFTF
+    downloads into (a copy in another ``$AAFTF_DB`` folder may be shared).
+
+    Args:
+        entry: The ``DATABASES`` entry: ``filename`` / ``url`` are the sketch file, ``build_index``
+            the index folder, ``scaled`` its resolution.
+        force: Rebuild (and re-download the sketch file) even if the index is already present.
+
+    Raises:
+        RuntimeError: If the build does not produce a complete index.
+    """
+    existing = find_db_index(entry["build_index"])
+    if existing and not force:
+        logger.info(f"Already present: {existing}")
+        return
+    sketches = download_file(entry["url"], db_file(entry["filename"], force=force), force=force)
+    require_tools(["sourmash"], hint="sourmash and its branchwater plugin (sourmash_plugin_branchwater) build the index; or use --no-build to keep the sketch file")
+    with _staging(entry["build_index"]) as tmp:
+        logger.info(f"Building {entry['build_index']} from {Path(sketches).name} (this can take a while)")
+        run_cmd(["sourmash", "scripts", "index", sketches, "-o", str(tmp / entry["build_index"]), "-k", "31", "-s", str(entry["scaled"])], False)
+        _move_index(tmp / entry["build_index"])
+    if Path(sketches).parent == db_write_dir():
+        safe_remove(sketches)
+        logger.info(f"Removed {sketches}; the RocksDB index replaces it")
+
+
+@contextlib.contextmanager
+def _staging(name: str) -> Iterator[Path]:
+    """Yield an empty temporary folder next to where index ``name`` goes, removed afterwards."""
+    tmp = db_write_dir() / f"{name}.tmp"
+    safe_remove(tmp)
+    tmp.mkdir(parents=True)
+    try:
+        yield tmp
+    finally:
+        safe_remove(tmp)
+
+
+def _move_index(built: Path) -> None:
+    """Move a complete RocksDB index ``built`` into the database folder (replacing an old copy).
+
+    Raises:
+        RuntimeError: If ``built`` is not a complete index (no ``CURRENT`` file).
+    """
+    if not (built / "CURRENT").is_file():
+        raise RuntimeError(f"no complete RocksDB index {built.name} was produced")
+    dest = db_write_dir() / built.name
+    safe_remove(dest)
+    built.rename(dest)
+    logger.info(f"Saved {dest}")
+
+
+def _extract_archive(archive: str, dest: Path) -> None:
+    """Extract tar archive ``archive`` into ``dest``, refusing members that would land outside it.
+
+    Uses tarfile's ``data`` filter where available (Python 3.12, and 3.10/3.11 patch releases);
+    otherwise rejects absolute paths, ``..`` components and links before extracting.
+
+    Raises:
+        RuntimeError: If the archive has an unsafe member.
+    """
+    with tarfile.open(archive) as tar:
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(dest, filter="data")
+            return
+        for member in tar.getmembers():
+            name = Path(member.name)
+            if name.is_absolute() or ".." in name.parts or member.issym() or member.islnk():
+                raise RuntimeError(f"unsafe path in {Path(archive).name}: {member.name}")
+        tar.extractall(dest)
+
+
+def _folder_size(path: str) -> int:
+    """Return the total size of the files in folder ``path`` (a RocksDB index; not recursive)."""
+    return sum(f.stat().st_size for f in Path(path).iterdir() if f.is_file())
 
 
 def _list_db() -> None:
@@ -88,12 +206,16 @@ def _list_db() -> None:
         for abbr, entry in DATABASES.items():
             if entry["required"] is not required:
                 continue
-            local_path = find_db_file(entry["filename"])
+            index = find_db_index(entry["build_index"]) if entry.get("build_index") else None
+            local_path = find_db_index(entry["filename"]) if entry.get("index") else find_db_file(entry["filename"])
             size: int | None
             if local_path:
-                size = Path(local_path).stat().st_size
+                size = _folder_size(local_path) if entry.get("index") else Path(local_path).stat().st_size
                 downloaded_total += size
                 size_label, location = _human_size(size), str(Path(local_path).parent)
+            elif index:  # the sketch file was replaced by its index (next row); its download size, not counted
+                size = _remote_size(entry["url"])
+                size_label, location = ("unknown" if size is None else _human_size(size)), "fulfilled by rocksdb"
             else:
                 size = _remote_size(entry["url"])
                 if size is None:
@@ -102,10 +224,17 @@ def _list_db() -> None:
                     pending_total += size
                 size_label, location = ("unknown" if size is None else _human_size(size)), "not downloaded"
             rows.append((abbr, entry["filename"], size_label, entry["used_by"], location))
+            if entry.get("build_index"):  # the index AAFTF database builds from it, right below it
+                if index:
+                    size = _folder_size(index)
+                    downloaded_total += size
+                    rows.append(("", entry["build_index"], _human_size(size), "", str(Path(index).parent)))
+                else:
+                    rows.append(("", entry["build_index"], "-", "", "not built"))
 
     # Anything else directly in the database folders (e.g. leftover reports); subfolders are listed
     # as one entry, without their size and without listing their contents
-    known_files = {entry["filename"] for entry in DATABASES.values()}
+    known_files = {entry["filename"] for entry in DATABASES.values()} | {entry["build_index"] for entry in DATABASES.values() if entry.get("build_index")}
     other_start = len(rows)
     for folder in folders:
         if not folder.is_dir():
@@ -134,6 +263,7 @@ def _list_db() -> None:
     print(f"  {'Downloaded':<32} {_human_size(downloaded_total):>10}")
     print(f"  {'Not yet downloaded (estimated)':<32} {pending_label:>10}")
     print("\nDownload with: AAFTF database NAME [NAME ...]   (abbreviation or file name, or 'required', 'optional', 'taxpurge', 'all')")
+    print("Sourmash databases are prepared as RocksDB indexes (the sketch file is then removed); add --no-build to keep the sketch file instead.")
 
 
 def _human_size(num_bytes: float) -> str:
