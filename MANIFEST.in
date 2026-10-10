@@ -1,7 +1,0 @@
-include requirements.txt
-include AAFTF/__version__.py
-include version.py
-include AAFTF/data/novoplasty-config.txt
-include AAFTF/data/mito-seed.fasta
-
-recursive-exclude .trunk *

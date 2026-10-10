@@ -2,17 +2,45 @@
 name = "AAFTF"
 dynamic = ["version"]
 authors = [
-  { name="Jason Stajich", email="jasonstajich.phd@gmail.com" },
+    { name = "Jason Stajich", email = "jasonstajich.phd@gmail.com" },
+    { name = "Jonathan Palmer", email = "nextgen.usfs@gmail.com" },
+    { name = "Cheng-Hung Tsai", email = "chenghung.tsai@email.ucr.edu" },
+]
+maintainers = [
+    { name = "Jason Stajich", email = "jasonstajich.phd@gmail.com" },
+    { name = "Cheng-Hung Tsai", email = "chenghung.tsai@email.ucr.edu" },
 ]
 description = "Automatic Assembly For The Fungi - for automating genome assembly focused on short reads with cleanup, vector trimming and contam detection, resorting contigs by size and renaming, and summary statistics including telomere detection"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10,<3.15"
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "biopython>=1.88",
+    "matplotlib>=3",
+    "packaging",
+    "psutil>=5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=4",
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/stajichlab/AAFTF"
@@ -23,27 +51,27 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-AAFTF = "AAFTF.AAFTF_main:main"
+AAFTF = "aaftf.main:main"
 
 # Version is derived from git tags (vX.Y.Z) plus the short commit hash.
-# hatch-vcs (setuptools-scm under the hood) writes the resolved version into
-# AAFTF/_version.py at build time, so installed packages carry a static version.
-# NOTE: version_scheme/local_scheme here MUST match VERSION_SCHEME/LOCAL_SCHEME
-# in AAFTF/__version__.py so a source checkout reports the identical string.
+# At runtime, aaftf/__init__.py resolves __version__ via importlib.metadata
+# from the installed package's metadata.
 [tool.hatch.version]
 source = "vcs"
 raw-options = { version_scheme = "guess-next-dev", local_scheme = "node-and-date", fallback_version = "0.0.0+unknown" }
 
-[tool.hatch.build.hooks.vcs]
-version-file = "AAFTF/_version.py"
-
 [tool.hatch.build.targets.wheel]
-packages = ["AAFTF", "scripts"]
+packages = ["aaftf"]
 
-[project.optional-dependencies]
-# setuptools-scm lets a source checkout report the exact same version string
-# that hatch-vcs bakes at build time (see AAFTF/__version__.py resolution order).
-dev = ["pytest>=7", "pytest-cov", "setuptools-scm>=8"]
+# Patched MaSuRCA POLCA (GPL-3.0; see patches/polca/polca.patch), installed into bin/ for `polish --method polca`
+[tool.hatch.build.targets.wheel.shared-scripts]
+"patches/polca/aaftf_polca.sh" = "aaftf_polca.sh"
+"patches/polca/fix_consensus_from_vcf.pl" = "fix_consensus_from_vcf.pl"
+
+# The sdist carries only what is needed to build and test the package; pyproject.toml,
+# README.md and LICENSE are always added by hatchling. Docs, CI, container and dev files stay out.
+[tool.hatch.build.targets.sdist]
+include = ["/aaftf", "/tests", "/CHANGES.md", "/patches/polca/aaftf_polca.sh", "/patches/polca/fix_consensus_from_vcf.pl", "/patches/polca/polca.patch"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -52,3 +80,91 @@ markers = [
     "unit: pure Python tests, no external tools required",
     "integration: requires external bioinformatics tools (minimap2, samtools, mosdepth, etc.)",
 ]
+
+[tool.pixi.workspace]
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+# ---------------------------------------------------------------------------
+# "default" feature (the top-level tables, included in every environment): what
+# `AAFTF pipeline` needs with its default settings -- see REQUIRED_TOOLS /
+# REQUIRED_PYTHON_PACKAGES in aaftf/dependency.py -- plus AAFTF itself.
+# Mirrored by environment.yml.
+# ---------------------------------------------------------------------------
+[tool.pixi.dependencies]
+python = ">=3.10,<3.15"
+bbmap = ">=39.80,<40"     # bbduk.sh, shuffle.sh, reformat.sh (brings java)
+spades = "*"
+blast = "*"
+bwa = "*"
+samtools = ">=1.24,<2"
+minimap2 = "*"
+# pipeline_long / pipeline_hybrid: flye assembly, racon + polypolish/pypolca polishing
+flye = "*"
+racon = "*"
+polypolish = ">=0.7.1,<0.8"
+pypolca = ">=0.5.0,<0.6"
+freebayes = "*"
+biopython = ">=1.88"
+psutil = ">=5"
+matplotlib-base = ">=3"
+packaging = "*"
+bowtie2 = ">=2.5.5,<3"
+
+[tool.pixi.pypi-dependencies]
+aaftf = { path = ".", editable = true }
+
+# ---------------------------------------------------------------------------
+# "optional" feature: tools only used by optional steps (polish, depth, mito,
+# fcs_screen, fcs_gx_purge) or non-default options (trim --method fastp /
+# trimmomatic, assemble --method megahit / unicycler, pipeline_short --method megahit /
+# unicycler, pipeline_hybrid --method unicycler, filter --aligner bowtie2)
+# -- OPTIONAL_TOOLS in aaftf/dependency.py.
+# The complete environment (default + optional) is mirrored by environment.dev.yml.
+# ---------------------------------------------------------------------------
+[tool.pixi.feature.optional.dependencies]
+pigz = "*"
+sourmash = ">=4.8"       # taxpurge (pipelines run it only with -p/--phylum)
+sourmash_plugin_branchwater = ">=0.9.15"  # taxpurge: fastmultigather
+bowtie2 = "*"
+fastp = "*"
+trimmomatic = "*"
+megahit = "*"
+unicycler = "*"
+nextpolish2 = ">=0.2.2,<0.3"
+yak = "*"
+mosdepth = ">=0.3.10"
+novoplasty = "*"
+ncbi-fcs-gx = "*"
+
+[tool.pixi.feature.optional.tasks]
+# The conda bowtie2 above works but cannot use AVX2 (it falls back from its
+# x86-64-v3 build at runtime). For AVX2 speed, rebuild it from source into the
+# environment once after installing (this replaces the conda binaries):
+#   pixi run -e complete install-bowtie2
+# Mirrors the approach used in funannotate.
+install-bowtie2 = { cmd = "bash install_scripts/pixi_install_bowtie2.sh", description = "Build bowtie2 from source to fix AVX2 runtime fallback issues" }
+install-spades-multiarch = { cmd = "SPADES_ROOT=$CONDA_PREFIX/opt/spades SPADES_BUILD_PATH=$PATH bash install_scripts/install_spades_multiarch.sh", description = "Build SPAdes for x86-64-v2 and v3 with runtime CPU dispatch" }
+install-megahit-from-source = { cmd = "MEGAHIT_BUILD_PATH=$PATH bash install_scripts/install_megahit_from_source.sh", description = "Rebuild MEGAHIT from source for older (x86-64-v2) CPUs" }
+
+# ---------------------------------------------------------------------------
+# "dev" feature: test and lint tools.
+# ---------------------------------------------------------------------------
+[tool.pixi.feature.dev.dependencies]
+pytest = ">=8.0.0"
+pytest-cov = ">=5.0.0"
+pre-commit = ">=4"
+# docs: same Sphinx version as docs/requirements.txt (used by Read the Docs)
+sphinx = ">=7,<8"
+furo = "*"
+graphviz = "*"           # `dot` for the workflow diagrams (sphinx.ext.graphviz)
+sphinx-autobuild = "*"
+
+[tool.pixi.feature.dev.tasks]
+docs = { cmd = "sphinx-build -b html docs docs/_build/html", description = "Build the HTML docs into docs/_build/html" }
+docs-serve = { cmd = "sphinx-autobuild docs docs/_build/html", description = "Serve the docs on http://127.0.0.1:8000, rebuilding on every change" }
+
+[tool.pixi.environments]
+default = { solve-group = "aaftf" }                                      # default pipeline
+complete = { features = ["optional"], solve-group = "aaftf" }           # + every optional tool
+dev = { features = ["optional", "dev"], solve-group = "aaftf" }         # + test/lint tools

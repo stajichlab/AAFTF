@@ -1,4 +1,4 @@
-"""Integration tests for AAFTF/depth.py.
+"""Integration tests for aaftf/depth.py.
 
 These tests invoke the *real* external tools (minimap2, bwa, samtools and
 mosdepth) on a small synthetic genome with reads sampled directly from it.
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from AAFTF import depth
+from aaftf import depth
 
 pytestmark = pytest.mark.integration
 
@@ -138,8 +138,8 @@ def _depth_args(synthetic_data, tmp_path, **overrides):
     """Build a complete Namespace for depth.run() with sensible defaults."""
     defaults = dict(
         input=synthetic_data.genome,
-        left=synthetic_data.r1,
-        right=synthetic_data.r2,
+        read1=synthetic_data.r1,
+        read2=synthetic_data.r2,
         longreads=None,
         illumina_preset="sr",
         longread_preset="map-ont",
@@ -153,7 +153,6 @@ def _depth_args(synthetic_data, tmp_path, **overrides):
         quantize=depth._DEFAULT_QUANTIZE,
         quantize_labels=None,
         debug=False,
-        pipe=True,
     )
     defaults.update(overrides)
     return Namespace(**defaults)
@@ -171,8 +170,8 @@ class TestMapReadsReal:
         workdir.mkdir()
         bam_ill, bam_lr, bam_combined = depth.map_reads(
             genome=synthetic_data.genome,
-            reads_left=synthetic_data.r1,
-            reads_right=synthetic_data.r2,
+            read1=synthetic_data.r1,
+            read2=synthetic_data.r2,
             longreads=None,
             workdir=str(workdir),
             cpus=2,
@@ -192,8 +191,8 @@ class TestMapReadsReal:
         workdir.mkdir()
         _, _, bam = depth.map_reads(
             genome=synthetic_data.genome,
-            reads_left=synthetic_data.r1,
-            reads_right=synthetic_data.r2,
+            read1=synthetic_data.r1,
+            read2=synthetic_data.r2,
             longreads=None,
             workdir=str(workdir),
             cpus=2,
@@ -217,8 +216,8 @@ class TestMosdepthReal:
         workdir.mkdir()
         _, _, bam = depth.map_reads(
             genome=synthetic_data.genome,
-            reads_left=synthetic_data.r1,
-            reads_right=synthetic_data.r2,
+            read1=synthetic_data.r1,
+            read2=synthetic_data.r2,
             longreads=None,
             workdir=str(workdir),
             cpus=2,
@@ -227,7 +226,7 @@ class TestMosdepthReal:
             aligner="minimap2",
             debug=False,
         )
-        summary = depth.run_mosdepth(bam, str(workdir), cpus=2)
+        summary, _ = depth.run_mosdepth(bam, str(workdir), cpus=2)
         assert Path(summary).exists()
         total, contigs = depth.parse_mosdepth_summary(summary)
         names = {c["chrom"] for c in contigs}
@@ -240,8 +239,8 @@ class TestMosdepthReal:
         workdir.mkdir()
         _, _, bam = depth.map_reads(
             genome=synthetic_data.genome,
-            reads_left=synthetic_data.r1,
-            reads_right=synthetic_data.r2,
+            read1=synthetic_data.r1,
+            read2=synthetic_data.r2,
             longreads=None,
             workdir=str(workdir),
             cpus=2,
@@ -250,7 +249,7 @@ class TestMosdepthReal:
             aligner="minimap2",
             debug=False,
         )
-        summary = depth.run_mosdepth(bam, str(workdir), cpus=2)
+        summary, _ = depth.run_mosdepth(bam, str(workdir), cpus=2)
         _, contigs = depth.parse_mosdepth_summary(summary)
         by_name = {c["chrom"]: c["mean"] for c in contigs}
         nuclear_mean = sum(by_name[c] for c in ("chr1", "chr2", "chr3")) / 3
@@ -262,8 +261,8 @@ class TestMosdepthReal:
         workdir.mkdir()
         _, _, bam = depth.map_reads(
             genome=synthetic_data.genome,
-            reads_left=synthetic_data.r1,
-            reads_right=synthetic_data.r2,
+            read1=synthetic_data.r1,
+            read2=synthetic_data.r2,
             longreads=None,
             workdir=str(workdir),
             cpus=2,
@@ -272,8 +271,8 @@ class TestMosdepthReal:
             aligner="minimap2",
             debug=False,
         )
-        labels, env_dict = depth._parse_quantize_bins(depth._DEFAULT_QUANTIZE)
-        summary, bed = depth.run_mosdepth_quantized(bam, str(workdir), cpus=2, quantize_str=depth._DEFAULT_QUANTIZE, env_dict=env_dict)
+        labels, _ = depth._parse_quantize_bins()
+        summary, bed = depth.run_mosdepth(bam, str(workdir), cpus=2, labels=labels)
         assert Path(summary).exists()
         assert Path(bed).exists()
         contig_data = depth._read_quantized_bed(bed)
@@ -292,7 +291,7 @@ class TestMosdepthReal:
 class TestDepthRunEndToEnd:
     def test_report_written_with_expected_sections(self, synthetic_data, tmp_path):
         args = _depth_args(synthetic_data, tmp_path)
-        depth.run(None, args)
+        depth.run(**vars(args))
 
         report = Path(args.out)
         assert report.exists() and report.stat().st_size > 0
@@ -305,7 +304,7 @@ class TestDepthRunEndToEnd:
 
     def test_organelle_flagged_as_outlier(self, synthetic_data, tmp_path):
         args = _depth_args(synthetic_data, tmp_path)
-        depth.run(None, args)
+        depth.run(**vars(args))
         text = Path(args.out).read_text()
         # The organelle contig line should carry the OUTLIER flag.
         organelle_line = next(ln for ln in text.splitlines() if ln.strip().startswith("organelle"))
@@ -313,7 +312,7 @@ class TestDepthRunEndToEnd:
 
     def test_coverage_breadth_near_complete(self, synthetic_data, tmp_path):
         args = _depth_args(synthetic_data, tmp_path)
-        depth.run(None, args)
+        depth.run(**vars(args))
         text = Path(args.out).read_text()
         breadth_line = next((ln for ln in text.splitlines() if "Bases covered" in ln), None)
         assert breadth_line is not None
@@ -326,7 +325,7 @@ class TestDepthRunEndToEnd:
         # the auto-created dir never lands in the repo.
         monkeypatch.chdir(tmp_path)
         args = _depth_args(synthetic_data, tmp_path, workdir=None)
-        depth.run(None, args)
+        depth.run(**vars(args))
         assert Path(args.out).exists()
         leaked = list(tmp_path.glob("aaftf-depth_*"))
         assert not leaked, f"workdir not cleaned up: {leaked}"
@@ -334,7 +333,7 @@ class TestDepthRunEndToEnd:
     @pytest.mark.skipif(not depth.HAS_MATPLOTLIB, reason="matplotlib not installed")
     def test_plots_generated_when_enabled(self, synthetic_data, tmp_path):
         args = _depth_args(synthetic_data, tmp_path, no_plot=False, plot_format="png")
-        depth.run(None, args)
+        depth.run(**vars(args))
         prefix = depth._get_plot_prefix(args.input, args.out)
         assert Path(prefix + ".depth_heatmap.png").exists()
         assert Path(prefix + ".depth_barplot.png").exists()
@@ -346,7 +345,7 @@ class TestDepthRunEndToEnd:
 class TestDepthRunBwaAligner:
     def test_bwa_aligner_produces_report(self, synthetic_data, tmp_path):
         args = _depth_args(synthetic_data, tmp_path, aligner="bwa")
-        depth.run(None, args)
+        depth.run(**vars(args))
         report = Path(args.out)
         assert report.exists() and report.stat().st_size > 0
         text = report.read_text()

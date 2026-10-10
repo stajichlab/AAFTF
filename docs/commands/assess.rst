@@ -2,8 +2,6 @@
 assess
 ======
 
-**Aliases:** ``stats``
-
 Computes standard genome assembly completeness/summary statistics -- the final QC report
 describing what the pipeline produced. Pure BioPython; no external tools required.
 
@@ -19,16 +17,19 @@ it computes:
 * **MIN / MAX / MEDIAN / MEAN** contig length, **CONTIG COUNT**, **TOTAL LENGTH**, **GC%**.
 * **N GAP COUNT** / **TOTAL N BASES** -- number of distinct N-runs and total N bases (assembly
   gaps).
-* **BASES MASKED / PERCENT MASKED** -- only reported if the assembly contains any lowercase
-  (soft-masked) bases.
+* **BASES MASKED / PERCENT MASKED** -- soft-masked (lowercase) base count; reported only when the
+  assembly has soft-masked bases.
 * **Telomere detection** -- for each contig, scans the first and last ``--telomere_window`` bp
   (default 200) for >= ``-n/--telomere_n_repeat`` (default 2) tandem copies of the
-  ``-t/--telomere_monomer`` repeat motif (default ``TAA[C]+``, the canonical fungal telomere
+  ``-t/--telomere_monomer`` repeat motif (default ``TAAC{3,5}``, the canonical fungal telomere
   repeat) at the 5' end, and its reverse complement at the 3' end. Reports counts of
   **TELOMERE FWD**, **TELOMERE REV**, and **T2T SCAFFOLDS** (contigs with a telomere repeat found
   at *both* ends -- fully telomere-to-telomere assembled chromosomes/scaffolds).
 
-Output is printed to stdout and, if ``-r/--report`` is given, also written to that file.
+Output is printed to stdout and, if ``-r/--report`` is given, also written to that file. The
+input may be gzipped. A missing input raises ``FileNotFoundError`` (exit code 2) and an assembly
+with no sequence raises ``ValueError`` (exit code 1). No work directory is used;
+``./assess.log`` is written only with ``-v``.
 
 Cutoffs / defaults
 ===================
@@ -41,9 +42,9 @@ Cutoffs / defaults
      - Default
      - Meaning
    * - ``-t/--telomere_monomer``
-     - ``TAA[C]+``
+     - ``TAAC{3,5}``
      - Telomere repeat motif to search for (regex; default matches the fungal ``TTAGGG``-family
-       repeat allowing extra ``C``\ s)
+       repeat with 3-5 ``C``\ s per monomer)
    * - ``-n/--telomere_n_repeat``
      - 2
      - Minimum tandem repeat count required to call a telomere
@@ -56,10 +57,10 @@ Invocation
 
 .. code-block:: text
 
-    AAFTF assess -i INPUT [-r REPORT] [-t TELOMERE_MONOMER] [-n TELOMERE_N_REPEAT]
-                 [--telomere_window N] [-v] [--pipe]
+    AAFTF assess -i FASTA [-r FILE] [-t TELOMERE_MONOMER] [-n TELOMERE_N_REPEAT]
+                 [--telomere_window TELOMERE_WINDOW] [-q] [-v]
 
-``-i/--input`` is required.
+``-i/--input`` (alias ``--infile``) is required.
 
 Example
 =======

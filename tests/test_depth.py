@@ -1,4 +1,4 @@
-"""Unit tests for pure-Python functions in AAFTF/depth.py.
+"""Unit tests for pure-Python functions in aaftf/depth.py.
 
 Tests cover FASTQ counting, mosdepth output parsing, outlier detection
 arithmetic, quantize bin parsing, plot prefix derivation, and quantized
@@ -6,58 +6,36 @@ BED reading.  No external tools (minimap2, samtools, mosdepth) are required.
 """
 
 import gzip
-import math
-import os
+import subprocess
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from AAFTF.depth import (
+from aaftf.depth import (
     _coverage_breadth_from_dist,
+    _depth_outliers,
     _get_plot_prefix,
+    _paginate_by_length_ratio,
     _parse_quantize_bins,
     _read_quantized_bed,
-    count_fastq_reads,
+    map_reads,
     parse_mosdepth_summary,
+    run,
+    run_flagstat,
 )
-from tests.conftest import make_fastq_text
 
 pytestmark = pytest.mark.unit
 
 
-# ---------------------------------------------------------------------------
-# count_fastq_reads
-# ---------------------------------------------------------------------------
-
-
-class TestCountFastqReads:
-    def test_plain_fastq(self, fastq_file):
-        assert count_fastq_reads(str(fastq_file)) == 10
-
-    def test_gz_fastq(self, gz_fastq_file):
-        assert count_fastq_reads(str(gz_fastq_file)) == 10
-
-    def test_single_read(self, tmp_path):
-        p = tmp_path / "one.fastq"
-        p.write_text(make_fastq_text(1))
-        assert count_fastq_reads(str(p)) == 1
-
-    def test_50_reads(self, tmp_path):
-        p = tmp_path / "fifty.fastq"
-        p.write_text(make_fastq_text(50))
-        assert count_fastq_reads(str(p)) == 50
-
-    def test_gz_50_reads(self, tmp_path):
-        p = tmp_path / "fifty.fastq.gz"
-        with gzip.open(p, "wt") as fh:
-            fh.write(make_fastq_text(50))
-        assert count_fastq_reads(str(p)) == 50
-
-    def test_returns_minus_one_on_error(self, tmp_path):
-        # Corrupted gzip content → error → returns -1
-        p = tmp_path / "bad.fastq.gz"
-        p.write_bytes(b"not a valid gzip file")
-        result = count_fastq_reads(str(p))
-        assert result == -1
+class TestRunGuards:
+    def test_longreads_without_preset_raises(self, tmp_path):
+        asm = tmp_path / "asm.fa"
+        asm.write_text(">contig1\nACGT\n")
+        lr = tmp_path / "lr.fq"
+        lr.write_text("@r\nACGT\n+\nIIII\n")
+        with pytest.raises(ValueError):
+            run(input=str(asm), longreads=str(lr))
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +78,7 @@ class TestParseMosdepthSummary:
 
     def test_handles_missing_total_row(self, tmp_path):
         # Summary with no 'total' line
-        content = "chrom\tlength\tbases\tmean\tmin\tmax\n" "scaffold_1\t1000\t50000\t50.0\t0\t100\n"
+        content = "chrom\tlength\tbases\tmean\tmin\tmax\nscaffold_1\t1000\t50000\t50.0\t0\t100\n"
         p = tmp_path / "no_total.txt"
         p.write_text(content)
         total, contigs = parse_mosdepth_summary(str(p))
@@ -133,44 +111,141 @@ class TestCoverageBreadthFromDist:
 
 
 # ---------------------------------------------------------------------------
-# Outlier detection arithmetic (mirrors logic in depth.run())
+# _depth_outliers (statistics used by depth.run())
 # ---------------------------------------------------------------------------
 
 
-class TestOutlierDetectionMath:
-    """Verify the SD-based flagging formula used in depth.run()."""
+def _row(name, length, mean):
+    return {"chrom": name, "length": length, "mean": mean}
 
-    def _compute(self, depths, mean_depth):
-        # Uses population SD — contigs are the full population, not a sample.
-        sd = math.sqrt(sum((d - mean_depth) ** 2 for d in depths) / len(depths))
-        threshold = mean_depth + 3.0 * sd
-        outliers = [d for d in depths if d > threshold]
-        return sd, threshold, outliers
 
+class TestDepthOutliers:
     def test_outlier_flagged(self, mosdepth_summary_file):
-        # Use the test fixture data: 9 × 10x, 1 × 1000x, mean=20.88
         total, contigs = parse_mosdepth_summary(str(mosdepth_summary_file))
-        depths = [c["mean"] for c in contigs]
-        mean_depth = total["mean"]  # 20.88 (length-weighted)
-        sd, threshold, outliers = self._compute(depths, mean_depth)
-        # scaffold_outlier (1000x) must be above the threshold
-        assert 1000.0 in outliers
+        stats = _depth_outliers(contigs, total, 500)
+        assert stats["mean_depth"] == pytest.approx(20.88)
+        assert stats["n_outliers_3sd"] == 1
+        assert stats["threshold_3sd"] < 1000.0
 
-    def test_no_outlier_when_uniform(self):
-        depths = [50.0] * 10
-        sd, threshold, outliers = self._compute(depths, 50.0)
-        assert sd == 0.0
-        assert outliers == []
+    def test_uniform_depths_nothing_flagged(self):
+        rows = [_row(f"c{i}", 1000, 50.0) for i in range(10)]
+        stats = _depth_outliers(rows, None, 500)
+        assert stats["sd_depth"] == 0.0
+        assert stats["threshold_3sd"] == 50.0
+        assert stats["n_outliers_2sd"] == 0
+        assert stats["n_outliers_3sd"] == 0
 
-    def test_threshold_formula(self):
-        # Simple: mean=10, all depths=10 except one at 1000
-        depths = [10.0] * 9 + [1000.0]
-        mean = 10.0
-        sd, threshold, outliers = self._compute(depths, mean)
-        expected_sd = math.sqrt((9 * 0 + 990**2) / 10)
-        assert abs(sd - expected_sd) < 0.01
-        assert threshold == pytest.approx(mean + 3 * expected_sd)
-        assert 1000.0 in outliers
+    def test_population_sd(self):
+        rows = [_row(f"c{i}", 1000, 10.0) for i in range(9)] + [_row("big", 1000, 1000.0)]
+        stats = _depth_outliers(rows, {"length": 10000, "mean": 10.0}, 500)
+        # population SD (divide by n=10) around the mosdepth mean of 10
+        assert stats["sd_depth"] == pytest.approx(990 / 10**0.5)
+        assert stats["contig_arith_mean"] == pytest.approx(109.0)
+
+    def test_short_contig_excluded_from_stats(self):
+        rows = [_row("a", 1000, 10.0), _row("b", 1000, 20.0), _row("tiny", 100, 5000.0)]
+        stats = _depth_outliers(rows, None, 500)
+        assert stats["contig_arith_mean"] == pytest.approx(15.0)
+        assert stats["sd_depth"] == pytest.approx(5.0)
+        # the short contig is still counted as an outlier
+        assert stats["n_outliers_3sd"] == 1
+
+    def test_no_total_row_uses_contig_mean(self):
+        rows = [_row("a", 1000, 10.0), _row("b", 1000, 30.0)]
+        stats = _depth_outliers(rows, None, 500)
+        assert stats["mosdepth_mean_depth"] is None
+        assert stats["mean_depth"] == pytest.approx(20.0)
+
+    def test_total_row_preferred_over_contig_mean(self):
+        rows = [_row("a", 1000, 10.0), _row("b", 1000, 30.0)]
+        stats = _depth_outliers(rows, {"length": 2000, "mean": 12.0}, 500)
+        assert stats["mean_depth"] == 12.0
+        assert stats["contig_arith_mean"] == pytest.approx(20.0)
+
+    def test_no_contigs(self):
+        stats = _depth_outliers([], None, 500)
+        assert stats == {
+            "mosdepth_mean_depth": None,
+            "contig_arith_mean": 0.0,
+            "mean_depth": 0.0,
+            "sd_depth": 0.0,
+            "threshold_2sd": 0.0,
+            "threshold_3sd": 0.0,
+            "n_outliers_2sd": 0,
+            "n_outliers_3sd": 0,
+        }
+
+    def test_all_contigs_short_falls_back_to_total(self):
+        stats = _depth_outliers([_row("a", 100, 7.0)], {"length": 100, "mean": 7.0}, 500)
+        assert stats["mean_depth"] == 7.0
+        assert stats["sd_depth"] == 0.0
+        # thresholds are 0, so the contig counts as a 3SD outlier
+        assert stats["n_outliers_3sd"] == 1
+
+    def test_2sd_vs_3sd_counts(self):
+        # 8 contigs at 0 and 2 at 10: mean 2, population SD 4 -> 2SD=10, 3SD=14
+        rows = [_row(f"z{i}", 1000, 0.0) for i in range(8)] + [_row(f"t{i}", 1000, 10.0) for i in range(2)]
+        stats = _depth_outliers(rows, None, 500)
+        assert stats["threshold_2sd"] == pytest.approx(10.0)
+        assert stats["threshold_3sd"] == pytest.approx(14.0)
+        assert stats["n_outliers_2sd"] == 0  # 10 is not > 10
+        # add contigs in (10, 14] and > 14
+        rows += [_row("mid", 1000, 12.0), _row("high", 1000, 100.0)]
+        stats = _depth_outliers(rows, {"length": 12000, "mean": 2.0}, 500)
+        t2, t3 = stats["threshold_2sd"], stats["threshold_3sd"]
+        assert stats["n_outliers_2sd"] == sum(1 for r in rows if t2 < r["mean"] <= t3)
+        assert stats["n_outliers_3sd"] == sum(1 for r in rows if r["mean"] > t3) >= 1
+
+
+class TestMapReadsErrors:
+    def _call(self, tmp_path, **kw):
+        args = dict(
+            genome=str(tmp_path / "asm.fa"),
+            read1="r1.fq",
+            read2=None,
+            longreads="lr.fq",
+            workdir=str(tmp_path),
+            cpus=1,
+            illumina_preset="sr",
+            longread_preset="map-ont",
+            aligner="minimap2",
+            debug=False,
+        )
+        args.update(kw)
+        return map_reads(**args)
+
+    def test_merge_failure_raises(self, tmp_path):
+        with patch("aaftf.depth.align_to_sorted_bam"), patch("aaftf.depth.run_cmd", side_effect=lambda cmd, *a, **k: subprocess.CompletedProcess(cmd, 1 if cmd[1] == "merge" else 0)):
+            with pytest.raises(RuntimeError, match="merge"):
+                self._call(tmp_path)
+
+    def test_index_failure_raises(self, tmp_path):
+        with patch("aaftf.depth.align_to_sorted_bam"), patch("aaftf.depth.run_cmd", side_effect=lambda cmd, *a, **k: subprocess.CompletedProcess(cmd, 1 if cmd[1] == "index" else 0)):
+            with pytest.raises(RuntimeError):
+                self._call(tmp_path)
+
+    def test_merge_success_returns_combined(self, tmp_path):
+        with patch("aaftf.depth.align_to_sorted_bam"), patch("aaftf.depth.run_cmd", side_effect=lambda cmd, *a, **k: subprocess.CompletedProcess(cmd, 0)):
+            _, _, combined = self._call(tmp_path)
+        assert combined.endswith("combined.sorted.bam")
+
+    def test_longreads_without_preset_raises(self, tmp_path):
+        with patch("aaftf.depth.align_to_sorted_bam"):
+            with pytest.raises(ValueError):
+                self._call(tmp_path, read1=None, longread_preset=None)
+
+
+class TestRunFlagstat:
+    def test_nonzero_raises(self):
+        fake = subprocess.CompletedProcess(["samtools"], 1, stdout="", stderr="boom")
+        with patch("aaftf.depth.subprocess.run", return_value=fake):
+            with pytest.raises(RuntimeError, match="boom"):
+                run_flagstat("x.bam")
+
+    def test_success_returns_stdout(self):
+        fake = subprocess.CompletedProcess(["samtools"], 0, stdout="10 + 0 mapped\n", stderr="")
+        with patch("aaftf.depth.subprocess.run", return_value=fake):
+            assert run_flagstat("x.bam") == "10 + 0 mapped\n"
 
 
 # ---------------------------------------------------------------------------
@@ -179,52 +254,20 @@ class TestOutlierDetectionMath:
 
 
 class TestParseQuantizeBins:
-    def test_default_bins_returns_five_labels(self):
-        labels, env_dict = _parse_quantize_bins("0:1:4:100:200:")
+    def test_default_returns_five_labels(self):
+        labels, colors = _parse_quantize_bins()
         assert len(labels) == 5
 
-    def test_default_bins_uses_canonical_names(self):
-        labels, _ = _parse_quantize_bins("0:1:4:100:200:")
+    def test_default_uses_canonical_names(self):
+        labels, colors = _parse_quantize_bins()
         assert labels[0] == "NO_COVERAGE"
         assert labels[2] == "CALLABLE"
         assert labels[4] == "VERY_HIGH_COVERAGE"
 
-    def test_env_dict_keys_are_mosdepth_q_vars(self):
-        _, env_dict = _parse_quantize_bins("0:1:4:100:200:")
-        assert set(env_dict.keys()) == {"MOSDEPTH_Q0", "MOSDEPTH_Q1", "MOSDEPTH_Q2", "MOSDEPTH_Q3", "MOSDEPTH_Q4"}
-
-    def test_env_dict_values_match_labels(self):
-        labels, env_dict = _parse_quantize_bins("0:1:4:100:200:")
-        for i, lbl in enumerate(labels):
-            assert env_dict[f"MOSDEPTH_Q{i}"] == lbl
-
-    def test_custom_bins_auto_named(self):
-        labels, _ = _parse_quantize_bins("0:5:50:")
-        assert labels == ["BIN_0", "BIN_1", "BIN_2"]
-
-    def test_custom_labels_override(self):
-        labels, _ = _parse_quantize_bins("0:5:50:", labels_str="NONE,LOW,HIGH")
-        assert labels == ["NONE", "LOW", "HIGH"]
-
-    def test_too_few_custom_labels_get_padded(self):
-        labels, _ = _parse_quantize_bins("0:1:4:100:200:", labels_str="A,B")
-        assert len(labels) == 5
-        assert labels[0] == "A"
-        assert labels[1] == "B"
-        assert labels[2] == "BIN_2"
-
-    def test_too_many_custom_labels_get_truncated(self):
-        labels, _ = _parse_quantize_bins("0:5:", labels_str="X,Y,Z,W")
-        assert labels == ["X", "Y"]
-
-    def test_trailing_colon_not_counted_as_bin(self):
-        labels, _ = _parse_quantize_bins("0:1:")
-        assert len(labels) == 2
-
-    def test_three_bin_custom_string(self):
-        labels, env_dict = _parse_quantize_bins("0:10:100:")
-        assert len(labels) == 3
-        assert "MOSDEPTH_Q2" in env_dict
+    def test_default_labels_get_canonical_colors(self):
+        labels, colors = _parse_quantize_bins()
+        assert colors["NO_COVERAGE"] == "#000080"
+        assert colors["VERY_HIGH_COVERAGE"] == "#800000"
 
 
 # ---------------------------------------------------------------------------
@@ -236,28 +279,55 @@ class TestGetPlotPrefix:
     def test_strips_fasta_extension(self, tmp_path):
         report = str(tmp_path / "coverage_stats.txt")
         prefix = _get_plot_prefix("genome.fasta", report)
-        assert os.path.basename(prefix) == "genome"
+        assert Path(prefix).name == "genome"
 
     def test_strips_fa_extension(self, tmp_path):
         report = str(tmp_path / "coverage_stats.txt")
         prefix = _get_plot_prefix("assembly.fa", report)
-        assert os.path.basename(prefix) == "assembly"
+        assert Path(prefix).name == "assembly"
 
     def test_strips_fasta_gz_extension(self, tmp_path):
         report = str(tmp_path / "coverage_stats.txt")
         prefix = _get_plot_prefix("genome.fasta.gz", report)
-        assert os.path.basename(prefix) == "genome"
+        assert Path(prefix).name == "genome"
 
     def test_prefix_dir_matches_report_dir(self, tmp_path):
         report = str(tmp_path / "results" / "coverage_stats.txt")
-        os.makedirs(str(tmp_path / "results"), exist_ok=True)
+        Path(tmp_path / "results").mkdir(parents=True, exist_ok=True)
         prefix = _get_plot_prefix("genome.fasta", report)
-        assert os.path.dirname(prefix) == str(tmp_path / "results")
+        assert Path(prefix).parent == tmp_path / "results"
 
     def test_dotted_name_preserves_stem(self, tmp_path):
         report = str(tmp_path / "coverage_stats.txt")
         prefix = _get_plot_prefix("strain.final.sorted.fasta", report)
-        assert os.path.basename(prefix) == "strain.final.sorted"
+        assert Path(prefix).name == "strain.final.sorted"
+
+
+# ---------------------------------------------------------------------------
+# _paginate_by_length_ratio
+# ---------------------------------------------------------------------------
+
+
+class TestPaginateByLengthRatio:
+    def _rows(self, lengths):
+        return [{"chrom": f"ctg{i}", "length": length} for i, length in enumerate(lengths)]
+
+    def test_similar_lengths_stay_on_one_page(self):
+        pages = _paginate_by_length_ratio(self._rows([1000, 900, 800, 700]))
+        assert len(pages) == 1
+        assert pages[0] == ["ctg0", "ctg1", "ctg2", "ctg3"]
+
+    def test_splits_when_ratio_exceeded(self):
+        # 1000 / 50 = 20 > default max_ratio (10), so ctg2 starts a new page
+        pages = _paginate_by_length_ratio(self._rows([1000, 200, 50]))
+        assert pages == [["ctg0", "ctg1"], ["ctg2"]]
+
+    def test_splits_when_max_per_page_exceeded(self):
+        pages = _paginate_by_length_ratio(self._rows([100, 100, 100]), max_per_page=2)
+        assert pages == [["ctg0", "ctg1"], ["ctg2"]]
+
+    def test_empty_input_returns_no_pages(self):
+        assert _paginate_by_length_ratio([]) == []
 
 
 # ---------------------------------------------------------------------------

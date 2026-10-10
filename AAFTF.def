@@ -5,13 +5,13 @@ From: debian:bookworm-slim
 # AAFTF - Automatic Assembly For The Fungi
 # Singularity/Apptainer definition file
 #
-# Build (defaults: git_ref=main, skip_db_download=0):
+# Build (defaults: git_ref=main, skip_db_download=1 -- databases are NOT baked in;
+# bind-mount an AAFTF_DB folder at run time instead):
 #   singularity build AAFTF.sif AAFTF.def
 #
-# Build a specific tagged release without baking in the sourmash DB
-# (used by CI for archived release .sif builds):
+# Build a specific tagged release with the databases baked into the image:
 #   singularity build --build-arg git_ref=v0.7.0 \
-#       --build-arg skip_db_download=1 AAFTF.sif AAFTF.def
+#       --build-arg skip_db_download=0 AAFTF.sif AAFTF.def
 #
 # Run:
 #   singularity exec AAFTF.sif AAFTF --help
@@ -34,7 +34,7 @@ From: debian:bookworm-slim
 
     Usage:
         singularity exec AAFTF.sif AAFTF --help
-        singularity exec --bind /path/to/data:/data AAFTF.sif AAFTF trim --left R1.fq.gz --right R2.fq.gz
+        singularity exec --bind /path/to/data:/data AAFTF.sif AAFTF trim --read1 R1.fq.gz --read2 R2.fq.gz
 
     The database directory is at /opt/aaftf_db (set AAFTF_DB to override).
 
@@ -84,7 +84,7 @@ From: debian:bookworm-slim
     # -------------------------------------------------------------------------
     export PIXI_HOME=/opt/pixi
     curl -fsSL https://pixi.sh/install.sh | bash
-    export PATH="${PIXI_HOME}/bin:/opt/build/AAFTF/.pixi/envs/default/bin:${PATH}"
+    export PATH="${PIXI_HOME}/bin:/opt/build/AAFTF/.pixi/envs/complete/bin:${PATH}"
 
     # -------------------------------------------------------------------------
     # 3. Clone AAFTF repository from GitHub at the requested ref (branch or tag)
@@ -96,26 +96,16 @@ From: debian:bookworm-slim
     # 4. Resolve & install conda + PyPI dependencies via pixi
     # -------------------------------------------------------------------------
     cd /opt/build/AAFTF
-    pixi install --locked --frozen
-    pixi shell-hook --shell bash | grep '^export ' > /opt/aaftf_activate.sh
+    # "complete" = default-pipeline tools + every optional tool (see [tool.pixi.environments])
+    pixi install --environment complete --locked --frozen
+    pixi shell-hook --environment complete --shell bash | grep '^export ' > /opt/aaftf_activate.sh
     chmod +x /opt/aaftf_activate.sh
+    # patched POLCA scripts are installed into bin/ with AAFTF (pyproject.toml shared-scripts)
+    test -x .pixi/envs/complete/bin/aaftf_polca.sh
+    test -x .pixi/envs/complete/bin/fix_consensus_from_vcf.pl
     pixi clean cache --yes
     # -------------------------------------------------------------------------
-    # 5. Apply polca.sh patch
-    #    Replace MaSuRCAs bundled polca.sh with the version from patches/
-    #    that is compatible with newer samtools (-o flag removed from sort).
-    # -------------------------------------------------------------------------
-    POLCA_INSTALLED=$(find .pixi/envs/default -name "polca.sh" | head -1)
-    if [ -n "$POLCA_INSTALLED" ]; then
-        echo "Replacing $POLCA_INSTALLED with patched version"
-        cp patches/polca.sh "$POLCA_INSTALLED"
-        chmod +x "$POLCA_INSTALLED"
-    else
-        echo "WARNING: polca.sh not found in installed environment"
-    fi
-
-    # -------------------------------------------------------------------------
-    # 6. Build bowtie2 from source
+    # 5. Build bowtie2 from source
     #    The conda bowtie2 falls back from AVX2 (x86-64-v3) at runtime; the
     #    source build in install_scripts/pixi_install_bowtie2.sh shadows it.
     #    Call the script directly (mirroring the funannotate Dockerfile) rather
@@ -129,7 +119,7 @@ From: debian:bookworm-slim
     test -x "$CONDA_PREFIX/bin/bowtie2-align-s-v256"
 
     # -------------------------------------------------------------------------
-    # 6b. Build SPAdes for x86-64-v2 AND x86-64-v3 with runtime dispatch
+    # 6. Build SPAdes for x86-64-v2 AND x86-64-v3 with runtime dispatch
     #     (bioconda SPAdes forces -march=x86-64-v3 and dies with SIGILL on
     #     older CPUs). See install_scripts/install_spades_multiarch.sh.
     #     Force a build at run time with SPADES_ARCH=v2|v3.
@@ -139,7 +129,7 @@ From: debian:bookworm-slim
     test -x /opt/spades/v3/bin/spades-hammer
 
     # -------------------------------------------------------------------------
-    # 6c. Rebuild MEGAHIT from source without the bioconda -march=x86-64-v3
+    # 7. Rebuild MEGAHIT from source without the bioconda -march=x86-64-v3
     #     flag so its own BMI2/POPCNT/baseline core dispatch works on older
     #     CPUs. See install_scripts/install_megahit_from_source.sh.
     # -------------------------------------------------------------------------
@@ -147,7 +137,7 @@ From: debian:bookworm-slim
     test -f "$CONDA_PREFIX/bin/.megahit_sourcebuild_1.2.9"
 
     # -------------------------------------------------------------------------
-    # 7. Database download (skippable via --build-arg skip_db_download=1,
+    # 8. Database download (skippable via --build-arg skip_db_download=1,
     #    used by CI where disk/time budgets don't allow baking in the DB;
     #    users then bind-mount or download AAFTF_DB separately at run time)
     # -------------------------------------------------------------------------
@@ -157,11 +147,11 @@ From: debian:bookworm-slim
     if [ "{{ skip_db_download }}" = "1" ]; then
         echo "Skipping database download (skip_db_download=1)"
     else
-        AAFTF download --AAFTF_DB $AAFTF_DB --sourdb-type gbk
+        AAFTF database phix univec euks proks mitodb taxpurge fcs_script fcs_image
     fi
 
     # -------------------------------------------------------------------------
-    # 8. Make AAFTF available in LOGIN shells too.
+    # 9. Make AAFTF available in LOGIN shells too.
     #    The %environment block above only takes effect for non-login container
     #    shells (singularity run/exec). SLURM/Nextflow run task scripts via
     #    /bin/bash -l, and a login shell re-sources /etc/profile, which
@@ -180,7 +170,7 @@ EOF
     chmod +x /etc/profile.d/aaftf.sh
 
     # -------------------------------------------------------------------------
-    # 9. Cleanup build artefacts to reduce image size
+    # 10. Cleanup build artefacts to reduce image size
     # -------------------------------------------------------------------------
     AAFTF --version || true
     rm -rf /opt/pixi

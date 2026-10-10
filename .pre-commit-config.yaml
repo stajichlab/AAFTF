@@ -23,17 +23,14 @@ repos:
     rev: v2.2.2
     hooks:
       - id: codespell
-        exclude: ^tests/augustus*
         args:
           - --ignore-words-list=nd,reacher,thist,ths,ure,referenc,wile,nin,pid
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.15
+    rev: v0.14.14
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
-        exclude: ^tests/augustus*
       - id: ruff-format
-        exclude: ^tests/augustus*
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0
     hooks:

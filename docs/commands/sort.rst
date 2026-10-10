@@ -2,8 +2,6 @@
 sort
 ====
 
-No aliases.
-
 Sorts final assembly contigs by length (longest to shortest) and renames FASTA headers to a
 clean, consistent scheme -- typically the last cosmetic step before assessment/submission.
 
@@ -12,7 +10,8 @@ Algorithm
 
 Reads all sequences, drops any shorter than ``-ml/--minlen``, de-duplicates by header (first
 occurrence wins), sorts the remainder by sequence length descending, and writes them out renamed
-``{name}_1``, ``{name}_2``, ... in that order.
+``{name}_1``, ``{name}_2``, ... in that order (original header text is discarded). No work
+directory is used; ``./sort.log`` is written only with ``-v``.
 
 Cutoffs / defaults
 ===================
@@ -36,15 +35,16 @@ Invocation
 
 .. code-block:: text
 
-    AAFTF sort -i INPUT -o OUT [-ml MINLEN] [-n NAME] [-v] [--pipe]
+    AAFTF sort -i FASTA -o FASTA [-ml BP] [-n NAME] [-q] [-v]
 
-``-i/--input`` and ``-o/--out`` are required.
+``-i/--input`` (alias ``--infile``) and ``-o/--out`` (alias ``--output``) are required;
+``-n/--name`` also accepts ``--basename``.
 
 Example
 =======
 
 .. code-block:: bash
 
-    AAFTF sort -i genomes/STRAINX.polish.fasta -o genomes/STRAINX.final.fasta -n STRAINX
+    AAFTF sort -i genomes/STRAINX.rmdup.fasta -o genomes/STRAINX.final.fasta -n STRAINX
 
 Next step: :doc:`assess` (and, optionally, :doc:`depth`).

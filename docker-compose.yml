@@ -2,7 +2,7 @@
 #
 # Usage:
 #   docker compose run --rm aaftf AAFTF --help
-#   docker compose run --rm aaftf AAFTF trim --left /data/R1.fq.gz --right /data/R2.fq.gz
+#   docker compose run --rm aaftf AAFTF trim --read1 /data/R1.fq.gz --read2 /data/R2.fq.gz
 #
 # Environment variables (override on the command line or in a .env file):
 #   DATA_DIR   — host path to your FASTQ / assembly data  (default: ./data)
@@ -10,7 +10,7 @@
 #   IMAGE_TAG  — Docker image tag to use                  (default: latest)
 #
 # To download the AAFTF databases into ./aaftf_db:
-#   docker compose run --rm aaftf AAFTF download --AAFTF_DB /opt/aaftf_db --sourdb-type gbk
+#   docker compose run --rm aaftf AAFTF database phix univec euks proks mitodb taxpurge fcs_script fcs_image
 
 services:
   aaftf:
@@ -19,9 +19,9 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Change to "release" to install the tag-pinned version instead of
-        # the local editable checkout.
-        PIXI_ENV: "${PIXI_ENV:-default}"
+        # "complete" = every tool AAFTF can use; "default" = only what the
+        # default pipeline needs (smaller image).
+        PIXI_ENV: "${PIXI_ENV:-complete}"
     volumes:
       # Input / output data directory
       - "${DATA_DIR:-./data}:/data"

@@ -1,7 +1,0 @@
-*** polca.sh	2026-05-05 15:57:13.620025025 -0700
---- /opt/linux/rocky/8.x/x86_64/pkgs/AAFTF/0.6.0/bin/polca.sh	2026-05-05 15:55:04.588880617 -0700
-*************** if [ ! -e $BASM.sort.success ];then
-*** 136 ****
-!   $SAMTOOLS sort -m $MEM -@ $NUM_THREADS $BASM.unSorted.bam -o $BASM.alignSorted 2>>samtools.err && \
---- 136 ----
-!   $SAMTOOLS sort -m $MEM -@ $NUM_THREADS $BASM.unSorted.bam $BASM.alignSorted 2>>samtools.err && \

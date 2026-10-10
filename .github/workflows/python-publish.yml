@@ -20,7 +20,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # hatch-vcs derives the version from the git tag, so the history and tags are required;
+      # a shallow checkout would build the package as 0.0.0+unknown.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/setup-python@v6
         with:
@@ -28,9 +33,23 @@ jobs:
 
       - name: Build release distributions
         run: |
-          # NOTE: put your own distribution build steps here.
           python -m pip install build
           python -m build
+
+      - name: Check the built version matches the release tag
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          python -m pip install packaging
+          python - "${tag#v}" dist/*.whl <<'PY'
+          import sys
+          from pathlib import Path
+          from packaging.version import Version
+          expected = Version(sys.argv[1])
+          built = Version(Path(sys.argv[2]).name.split("-")[1])
+          if built != expected:
+              sys.exit(f"built version {built} does not match release tag {expected}")
+          print(f"built version {built} matches the release tag")
+          PY
 
       - name: Upload distributions
         uses: actions/upload-artifact@v6

@@ -1,16 +1,19 @@
-"""Unit tests for AAFTF/assess.py.
+"""Unit tests for aaftf/assess.py.
 
-Tests cover the pure-Python helper functions (revcomp, findTelomere)
+Tests cover the pure-Python helper functions (make_regex_revcomp, find_telomere)
 and the full genome_asm_stats / run() pipeline against known small
 FASTA files.  No external tools are required.
 """
 
+import inspect
 import io
-import os
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from Bio.Seq import Seq
 
-from AAFTF.assess import findTelomere, genome_asm_stats, revcomp, run
+from aaftf.assess import find_telomere, genome_asm_stats, make_regex_revcomp, run
 from tests.conftest import (
     TELO_FWD_ONLY,
     TELO_NONE,
@@ -22,33 +25,33 @@ pytestmark = pytest.mark.unit
 
 
 # ---------------------------------------------------------------------------
-# revcomp  (assess.py version — regex-aware)
+# make_regex_revcomp  (regex-aware)
 # ---------------------------------------------------------------------------
 
 
 class TestRevcomp:
-    """assess.revcomp handles regex bracket metacharacters in the monomer."""
+    """make_regex_revcomp handles regex bracket metacharacters in the monomer."""
 
     def test_simple_dna(self):
-        assert revcomp("ATCG") == "CGAT"
+        assert make_regex_revcomp("ATCG") == "CGAT"
 
     def test_all_complement(self):
-        assert revcomp("AAAA") == "TTTT"
-        assert revcomp("CCCC") == "GGGG"
+        assert make_regex_revcomp("AAAA") == "TTTT"
+        assert make_regex_revcomp("CCCC") == "GGGG"
 
     def test_regex_monomer(self):
         # revcomp of "TAA[C]+" should be "[G]+TTA"
-        rc = revcomp("TAA[C]+")
+        rc = make_regex_revcomp("TAA[C]+")
         assert rc == "[G]+TTA"
 
     def test_symmetric(self):
-        # revcomp(revcomp(seq)) should equal seq for plain DNA
+        # make_regex_revcomp(make_regex_revcomp(seq)) should equal seq for plain DNA
         seq = "ATCGATCG"
-        assert revcomp(revcomp(seq)) == seq
+        assert make_regex_revcomp(make_regex_revcomp(seq)) == seq
 
 
 # ---------------------------------------------------------------------------
-# findTelomere
+# find_telomere
 # ---------------------------------------------------------------------------
 
 
@@ -59,7 +62,7 @@ class TestFindTelomere:
     def _check(self, seq_str):
         from Bio.Seq import Seq
 
-        return findTelomere(Seq(seq_str), self.MONOMER, self.N)
+        return find_telomere(Seq(seq_str), self.MONOMER, self.N)
 
     def test_t2t_both_ends(self):
         fwd, rev = self._check(TELO_T2T)
@@ -154,15 +157,15 @@ class TestGenomeAsmStats:
 
 class TestAssessRun:
     def test_run_prints_to_stdout(self, assess_args, capsys):
-        run(None, assess_args)
+        run(**vars(assess_args))
         out = capsys.readouterr().out
         assert "CONTIG COUNT" in out
 
     def test_run_writes_report_file(self, assess_args):
-        run(None, assess_args)
+        run(**vars(assess_args))
         report_path = assess_args.report
-        assert os.path.exists(report_path)
-        content = open(report_path).read()
+        assert Path(report_path).exists()
+        content = Path(report_path).read_text()
         assert "CONTIG COUNT" in content
         assert "TOTAL LENGTH" in content
 
@@ -175,8 +178,90 @@ class TestAssessRun:
             telomere_monomer="TAA[C]+",
             telomere_n_repeat=2,
             debug=False,
-            pipe=True,
         )
-        run(None, args)  # should not raise
+        run(**vars(args))  # should not raise
         out = capsys.readouterr().out
         assert "CONTIG COUNT" in out
+
+
+class TestAssessRunErrors:
+    def test_missing_input_raises_before_writing_report(self, tmp_path):
+        report = tmp_path / "report.txt"
+        with pytest.raises(FileNotFoundError, match="assembly file not found"):
+            run(input=str(tmp_path / "missing.fasta"), report=str(report))
+        assert not report.exists()
+
+    @pytest.mark.parametrize("content", ["", ">empty\n"])
+    def test_empty_assembly_raises(self, tmp_path, content):
+        fasta = tmp_path / "empty.fasta"
+        fasta.write_text(content)
+        with pytest.raises(ValueError, match="contains no sequence"):
+            run(input=str(fasta))
+
+
+# ---------------------------------------------------------------------------
+# find_telomere with the real CLI default monomer
+# ---------------------------------------------------------------------------
+
+
+class TestFindTelomereDefaultMonomer:
+    """Telomere calls with run()'s default monomer and repeat count."""
+
+    MONOMER = inspect.signature(run).parameters["telomere_monomer"].default
+    N = inspect.signature(run).parameters["telomere_n_repeat"].default
+    FILLER = "GATTGCATGCAGTCAGTGCA" * 30  # 600 bp, no TAAC
+
+    def test_default_repeat_count(self):
+        assert self.N == 2
+
+    def test_forward_telomere(self):
+        seq = "TAACCC" * 4 + self.FILLER
+        assert find_telomere(Seq(seq), self.MONOMER, self.N) == (True, False)
+
+    def test_reverse_telomere(self):
+        seq = str(Seq("TAACCC" * 4 + self.FILLER).reverse_complement())
+        assert find_telomere(Seq(seq), self.MONOMER, self.N) == (False, True)
+
+    def test_single_copy_not_called(self):
+        seq = "TAACCC" + self.FILLER
+        assert find_telomere(Seq(seq), self.MONOMER, self.N) == (False, False)
+
+    def test_taac_with_one_c_not_called(self):
+        seq = "TAAC" * 6 + self.FILLER
+        rc = str(Seq(seq).reverse_complement())
+        assert find_telomere(Seq(seq), self.MONOMER, self.N) == (False, False)
+        assert find_telomere(Seq(rc), self.MONOMER, self.N) == (False, False)
+
+
+class TestAssessRunReportHandle:
+    def test_report_closed_when_stats_raise(self, fasta_file, tmp_path):
+        report = tmp_path / "report.txt"
+        handles = []
+
+        def boom(fasta, handle, *args):
+            handles.append(handle)
+            raise RuntimeError("fail")
+
+        with patch("aaftf.assess.genome_asm_stats", side_effect=boom):
+            with pytest.raises(RuntimeError):
+                run(input=str(fasta_file), report=str(report))
+        assert handles[0].closed
+        assert report.read_text() == ""
+
+
+class TestSoftMaskReport:
+    """BASES MASKED / PERCENT MASKED are reported only when the assembly has soft-masked bases."""
+
+    def _report(self, tmp_path, seq):
+        fasta = tmp_path / "a.fasta"
+        fasta.write_text(f">c\n{seq}\n")
+        report = tmp_path / "r.txt"
+        run(input=str(fasta), report=str(report))
+        return report.read_text()
+
+    def test_no_lowercase_no_mask_lines(self, tmp_path):
+        assert "MASKED" not in self._report(tmp_path, "ACGT" * 50)
+
+    def test_some_lowercase_reported(self, tmp_path):
+        text = self._report(tmp_path, "ACGT" * 45 + "acgt" * 5)
+        assert "BASES MASKED  =  20" in text and "PERCENT MASKED  =  10.00" in text

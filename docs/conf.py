@@ -16,7 +16,12 @@ import sys
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath("../"))
 
-version = "0.7.0"
+try:  # the installed package's version (from git tags via hatch-vcs), like aaftf.__version__
+    from importlib.metadata import version as _pkg_version
+
+    version = _pkg_version("AAFTF")
+except Exception:
+    version = "0.0.0+unknown"
 # -- General configuration -----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -24,7 +29,10 @@ version = "0.7.0"
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.doctest", "sphinx.ext.intersphinx", "sphinx.ext.todo", "sphinx.ext.coverage", "sphinx.ext.imgmath", "sphinx.ext.ifconfig", "sphinx.ext.viewcode"]
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.doctest", "sphinx.ext.intersphinx", "sphinx.ext.todo", "sphinx.ext.coverage", "sphinx.ext.imgmath", "sphinx.ext.ifconfig", "sphinx.ext.viewcode", "sphinx.ext.graphviz"]
+
+# workflow diagrams (docs/workflow.rst) are drawn by Graphviz `dot` at build time
+graphviz_output_format = "svg"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["templates"]
@@ -88,21 +96,17 @@ pygments_style = "sphinx"
 
 # -- Options for HTML output ---------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-html_theme = "default"
+# The theme to use for HTML and HTML Help pages (https://pradyunsg.me/furo/).
+html_theme = "furo"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 # html_theme_options = {}
 
-# Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = ["themes"]
-
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = None
+# html_title = None  (default: '<project> <release> documentation')
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = project + " v" + release

@@ -1,10 +1,57 @@
 """Shared pytest fixtures for the AAFTF test suite."""
 
 import gzip
+import logging
 import shutil
 from argparse import Namespace
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _run_in_tmp_dir(monkeypatch, tmp_path):
+    """Run every test from its own temporary directory.
+
+    Commands without a work directory write ./<command>.log with -v, and some steps write output
+    next to the current directory; this keeps all of that out of the repository.
+    """
+    monkeypatch.chdir(tmp_path)
+
+
+@pytest.fixture(autouse=True)
+def _ample_resources(monkeypatch):
+    """Keep main()'s -c/-m capping from depending on the test machine; capping tests patch these themselves."""
+    # Relies on aaftf.main importing available_cpus/get_ram by name (from aaftf.utility import ...).
+    monkeypatch.delenv("SLURM_CPUS_PER_TASK", raising=False)
+    monkeypatch.setattr("aaftf.main.available_cpus", lambda: 1024)
+    monkeypatch.setattr("aaftf.main.get_ram", lambda max_lim=0: 1024.0)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_db_cache(monkeypatch, tmp_path_factory):
+    """Point the default database folder at a temp dir so tests never write to ~/.cache/aaftf."""
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path_factory.mktemp("xdg_cache")))
+    monkeypatch.delenv("AAFTF_DB", raising=False)
+    monkeypatch.setattr("aaftf.utility._home_cache_warned", False)
+
+
+@pytest.fixture(autouse=True)
+def _reset_aaftf_logger():
+    """Undo setup_logging() (called by every CLI test via main()) so caplog keeps working in later tests."""
+    _reset_logging()
+    yield
+    _reset_logging()
+
+
+def _reset_logging():
+    import aaftf.utility as utility
+
+    utility.finish_logging(None, False)  # close any step log file a failed run left open
+    utility._log_buffer, utility._step_log, utility._step_log_used, utility._last_step_log = None, None, False, None
+    aaftf_logger = logging.getLogger("aaftf")
+    aaftf_logger.handlers.clear()
+    aaftf_logger.setLevel(logging.NOTSET)
+    aaftf_logger.propagate = True
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -45,7 +92,7 @@ TELO_T2T = _FWD + _BODY + _REV  # 200 bp
 # No telomere
 TELO_NONE = "AAATTTGGGCCC" * 16 + "AAAA" * 2  # 200 bp
 
-TELOMERE_FASTA = f">scaffold_t2t\n{TELO_T2T}\n" f">scaffold_fwd\n{TELO_FWD_ONLY}\n" f">scaffold_rev\n{TELO_REV_ONLY}\n" f">scaffold_none\n{TELO_NONE}\n"
+TELOMERE_FASTA = f">scaffold_t2t\n{TELO_T2T}\n>scaffold_fwd\n{TELO_FWD_ONLY}\n>scaffold_rev\n{TELO_REV_ONLY}\n>scaffold_none\n{TELO_NONE}\n"
 
 # ---------------------------------------------------------------------------
 # mosdepth summary data
@@ -57,7 +104,7 @@ TELOMERE_FASTA = f">scaffold_t2t\n{TELO_T2T}\n" f">scaffold_fwd\n{TELO_FWD_ONLY}
 _NUCLEAR_ROWS = "\n".join(f"scaffold_{i}\t10000\t100000\t10.0\t0\t50" for i in range(1, 10))
 MOSDEPTH_SUMMARY = "chrom\tlength\tbases\tmean\tmin\tmax\n" + _NUCLEAR_ROWS + "\nscaffold_outlier\t1000\t1000000\t1000.0\t0\t2000" + "\ntotal\t91000\t1900000\t20.88\t0\t2000\n"
 
-MOSDEPTH_DIST = "total\t0\t1.00000\n" "total\t1\t0.98000\n" "total\t2\t0.96000\n" "total\t5\t0.90000\n"
+MOSDEPTH_DIST = "total\t0\t1.00000\ntotal\t1\t0.98000\ntotal\t2\t0.96000\ntotal\t5\t0.90000\n"
 
 # ---------------------------------------------------------------------------
 # FASTQ helpers
@@ -165,7 +212,6 @@ def sort_args(tmp_path, fasta_file):
         minlen=0,
         name="scaffold",
         debug=False,
-        pipe=True,
     )
 
 
@@ -178,5 +224,4 @@ def assess_args(tmp_path, fasta_file):
         telomere_monomer="TAA[C]+",
         telomere_n_repeat=2,
         debug=False,
-        pipe=True,
     )

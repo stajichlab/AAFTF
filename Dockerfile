@@ -3,17 +3,19 @@
 # Docker image built with pixi-managed conda + PyPI dependencies.
 #
 # Build (from source, dev/editable install). AAFTF_VERSION must be supplied
-# explicitly: .dockerignore excludes .git from the build context, so
-# hatch-vcs/setuptools-scm cannot write AAFTF/_version.py inside the image.
-# Pass the host's git-derived version through the --build-arg:
+# explicitly: .dockerignore excludes .git from the build context, so hatch-vcs
+# cannot derive the version inside the image. The --build-arg (a tag like
+# v0.7.0 or `git describe` output like v0.7.0-beta.4-63-g7c3c423, converted to
+# PEP 440 in step 4) is given to hatch-vcs as SETUPTOOLS_SCM_PRETEND_VERSION, so
+# it ends up in the installed package metadata that `AAFTF --version` reads:
 #   docker build --build-arg AAFTF_VERSION=$(git describe --tags --always) \
 #       -t aaftf:latest .
 #
 # Without this arg the image will report v0.0.0+unknown.
 #
-# Build for a specific tagged release (uses the "release" pixi environment):
-#   docker build --build-arg PIXI_ENV=release --build-arg AAFTF_VERSION=0.6.2 \
-#       -t aaftf:v0.6.2 .
+# The image uses the pixi "complete" environment (every tool AAFTF can use). For a smaller
+# image with only what the default pipeline needs:
+#   docker build --build-arg PIXI_ENV=default --build-arg AAFTF_VERSION=... -t aaftf:slim .
 #
 # Run:
 #   docker run --rm aaftf:latest AAFTF --help
@@ -22,21 +24,21 @@
 #   docker run --rm \
 #     -v /path/to/data:/data \
 #     -v /path/to/aaftf_db:/opt/aaftf_db \
-#     aaftf:latest AAFTF trim --left /data/R1.fq.gz --right /data/R2.fq.gz
+#     aaftf:latest AAFTF trim --read1 /data/R1.fq.gz --read2 /data/R2.fq.gz
 # =============================================================================
 
 FROM ubuntu:noble
 
 LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
 
-# Which pixi environment to activate (default = editable local install).
-# Pass --build-arg PIXI_ENV=release to install from the pinned git tag instead.
-ARG PIXI_ENV=default
+# Which pixi environment to install: "complete" (default-pipeline tools + every optional
+# tool) or "default" (only what `AAFTF pipeline_short` needs with its default settings).
+ARG PIXI_ENV=complete
 
-# setuptools-scm can't see git history inside the build context (.git is
-# excluded via .dockerignore), so the version must be supplied explicitly.
+# hatch-vcs can't see git history inside the build context (.git is excluded
+# via .dockerignore), so the version must be supplied explicitly; it is used
+# during `pixi install` (step 4) when aaftf is installed.
 ARG AAFTF_VERSION=0.0.0+unknown
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF=${AAFTF_VERSION}
 
 LABEL org.opencontainers.image.title="AAFTF"
 LABEL org.opencontainers.image.description="Automatic Assembly For The Fungi"
@@ -91,70 +93,36 @@ ENV PATH="${PIXI_HOME}/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
 # 3. Copy repository into the image
-#    pixi.toml + pixi.lock are copied first so dependency installation is
-#    cached independently of source-code changes.
+#    pyproject.toml (pixi config lives under [tool.pixi.*]) + pixi.lock are
+#    copied first so dependency installation is cached independently of
+#    source-code changes.
 # ---------------------------------------------------------------------------
 WORKDIR /opt/AAFTF
-COPY pixi.toml pixi.lock ./
+COPY pyproject.toml pixi.lock ./
 
 # Copy rest of the source (needed before pixi install because the default
 # environment installs AAFTF as an editable PyPI package from ".")
 COPY . .
 
 # ---------------------------------------------------------------------------
-# 3b. Bake the version into AAFTF/_version.py
-#    .git is excluded from the build context (see .dockerignore), so
-#    hatch-vcs/setuptools-scm cannot write this file during the pip editable
-#    install.  Write it here explicitly using the version supplied via
-#    --build-arg AAFTF_VERSION=<git describe output from the host>.
-# ---------------------------------------------------------------------------
-RUN python3 -c "\
-import os; \
-ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
-ver = ver.lstrip('v'); \
-os.makedirs('AAFTF', exist_ok=True); \
-open('AAFTF/_version.py', 'w').write(f'__version__ = version = \\\"{ver}\\\"\\n'); \
-print(f'Baked version {ver} into AAFTF/_version.py')"
-
-# ---------------------------------------------------------------------------
 # 4. Install conda + PyPI dependencies via pixi (locked / reproducible)
+#    hatch-vcs only honours the generic SETUPTOOLS_SCM_PRETEND_VERSION (not the
+#    _FOR_AAFTF form) and needs a PEP 440 version, so drop a leading "v" and
+#    turn `git describe`'s "-g<hash>" into a "+g<hash>" local version.
 # ---------------------------------------------------------------------------
-RUN pixi install --environment "${PIXI_ENV}" --locked && \
+RUN ver="${AAFTF_VERSION#v}" && \
+    export SETUPTOOLS_SCM_PRETEND_VERSION="${ver/-g/+g}" && \
+    pixi install --environment "${PIXI_ENV}" --locked && \
     # Export activation env-vars so every subsequent CMD can use them.
     pixi shell-hook --environment "${PIXI_ENV}" --shell bash \
         | grep '^export ' > /opt/aaftf_activate.sh && \
     chmod +x /opt/aaftf_activate.sh && \
+    source /opt/aaftf_activate.sh && \
+    python3 -c "import sys; from packaging.version import Version; from aaftf import __version__ as v; sys.exit(0 if Version(v) == Version(sys.argv[1]) else f'AAFTF reports {v}, expected {sys.argv[1]}')" "${SETUPTOOLS_SCM_PRETEND_VERSION}" && \
     pixi clean cache --yes
 
 # ---------------------------------------------------------------------------
-# 4b. Re-bake version into AAFTF/_version.py (after pixi install overwrites it)
-#    pixi installs aaftf as editable, which re-runs hatch-vcs/setuptools-scm.
-#    Without .git in the build context, hatch-vcs writes 0.0.0+unknown.
-#    Overwrite with the version we baked in step 3b.
-# ---------------------------------------------------------------------------
-RUN source /opt/aaftf_activate.sh && \
-    python3 -c "\
-import os; \
-ver = os.environ.get('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AAFTF', '0.0.0+unknown'); \
-ver = ver.lstrip('v'); \
-open('/opt/AAFTF/AAFTF/_version.py', 'w').write(f'__version__ = version = \\\"{ver}\\\"\\n'); \
-print(f'Baked version {ver} into AAFTF/_version.py')"
-
-# ---------------------------------------------------------------------------
-# 5. Apply the patched polca.sh (compatible with newer samtools)
-# ---------------------------------------------------------------------------
-RUN source /opt/aaftf_activate.sh && \
-    POLCA_INSTALLED=$(find /opt/AAFTF/.pixi/envs -name "polca.sh" | head -1) && \
-    if [ -n "$POLCA_INSTALLED" ]; then \
-        echo "Replacing $POLCA_INSTALLED with patched version"; \
-        cp /opt/AAFTF/patches/polca.sh "$POLCA_INSTALLED"; \
-        chmod +x "$POLCA_INSTALLED"; \
-    else \
-        echo "WARNING: polca.sh not found — skipping polca patch"; \
-    fi
-
-# ---------------------------------------------------------------------------
-# 6. Build bowtie2 from source (fixes the conda binary's AVX2/x86-64-v3
+# 5. Build bowtie2 from source (fixes the conda binary's AVX2/x86-64-v3
 #    runtime fallback). The conda bowtie2 2.5.5 fails to launch its v3 build
 #    ("Failed to launch x86-64-v3 version, staying with default"), silently
 #    dropping to baseline SSE2. install_scripts/pixi_install_bowtie2.sh rebuilds
@@ -169,7 +137,7 @@ RUN source /opt/aaftf_activate.sh && \
     test -x "${CONDA_PREFIX}/bin/bowtie2-align-s-v256"
 
 # ---------------------------------------------------------------------------
-# 6b. Build SPAdes for x86-64-v2 AND x86-64-v3 with runtime dispatch.
+# 6. Build SPAdes for x86-64-v2 AND x86-64-v3 with runtime dispatch.
 #    The bioconda SPAdes recipe forces -march=x86-64-v3, so its binaries die
 #    with SIGILL (exit 132) on older CPUs (e.g. AMD Opteron / Intel Ivy
 #    Bridge HPC nodes). install_spades_multiarch.sh builds both levels under
@@ -183,7 +151,7 @@ RUN source /opt/aaftf_activate.sh && \
     test -x /opt/spades/v3/bin/spades-hammer
 
 # ---------------------------------------------------------------------------
-# 6c. Rebuild MEGAHIT from source without the bioconda -march=x86-64-v3 flag.
+# 7. Rebuild MEGAHIT from source without the bioconda -march=x86-64-v3 flag.
 #    MEGAHIT picks one of three core binaries at run time (BMI2 / POPCNT /
 #    baseline); the bioconda build puts v3 code into all three, so they die
 #    with SIGILL on older CPUs. See install_scripts/install_megahit_from_source.sh.
@@ -193,26 +161,27 @@ RUN source /opt/aaftf_activate.sh && \
     test -f "${CONDA_PREFIX}/bin/.megahit_sourcebuild_1.2.9"
 
 # ---------------------------------------------------------------------------
-# 7. Smoke test
+# 8. Smoke test
 # ---------------------------------------------------------------------------
-RUN source /opt/aaftf_activate.sh && AAFTF --version
+RUN source /opt/aaftf_activate.sh && AAFTF --version && \
+    command -v aaftf_polca.sh fix_consensus_from_vcf.pl
 
 # ---------------------------------------------------------------------------
-# 8. Cleanup build artefacts to reduce image size
+# 9. Cleanup build artefacts to reduce image size
 #    Keep /opt/pixi intact — pixi manages the conda env and removing it can
 #    break activation.  Only purge the download cache.
 # ---------------------------------------------------------------------------
 RUN rm -rf /root/.cache
 
 # ---------------------------------------------------------------------------
-# 9. Entrypoint: source the activation script then exec the user command
+# 10. Entrypoint: source the activation script then exec the user command
 # ---------------------------------------------------------------------------
 RUN printf '#!/bin/bash\nset -e\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \
         > /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # ---------------------------------------------------------------------------
-# 10. Bake the pixi env bin dir onto PATH (mirrors funannotate's
+# 11. Bake the pixi env bin dir onto PATH (mirrors funannotate's
 #     `ENV PATH="/venv/bin:..."`). Docker execution gets this via the
 #     ENTRYPOINT sourcing aaftf_activate.sh, but Singularity/Apptainer SIFs
 #     converted from this image do NOT run the Docker ENTRYPOINT, and login
@@ -220,7 +189,7 @@ RUN printf '#!/bin/bash\nset -e\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \
 #     Hardcode the same value aaftf_activate.sh exports so bowtie2/AAFTF are
 #     found in all execution modes.
 # ---------------------------------------------------------------------------
-ENV PATH="/opt/AAFTF/.pixi/envs/default/bin:/opt/pixi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV PATH="/opt/AAFTF/.pixi/envs/${PIXI_ENV}/bin:/opt/pixi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Default AAFTF_DB location (override at runtime with -e or -v).
 ENV AAFTF_DB="/opt/aaftf_db"

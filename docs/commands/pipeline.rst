@@ -1,43 +1,69 @@
-========
-pipeline
-========
-
-No aliases.
-
-Runs the entire raw-reads-to-clean-assembly workflow in a single command: trim -> mito (if paired
-reads) -> filter -> assemble -> vecscreen -> sourpurge -> rmdup -> polish -> sort -> assess. See
-:doc:`../workflow` for the full diagram and per-step input/output description.
-
-Algorithm
+=========
+Pipelines
 =========
 
-``pipeline`` is an orchestrator, not a separate implementation -- for each step it builds an
-``argparse.Namespace`` from a filtered subset of the pipeline's own arguments (plus step-specific
-required values, always including ``pipe=True`` so intermediate steps don't print "next command"
-hints) and calls that submodule's ``run()`` function directly, in-process.
+Three subcommands run the whole raw-reads-to-clean-assembly workflow in a single command:
 
-Before each step, ``pipeline`` checks whether that step's expected output file already exists; if
+* ``pipeline_short`` -- Illumina reads: trim -> filter -> assemble -> vecscreen -> [taxpurge] ->
+  covpurge -> rmdup -> sort -> assess.
+* ``pipeline_long`` -- long reads (ONT/PacBio) only: assemble (flye) -> vecscreen ->
+  [taxpurge] -> rmdup -> polish (racon) -> sort -> assess.
+* ``pipeline_hybrid`` -- Illumina + long reads: trim -> filter -> assemble (flye or unicycler) ->
+  vecscreen -> [taxpurge] -> covpurge -> rmdup -> polish -> sort -> assess.
+
+:doc:`taxpurge` runs only when ``-p/--phylum`` is given, so the pipelines also work when the
+organism's taxonomy is unknown (the contigs are then screened by :doc:`vecscreen`,
+:doc:`covpurge` and :doc:`rmdup` only). :doc:`covpurge` needs Illumina reads, so ``pipeline_long``
+does not run it. Polishing always runs after the cleaning steps, so no time is spent polishing
+contigs that are then discarded.
+
+See :doc:`../workflow` for the full diagram and per-step input/output description.
+
+.. note::
+
+   ``pipeline_short`` was called ``pipeline`` before; there is no alias for the old name.
+
+pipeline_short
+==============
+
+Algorithm
+---------
+
+Each pipeline is an orchestrator, not a separate implementation -- it calls each submodule's
+``run()`` function directly, in-process. Every step starts from exactly the defaults it has on its
+own command line (read from the ``AAFTF <step>`` parser, so the pipeline cannot drift from them);
+only the options given to the pipeline and the file names that chain the steps together override
+them. The steps' "next command" hints are not shown, since the pipeline runs the next step itself.
+
+Before each step, the pipeline checks whether that step's expected output file already exists; if
 so, the step is **skipped** (with a log message) rather than re-run. This makes an interrupted
-pipeline run resumable: simply re-invoke the same ``AAFTF pipeline`` command and it will pick up
+pipeline run resumable: simply re-invoke the same ``AAFTF pipeline_short`` command and it will pick up
 after the last completed step. After each step, output existence is re-checked and the pipeline
 aborts with an error if the expected output was not produced.
 
-Mitochondrial assembly (:doc:`mito`) only runs when paired-end reads (``-r/--right``) are
-provided; the resulting ``{basename}.mito.fasta``, if produced, is automatically passed to
-:doc:`filter` as an extra ``--screen_local`` reference so mitochondrial reads are excluded from
-the nuclear-genome read set rather than treated as contamination.
-
-Steps intentionally **not** included in ``pipeline`` -- run these manually if needed:
-:doc:`fcs_screen`, :doc:`fcs_gx_purge` (alternatives/complements to :doc:`vecscreen` /
-:doc:`sourpurge`), :doc:`depth` (coverage QC of the final assembly), :doc:`fix_tbl` (post-FCS
-annotation coordinate fixups), and :doc:`download` (run once, ahead of time, to populate
+Steps intentionally **not** included in ``pipeline_short`` (marked "(Optional)" in ``AAFTF -h``) -- run
+these manually if needed: :doc:`mito` (to screen mitochondrial reads out, run it before
+:doc:`filter` and pass its output to ``filter --screen_local``), :doc:`polish` (recommended only with long reads; polishing a short-read-only
+assembly with the same reads rarely helps), :doc:`depth` (coverage QC of the final assembly), :doc:`fix_tbl` (post-FCS
+annotation coordinate fixups), and :doc:`database` (run once, ahead of time, to populate
 ``$AAFTF_DB``).
 
-Cutoffs / defaults
-===================
+Optional steps the pipelines run on request, in every pipeline:
 
-``pipeline`` reuses each step's own defaults (:doc:`trim`, :doc:`mito`, :doc:`filter`,
-:doc:`assemble`, :doc:`vecscreen`, :doc:`sourpurge`, :doc:`rmdup`, :doc:`polish`, :doc:`sort`,
+* :doc:`fcs_screen` (NCBI FCS-adaptor adaptor/vector screen, with ``--fcs_screen``; needs a
+  container engine and ``AAFTF database fcs_script fcs_image``), right after :doc:`vecscreen`,
+  writing ``{base}.fcs_screen.fasta``.
+* A taxonomic screen, **one of**: :doc:`taxpurge` (sourmash, with ``-p/--phylum``) or
+  :doc:`fcs_gx_purge` (NCBI FCS-GX, with ``--fcs_gx_db DB --taxid INT``; the FCS-GX database is set
+  up separately), writing ``{base}.taxpurge.fasta`` or ``{base}.fcs_gx.fasta``. FCS-GX covers
+  NCBI's full taxonomy, so it replaces taxpurge rather than being combined with it; giving both
+  options is an error.
+
+Cutoffs / defaults
+------------------
+
+``pipeline_short`` uses each step's own defaults (:doc:`trim`, :doc:`filter`,
+:doc:`assemble`, :doc:`vecscreen`, :doc:`taxpurge`, :doc:`covpurge`, :doc:`rmdup`, :doc:`sort`,
 :doc:`assess`) except where noted:
 
 .. list-table::
@@ -48,51 +74,170 @@ Cutoffs / defaults
      - Default
      - Meaning
    * - ``-m/--memory``
-     - auto (75% of detected system RAM) if not set
-     - Passed through to assemble/polish
+     - each step's own default
+     - Passed to every step that has ``-m/--memory`` (trim, filter, assemble)
+   * - ``-c/--cpus``, ``-w/--workdir``, ``-v/--verbose``, ``-q/--quiet``
+     - each step's own default
+     - Passed to every step that has the option; ``assemble`` gets its own subfolder
+       ``<workdir>/assemble_<method>`` (an assembler treats an existing folder as its own earlier run)
+   * - ``-a/--screen_accessions``, ``-u/--screen_urls``
+     - none
+     - Extra sequences screened out of the reads by filter
+   * - ``--tmpdir``, ``--assembler_args``
+     - none
+     - Passed to assemble
+   * - ``-p/--phylum``, ``--sourdb``
+     - none (taxpurge not run); ``--sourdb``: ``gbk-fungi-lite gtdb-reps-lite human-hg38``
+     - Phyla kept, and the sourmash databases (see :doc:`taxpurge`), for taxpurge
    * - ``--method``
      - spades
-     - Assembler method (spades / dipspades / megahit)
-   * - ``-it/--iterations``
-     - 5
-     - Pilon polishing iterations
+     - Assembler method (spades / megahit / unicycler)
+   * - ``-ml/--minlen``
+     - 75
+     - Minimum read length kept by trim
    * - ``-mc/--mincontiglen``
      - 500
      - Minimum contig length kept by rmdup and by the final sort step
    * - ``--mincovpct``
      - 5
-     - sourpurge low-coverage removal threshold (percent of N50-contig coverage)
+     - covpurge low-coverage removal threshold (percent of N50-contig coverage)
+   * - ``--fcs_screen``, ``--container_engine``
+     - off; ``--container_engine``: fcs_screen's default (singularity)
+     - Also run :doc:`fcs_screen` (NCBI FCS-adaptor) after vecscreen
+   * - ``--fcs_gx_db``, ``--taxid``
+     - off
+     - Run :doc:`fcs_gx_purge` (NCBI FCS-GX) with this database and NCBI taxonomy ID instead of
+       taxpurge (not with ``-p``); ``--taxid`` is required with ``--fcs_gx_db``
 
 Invocation
-==========
+----------
 
 .. code-block:: text
 
-    AAFTF pipeline -l LEFT [-r RIGHT] -o BASENAME -p PHYLUM [PHYLUM ...]
-                   [-c CPUS] [-m MEMORY] [-ml MINLEN] [-it ITERATIONS]
-                   [-mc MINCONTIGLEN] [--method {spades,dipspades,megahit}]
-                   [-a ACCESSIONS ...] [-u URLS ...] [--sourdb PATH]
-                   [--mincovpct PCT] [--AAFTF_DB DIR] [-w WORKDIR]
-                   [--assembler_args ARG ...] [--tmpdir DIR] [-v] [--pipe]
+    AAFTF pipeline_short -1 FASTQ [-2 FASTQ] -o BASENAME [-p PHYLUM [PHYLUM ...]]
+                         [-c CPUS] [-m MEMORY] [-ml MINLEN]
+                         [-mc MINCONTIGLEN] [--method {spades,megahit,unicycler}]
+                         [-a ACCESSIONS ...] [-u URLS ...] [--sourdb DB ...]
+                         [--mincovpct PCT] [--fcs_screen] [--container_engine ENGINE]
+                         [--fcs_gx_db DB --taxid INT] [-w WORKDIR]
+                         [--assembler_args ARG ...] [--tmpdir DIR] [-q] [-v]
 
-``-l/--left``, ``-o/--out`` (basename), and ``-p/--phylum`` are required.
+``-1/--read1`` and ``-o/--out`` (basename) are required.
 
 Example
-=======
+-------
 
 .. code-block:: bash
 
     export AAFTF_DB=~/lib/AAFTF_DB
 
-    AAFTF pipeline \
-        -l reads/STRAINX_R1.fq.gz -r reads/STRAINX_R2.fq.gz \
-        -o STRAINX -c 24 -m 96 -it 5 \
-        --phylum Ascomycota \
-        --AAFTF_DB "$AAFTF_DB"
+    AAFTF pipeline_short \
+        -1 reads/STRAINX_R1.fq.gz -2 reads/STRAINX_R2.fq.gz \
+        -o STRAINX -c 24 -m 96 \
+        --phylum Ascomycota
 
 This produces, in sequence: ``STRAINX_1P.fastq.gz``/``STRAINX_2P.fastq.gz`` (trim),
-``STRAINX.mito.fasta`` (mito, if paired), ``STRAINX_filtered_1.fastq.gz``/``_2.fastq.gz``
+``STRAINX_filtered_1.fastq.gz``/``_2.fastq.gz``
 (filter), ``STRAINX.spades.fasta`` (assemble), ``STRAINX.vecscreen.fasta`` (vecscreen),
-``STRAINX.sourpurge.fasta`` (sourpurge), ``STRAINX.rmdup.fasta`` (rmdup),
-``STRAINX.polish.fasta`` (polish), and finally ``STRAINX.final.fasta`` with printed/``assess``
+``STRAINX.taxpurge.fasta`` (taxpurge), ``STRAINX.covpurge.fasta`` (covpurge),
+``STRAINX.rmdup.fasta`` (rmdup), and finally
+``STRAINX.final.fasta`` (sort) with printed/``assess``
 summary statistics.
+
+pipeline_long
+=============
+
+Assembles long reads with :doc:`assemble` ``--method flye``, runs :doc:`vecscreen` and
+:doc:`rmdup`, polishes the cleaned contigs once with :doc:`polish` ``--method racon`` using the same
+reads, then runs :doc:`sort` and :doc:`assess`. With ``-p/--phylum``, :doc:`taxpurge` also runs
+between vecscreen and rmdup. :doc:`covpurge` is not run, since it needs Illumina reads for contig
+coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Parameter
+     - Default
+     - Meaning
+   * - ``-lr/--longreads``, ``-o/--out`` (required)
+     -
+     - Long-read FASTQ and output file prefix
+   * - ``--longread_type``
+     - nano-hq
+     - nano-raw / nano-hq / pacbio-raw / pacbio-hifi (flye)
+   * - ``--genome_size``
+     - estimated by flye
+     - Estimated genome size for flye, e.g. ``40m``
+   * - ``-p/--phylum``
+     - none (taxpurge not run)
+     - Phyla whose contigs taxpurge keeps
+   * - ``--sourdb``
+     - from ``AAFTF database``
+     - sourmash databases for taxpurge (see :doc:`taxpurge`)
+   * - ``--assembler_args``
+     - none
+     - Passed to assemble
+   * - ``-m/--memory``
+     - each step's own default
+     - Passed to polish
+   * - ``-mc/--mincontiglen``
+     - 500
+     - Minimum contig length kept by rmdup and sort
+
+.. code-block:: text
+
+    AAFTF pipeline_long -lr FASTQ -o PREFIX
+                        [--longread_type {nano-raw,nano-hq,pacbio-raw,pacbio-hifi}]
+                        [--genome_size SIZE] [-p PHYLUM [PHYLUM ...]] [--sourdb DB ...]
+                        [-w DIR] [--assembler_args ARG]
+                        [-mc BP] [-c INT] [-m GB] [-q] [-v]
+
+.. code-block:: bash
+
+    AAFTF pipeline_long -lr reads/STRAINX_ont.fq.gz -o STRAINX \
+        --genome_size 40m -c 24
+
+This produces ``STRAINX.flye.fasta`` (assemble), ``STRAINX.vecscreen.fasta``,
+``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta`` (polish) and ``STRAINX.final.fasta``, then prints the
+``assess`` statistics.
+
+pipeline_hybrid
+===============
+
+Trims and filters the Illumina reads (:doc:`trim`, :doc:`filter`), assembles the long reads with
+flye, runs :doc:`vecscreen`, :doc:`taxpurge` (only with ``-p/--phylum``), :doc:`covpurge` (with the
+Illumina reads) and :doc:`rmdup`, polishes
+the cleaned contigs with :doc:`polish` ``--method racon`` (long reads) and then with the filtered
+Illumina reads -- ``polypolish`` for paired reads, ``pypolca`` for single-end -- and runs
+:doc:`sort` and :doc:`assess`. With ``--method unicycler``, unicycler assembles the filtered Illumina reads together
+with the long reads and both polish steps are skipped, since Unicycler polishes its own assembly.
+Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
+
+Options are those of ``pipeline_short`` (except that ``--method`` is ``flye`` (default) or
+``unicycler``) plus ``-lr/--longreads`` (required), ``--longread_type`` and ``--genome_size`` as
+in ``pipeline_long``. ``-m/--memory`` is passed to trim, filter, assemble and polish.
+
+.. code-block:: text
+
+    AAFTF pipeline_hybrid -1 FASTQ -lr FASTQ -o PREFIX [-p PHYLUM [PHYLUM ...]]
+                          [-2 FASTQ] [--method {flye,unicycler}]
+                          [--longread_type {nano-raw,nano-hq,pacbio-raw,pacbio-hifi}]
+                          [--genome_size SIZE] [-w DIR] [--tmpdir DIR]
+                          [--assembler_args ARG] [-ml BP]
+                          [-a [ACCESSION ...]] [-u [URL ...]] [-mc BP]
+                          [--sourdb DB ...] [--mincovpct PCT] [-c INT]
+                          [-m GB] [-q] [-v]
+
+.. code-block:: bash
+
+    AAFTF pipeline_hybrid \
+        -1 reads/STRAINX_R1.fq.gz -2 reads/STRAINX_R2.fq.gz \
+        -lr reads/STRAINX_ont.fq.gz \
+        -o STRAINX -c 24 -m 96 --phylum Ascomycota
+
+This produces the trim and filter FASTQs as in ``pipeline_short``, then ``STRAINX.flye.fasta``,
+``STRAINX.vecscreen.fasta``, ``STRAINX.taxpurge.fasta``, ``STRAINX.covpurge.fasta``,
+``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta``, ``STRAINX.polypolish.fasta``
+(``STRAINX.pypolca.fasta`` with single-end reads) and ``STRAINX.final.fasta``. With ``--method unicycler`` the assembly is ``STRAINX.unicycler.fasta``
+and no polish files are written.

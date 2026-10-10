@@ -2,8 +2,6 @@
 trim
 ====
 
-**Aliases:** ``trim_reads``, ``read_trim``
-
 Adapter and quality trims raw Illumina FASTQ reads (paired- or single-end). This is normally the
 first step of the pipeline.
 
@@ -21,9 +19,10 @@ Three interchangeable trimming engines are supported via ``--method``:
     de-interleaving the trimmed output back to ``_1P``/``_2P`` with ``reformat.sh``.
 * **trimmomatic**
     Runs Trimmomatic in ``PE``/``SE`` mode with ``ILLUMINACLIP``, ``LEADING``, ``TRAILING``, and
-    ``SLIDINGWINDOW`` steps. AAFTF auto-locates the ``trimmomatic.jar``/adapter files from a
-    homebrew shell wrapper or a bioconda Python launcher; pass ``--trimmomatic /path/to.jar`` to
-    override.
+    ``SLIDINGWINDOW`` steps. AAFTF auto-locates ``trimmomatic.jar`` from the ``trimmomatic``
+    launcher on ``$PATH`` (homebrew shell wrapper or bioconda Python launcher), and looks for the
+    adaptor file (``--trimmomatic_adaptors``) next to the jar and under ``<prefix>/share/trimmomatic``
+    in the directories above it; a missing jar or adaptor file raises an error (exit code 2).
 * **fastp**
     Runs ``fastp`` with ``--low_complexity_filter``, optional 5'/3'/sliding-window quality
     trimming (``--cutfront``/``--cuttail``/``--cutright``), optional PCR-duplicate removal
@@ -50,8 +49,8 @@ Cutoffs / defaults
      - bbduk
      - bbduk / trimmomatic / fastp
    * - ``-m/--memory``
-     - auto (60% of detected system RAM)
-     - Max heap for bbduk (``-Xmx``)
+     - 8 (GB)
+     - Max Java heap for bbduk (``-Xmx``)
    * - Trimmomatic ``LEADING``/``TRAILING``
      - 3 / 3
      - Per-base quality trim from each read end
@@ -67,17 +66,17 @@ Invocation
 
 .. code-block:: text
 
-    AAFTF trim -l LEFT [-r RIGHT] [-o BASENAME] [-c CPUS] [-ml MINLEN] [-aq AVGQUAL]
-               [--method {bbduk,trimmomatic,fastp}] [-m MEMORY]
+    AAFTF trim -1 FASTQ [-2 FASTQ] [-o PREFIX] [-c INT] [-ml BP] [-aq INT]
+               [--method {bbduk,trimmomatic,fastp}] [-m GB]
                [--dedup] [--cutfront] [--cuttail] [--cutright] [--merge]
-               [--trimmomatic JAR] [--trimmomatic_adaptors FILE] [--trimmomatic_clip STR]
+               [--trimmomatic_adaptors FILE] [--trimmomatic_clip STR]
                [--trimmomatic_leadingwindow N] [--trimmomatic_trailingwindow N]
                [--trimmomatic_slidingwindow W:Q] [--trimmomatic_quality {phred33,phred64}]
-               [-v] [--pipe]
+               [-q] [-v]
 
-``-l/--left`` is required; ``-r/--right`` is optional (omit for single-end reads). If
-``-o/--out`` (``basename``) is not given, it is derived from ``--left``'s filename (text before
-the first ``_`` or ``.``).
+``-1/--read1`` is required; ``-2/--read2`` is optional (omit for single-end reads). If
+``-o/--out`` (``basename``) is not given, it is derived from ``--read1``'s filename (text before
+the first ``_``, or the first ``.`` if it has none). Supplying no reads raises an error.
 
 **Output:** paired mode writes ``{basename}_1P.fastq.gz`` / ``{basename}_2P.fastq.gz``;
 single-end mode writes ``{basename}_1U.fastq.gz``.
@@ -88,12 +87,12 @@ Example
 .. code-block:: bash
 
     AAFTF trim --method bbduk --memory 64 -c 16 \
-        --left reads/STRAINX_R1.fq.gz --right reads/STRAINX_R2.fq.gz \
+        --read1 reads/STRAINX_R1.fq.gz --read2 reads/STRAINX_R2.fq.gz \
         -o reads_trimmed/STRAINX
 
     # fastp with deduplication and read merging
     AAFTF trim --method fastp -c 16 --dedup --merge \
-        --left reads/STRAINX_R1.fq.gz --right reads/STRAINX_R2.fq.gz \
+        --read1 reads/STRAINX_R1.fq.gz --read2 reads/STRAINX_R2.fq.gz \
         -o reads_trimmed/STRAINX
 
 Next step: :doc:`filter` (or :doc:`mito` first, for paired data, to seed a mitochondrial

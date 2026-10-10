@@ -1,35 +1,34 @@
-"""Unit tests for AAFTF/fix_tbl.py.
+"""Unit tests for aaftf/fix_tbl.py.
 
 All functions are pure Python — no external tools required.
 """
 
 import io
+import logging
 
 import pytest
 
-from AAFTF.fix_tbl import fix_tbl, parse_adjustments, parse_tbl
+from aaftf.fix_tbl import TblFeature, fix_tbl, parse_adjustments, parse_tbl
 
 pytestmark = pytest.mark.unit
 
 
-# ---------------------------------------------------------------------------
-# Helper builders
-# ---------------------------------------------------------------------------
-
-
-def _tbl(text):
-    """Wrap *text* in a StringIO for use as a tbl file handle."""
+def _fh(text):
+    """Wrap *text* in a StringIO for use as an input file handle."""
     return io.StringIO(text)
 
 
-def _adj(text):
-    """Wrap *text* in a StringIO for use as an adjustment file handle."""
-    return io.StringIO(text)
+def _report(*rows):
+    """Build an FCS action report with the header line followed by tab-joined *rows*."""
+    lines = ['##["FCS-adaptor", 1, 1]', "#accession\tlength\taction\trange\tname"]
+    return _fh("\n".join(lines + ["\t".join(map(str, row)) for row in rows]) + "\n")
 
 
-def _out():
-    """Return a writable StringIO to capture output."""
-    return io.StringIO()
+def _fix(tbl, *rows):
+    """Run fix_tbl on *tbl* with an FCS report of *rows*; return {seqid: [TblFeature]} parsed from the output."""
+    out = io.StringIO()
+    fix_tbl(_fh(tbl), _report(*rows), out)
+    return parse_tbl(_fh(out.getvalue()))
 
 
 # ---------------------------------------------------------------------------
@@ -40,220 +39,199 @@ TBL_BASIC = """\
 >Feature scaffold_1
 1\t1000\tgene
 \t\t\tlocus_tag\tGENE_001
-1\t900\tCDS
+1\t300\tCDS
+400\t900
 \t\t\tproduct\thypothetical protein
 >Feature scaffold_2
-500\t1500\tgene
+1500\t500\tgene
 \t\t\tlocus_tag\tGENE_002
-"""
-
-TBL_WITH_BLANKS = """\
->Feature scaffold_1
-
-1\t500\tgene
-\t\t\tlocus_tag\tGENE_003
-
->Feature scaffold_2
-100\t200\tgene
-"""
-
-TBL_WITH_COMMENT = """\
-# This is a comment
->Feature scaffold_1
-1\t100\tgene
-"""
-
-TBL_PARTIAL_COORDS = """\
->Feature scaffold_1
-<1\t>1000\tgene
-\t\t\tlocus_tag\tGENE_005
 """
 
 
 class TestParseTbl:
-    def test_basic_two_sequences(self):
-        features = parse_tbl(_tbl(TBL_BASIC))
-        assert set(features.keys()) == {"scaffold_1", "scaffold_2"}
+    def test_sequences_in_file_order(self):
+        assert list(parse_tbl(_fh(TBL_BASIC))) == ["scaffold_1", "scaffold_2"]
 
-    def test_feature_count_scaffold1(self):
-        features = parse_tbl(_tbl(TBL_BASIC))
-        # 2 coordinate lines + 2 qualifier lines
-        assert len(features["scaffold_1"]) == 4
+    def test_features_group_intervals_and_qualifiers(self):
+        gene, cds = parse_tbl(_fh(TBL_BASIC))["scaffold_1"]
+        assert gene == TblFeature("gene", [["1", "1000"]], ["\t\t\tlocus_tag\tGENE_001"])
+        assert cds.intervals == [["1", "300"], ["400", "900"]]
+        assert cds.qualifiers == ["\t\t\tproduct\thypothetical protein"]
 
-    def test_gene_coordinates(self):
-        features = parse_tbl(_tbl(TBL_BASIC))
-        first = features["scaffold_1"][0]
-        assert first[0] == "1"
-        assert first[1] == "1000"
-        assert first[2] == "gene"
+    def test_minus_strand_kept_as_written(self):
+        assert parse_tbl(_fh(TBL_BASIC))["scaffold_2"][0].intervals == [["1500", "500"]]
 
-    def test_qualifier_stored(self):
-        features = parse_tbl(_tbl(TBL_BASIC))
-        quals = [f for f in features["scaffold_1"] if f[0] == ""]
-        assert len(quals) >= 1
-        assert "locus_tag\tGENE_001" in quals[0][3]
+    def test_blank_and_comment_lines_skipped(self):
+        features = parse_tbl(_fh("# comment\n>Feature s1\n\n1\t100\tgene\n\n>Feature s2\n"))
+        assert len(features["s1"]) == 1 and features["s2"] == []
 
-    def test_blank_lines_skipped(self):
-        features = parse_tbl(_tbl(TBL_WITH_BLANKS))
-        assert "scaffold_1" in features
-        assert "scaffold_2" in features
+    def test_partial_markers_kept(self):
+        feat = parse_tbl(_fh(">Feature s1\n<1\t>1000\tgene\n"))["s1"][0]
+        assert feat.intervals == [["<1", ">1000"]]
 
-    def test_comment_lines_skipped(self):
-        features = parse_tbl(_tbl(TBL_WITH_COMMENT))
-        assert "scaffold_1" in features
+    def test_feature_before_header_raises(self):
+        with pytest.raises(ValueError, match="before the first '>Feature'"):
+            parse_tbl(_fh("1\t100\tgene\n>Feature s1\n"))
 
-    def test_partial_coordinates(self):
-        features = parse_tbl(_tbl(TBL_PARTIAL_COORDS))
-        first = features["scaffold_1"][0]
-        assert first[0] == "<1"
-        assert first[1] == ">1000"
+    def test_round_trip(self):
+        features = parse_tbl(_fh(TBL_BASIC))
+        text = "".join(f">Feature {seqid}\n" + "".join(f.to_tbl() for f in feats) for seqid, feats in features.items())
+        assert text == TBL_BASIC
 
 
 # ---------------------------------------------------------------------------
 # parse_adjustments
 # ---------------------------------------------------------------------------
 
-# NOTE: parse_adjustments() has a quirk: the `for` loop locates the
-# `#accession` header line, then on the very next line executes `break`,
-# consuming that line before csv.reader takes over.  Each fixture below
-# includes a throwaway "_skip_" row immediately after #accession so that
-# the real data rows are processed by csv.reader.
-
-ADJ_BASIC = """\
-# Some header
-#accession\toriginal_length\taction\tranges
-_skip_\t0\tACTION_TRIM\t1..1
-scaffold_1\t1000\tACTION_TRIM\t1..50
-scaffold_2\t2000\tACTION_TRIM\t1951..2000
-"""
-
-ADJ_INTERNAL = """\
-#accession\toriginal_length\taction\tranges
-_skip_\t0\tACTION_TRIM\t1..1
-scaffold_1\t1000\tACTION_TRIM\t200..400
-"""
-
-ADJ_NO_HEADER = """\
-scaffold_1\t1000\tACTION_TRIM\t1..50
-"""
-
-ADJ_MULTI_RANGE = """\
-#accession\toriginal_length\taction\tranges
-_skip_\t0\tACTION_TRIM\t1..1
-scaffold_1\t1000\tACTION_TRIM\t1..30,971..1000
-"""
-
 
 class TestParseAdjustments:
-    def test_basic_left_trim(self):
-        adj = parse_adjustments(_adj(ADJ_BASIC))
-        assert "scaffold_1" in adj
-        # range 1..50 with start=1 → trim_left
-        assert adj["scaffold_1"][0] == [1000, "ACTION_TRIM", 1, 50]
+    def test_first_row_after_header_is_read(self):
+        adj = parse_adjustments(_report(("scaffold_1", 1000, "ACTION_TRIM", "1..50", "adaptor")))
+        assert adj == {"scaffold_1": [(1000, "ACTION_TRIM", 1, 50)]}
 
-    def test_basic_right_trim(self):
-        adj = parse_adjustments(_adj(ADJ_BASIC))
-        assert "scaffold_2" in adj
-        # range 1951..2000, end==original_length=2000 → trim_right
-        assert adj["scaffold_2"][0] == [2000, "ACTION_TRIM", 1951, 2000]
+    def test_multiple_ranges(self):
+        adj = parse_adjustments(_report(("scaffold_1", 1000, "ACTION_TRIM", "1..30,971..1000", "adaptor")))
+        assert adj["scaffold_1"] == [(1000, "ACTION_TRIM", 1, 30), (1000, "ACTION_TRIM", 971, 1000)]
 
-    def test_skips_lines_before_header(self, capsys):
-        adj = parse_adjustments(_adj(ADJ_NO_HEADER))
-        # Without the #accession header the rows are skipped
-        assert adj == {}
+    def test_exclude_without_range_covers_whole_sequence(self):
+        adj = parse_adjustments(_report(("scaffold_1", 1000, "ACTION_EXCLUDE", "", "adaptor")))
+        assert adj["scaffold_1"] == [(1000, "ACTION_EXCLUDE", 1, 1000)]
 
-    def test_multi_range(self):
-        adj = parse_adjustments(_adj(ADJ_MULTI_RANGE))
-        # Two ranges for scaffold_1
-        assert len(adj["scaffold_1"]) == 2
+    def test_lines_before_header_ignored(self):
+        assert parse_adjustments(_fh("scaffold_1\t1000\tACTION_TRIM\t1..50\n")) == {}
 
 
 # ---------------------------------------------------------------------------
-# fix_tbl (integration of parse_tbl + parse_adjustments + coordinate fixing)
+# fix_tbl
 # ---------------------------------------------------------------------------
 
 TBL_FOR_FIX = """\
 >Feature scaffold_1
-1\t100\tgene
-\t\t\tlocus_tag\tGENE_A
+10\t40\tgene
+\t\t\tlocus_tag\tGENE_IN_TRIM
+30\t100\tgene
+\t\t\tlocus_tag\tGENE_CUT_LEFT
 200\t300\tgene
 \t\t\tlocus_tag\tGENE_B
-"""
-
-# Each file needs a throwaway row immediately after #accession (see ADJ_BASIC note).
-ADJ_LEFT_50 = """\
-#accession\toriginal_length\taction\tranges
-_skip_\t0\tACTION_TRIM\t1..1
-scaffold_1\t1000\tACTION_TRIM\t1..50
-"""
-
-ADJ_RIGHT_800 = """\
-#accession\toriginal_length\taction\tranges
-_skip_\t0\tACTION_TRIM\t1..1
-scaffold_1\t1000\tACTION_TRIM\t801..1000
-"""
-
-# ADJ_NONE applies only to scaffold_2; scaffold_1 receives no adjustment.
-ADJ_NONE = """\
-#accession\toriginal_length\taction\tranges
-_skip_\t0\tACTION_TRIM\t1..1
-scaffold_2\t1000\tACTION_TRIM\t1..50
+300\t200\tgene
+\t\t\tlocus_tag\tGENE_MINUS
+750\t900\tgene
+\t\t\tlocus_tag\tGENE_CUT_RIGHT
+850\t950\tgene
+\t\t\tlocus_tag\tGENE_PAST_END
+>Feature scaffold_2
+1\t100\tgene
 """
 
 
-class TestFixTbl:
-    def test_trim_left_shifts_coordinates(self):
-        out = _out()
-        fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_LEFT_50), out)
-        content = out.getvalue()
-        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
-        coord_lines = [line for line in lines if not line.startswith("\t")]
-        # Original gene 1-100, after trim_left=50 → 1-50 (start clamped to 1)
-        first_coords = coord_lines[0].split("\t")[:2]
-        assert first_coords[0] == "1"  # max(1, 1-50)
-        assert first_coords[1] == "50"  # 100-50
+def _by_tag(features, seqid="scaffold_1"):
+    """Map locus_tag → intervals for the features of *seqid*."""
+    return {f.qualifiers[0].split("\t")[-1]: f.intervals for f in features[seqid]}
 
-    def test_trim_left_second_gene_shifted(self):
-        out = _out()
-        fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_LEFT_50), out)
-        content = out.getvalue()
-        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
-        coord_lines = [line for line in lines if not line.startswith("\t")]
-        # TBL_FOR_FIX has exactly 2 coordinate lines: index 0 (1-100) and 1 (200-300)
-        second_coords = coord_lines[1].split("\t")[:2]
-        assert second_coords[0] == "150"  # 200-50
-        assert second_coords[1] == "250"  # 300-50
 
-    def test_trim_right_clamps_overlapping_feature(self):
-        out = _out()
-        fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_RIGHT_800), out)
-        content = out.getvalue()
-        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
-        coord_lines = [line for line in lines if not line.startswith("\t")]
-        # gene at 200-300: neither start(200) nor end(300) >= 801, so unchanged
-        second_coords = coord_lines[1].split("\t")[:2]
-        assert second_coords[0] == "200"
-        assert second_coords[1] == "300"
+class TestFixTblLeftTrim:
+    ROW = ("scaffold_1", 1000, "ACTION_TRIM", "1..50", "adaptor")
 
-    def test_no_adjustment_for_this_sequence(self):
-        # ADJ_NONE applies to scaffold_2, not scaffold_1 in TBL_FOR_FIX
-        out = _out()
-        fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_NONE), out)
-        content = out.getvalue()
-        lines = [line for line in content.splitlines() if "\t" in line and not line.startswith(">")]
-        coord_lines = [line for line in lines if not line.startswith("\t")]
-        # Coordinates should be unchanged
-        assert coord_lines[0].split("\t")[:2] == ["1", "100"]
+    def test_features_shifted(self):
+        assert _by_tag(_fix(TBL_FOR_FIX, self.ROW))["GENE_B"] == [["150", "250"]]
 
-    def test_output_has_feature_header(self):
-        out = _out()
-        fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_NONE), out)
-        content = out.getvalue()
-        assert ">Feature scaffold_1" in content
+    def test_minus_strand_shifted(self):
+        assert _by_tag(_fix(TBL_FOR_FIX, self.ROW))["GENE_MINUS"] == [["250", "150"]]
+
+    def test_feature_cut_by_trim_marked_5prime_partial(self):
+        assert _by_tag(_fix(TBL_FOR_FIX, self.ROW))["GENE_CUT_LEFT"] == [["<1", "50"]]
+
+    def test_feature_inside_trim_dropped(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="aaftf.fix_tbl"):
+            tags = _by_tag(_fix(TBL_FOR_FIX, self.ROW))
+        assert "GENE_IN_TRIM" not in tags
+        assert "inside a trimmed region" in caplog.text
+
+    def test_multiple_left_ranges_use_the_furthest(self):
+        rows = [("scaffold_1", 1000, "ACTION_TRIM", "1..20", "a"), self.ROW]
+        assert _by_tag(_fix(TBL_FOR_FIX, *rows))["GENE_B"] == [["150", "250"]]
+
+
+class TestFixTblRightTrim:
+    ROW = ("scaffold_1", 1000, "ACTION_TRIM", "801..1000", "adaptor")
+
+    def test_features_before_trim_unchanged(self):
+        assert _by_tag(_fix(TBL_FOR_FIX, self.ROW))["GENE_B"] == [["200", "300"]]
+
+    def test_feature_cut_by_trim_clipped_and_marked_3prime_partial(self):
+        assert _by_tag(_fix(TBL_FOR_FIX, self.ROW))["GENE_CUT_RIGHT"] == [["750", ">800"]]
+
+    def test_feature_past_new_end_dropped(self):
+        assert "GENE_PAST_END" not in _by_tag(_fix(TBL_FOR_FIX, self.ROW))
+
+    def test_minus_strand_cut_marks_5prime_end(self):
+        tbl = ">Feature s1\n900\t700\tgene\n\t\t\tlocus_tag\tM\n"
+        assert _by_tag(_fix(tbl, ("s1", 1000, "ACTION_TRIM", "801..1000", "a")), "s1")["M"] == [["<800", "700"]]
+
+
+class TestFixTblMultiInterval:
+    TBL = ">Feature s1\n20\t100\tCDS\n200\t300\n400\t500\n\t\t\tlocus_tag\tX\n"
+
+    def test_dropped_first_interval_marks_5prime_partial(self):
+        assert _by_tag(_fix(self.TBL, ("s1", 1000, "ACTION_TRIM", "1..150", "a")), "s1")["X"] == [["<50", "150"], ["250", "350"]]
+
+    def test_dropped_last_interval_marks_3prime_partial(self):
+        assert _by_tag(_fix(self.TBL, ("s1", 1000, "ACTION_TRIM", "351..1000", "a")), "s1")["X"] == [["20", "100"], ["200", ">300"]]
+
+
+class TestFixTblOther:
+    def test_existing_partial_markers_kept(self):
+        tbl = ">Feature s1\n<100\t>200\tgene\n\t\t\tlocus_tag\tP\n"
+        assert _by_tag(_fix(tbl, ("s1", 1000, "ACTION_TRIM", "1..50", "a")), "s1")["P"] == [["<50", ">150"]]
+
+    def test_untrimmed_sequence_unchanged(self):
+        row = ("scaffold_1", 1000, "ACTION_TRIM", "1..50", "adaptor")
+        assert _fix(TBL_FOR_FIX, row)["scaffold_2"][0].intervals == [["1", "100"]]
+
+    def test_excluded_sequence_dropped(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="aaftf.fix_tbl"):
+            features = _fix(TBL_FOR_FIX, ("scaffold_2", 1000, "ACTION_EXCLUDE", "", "adaptor"))
+        assert "scaffold_2" not in features
+        assert "excluded" in caplog.text
+
+    def test_internal_trim_left_alone_with_warning(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="aaftf.fix_tbl"):
+            features = _fix(TBL_FOR_FIX, ("scaffold_1", 1000, "ACTION_TRIM", "400..500", "adaptor"))
+        assert _by_tag(features)["GENE_B"] == [["200", "300"]]
+        assert "inside the contig" in caplog.text
 
     def test_qualifiers_preserved(self):
-        out = _out()
-        fix_tbl(_tbl(TBL_FOR_FIX), _adj(ADJ_NONE), out)
-        content = out.getvalue()
-        assert "GENE_A" in content
-        assert "GENE_B" in content
+        out = io.StringIO()
+        fix_tbl(_fh(TBL_FOR_FIX), _report(), out)
+        assert out.getvalue() == TBL_FOR_FIX
+
+
+# ---------------------------------------------------------------------------
+# run (file paths in, file path out)
+# ---------------------------------------------------------------------------
+
+
+class TestRun:
+    def _files(self, tmp_path, tbl_text):
+        tbl, report, out = tmp_path / "in.tbl", tmp_path / "fcs_report.txt", tmp_path / "out.tbl"
+        tbl.write_text(tbl_text)
+        report.write_text("#accession\tlength\taction\trange\tname\nscaffold_1\t1000\tACTION_TRIM\t1..50\tadaptor\n")
+        return tbl, report, out
+
+    def test_writes_fixed_table(self, tmp_path):
+        from aaftf.fix_tbl import run
+
+        tbl, report, out = self._files(tmp_path, ">Feature scaffold_1\n200\t300\tgene\n\t\t\tlocus_tag\tA\n")
+        run(table=str(tbl), report=str(report), output=str(out))
+        assert out.read_text() == ">Feature scaffold_1\n150\t250\tgene\n\t\t\tlocus_tag\tA\n"
+        assert not (tmp_path / "out.tbl.tmp").exists()
+
+    def test_malformed_input_leaves_existing_output_untouched(self, tmp_path):
+        from aaftf.fix_tbl import run
+
+        tbl, report, out = self._files(tmp_path, "1\t100\tgene\n")  # feature line before any header
+        out.write_text("previous result\n")
+        with pytest.raises(ValueError):
+            run(table=str(tbl), report=str(report), output=str(out))
+        assert out.read_text() == "previous result\n"
+        assert not (tmp_path / "out.tbl.tmp").exists()

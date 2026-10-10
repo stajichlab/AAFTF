@@ -5,96 +5,106 @@ Command Reference
 .. toctree::
    :maxdepth: 1
 
-   download
+   dependency
+   database
    trim
    mito
    filter
    assemble
    vecscreen
+   taxpurge
+   covpurge
    fcs_screen
    fcs_gx_purge
-   sourpurge
    rmdup
    polish
    sort
    assess
    depth
-   fix_tbl
    pipeline
+   fix_tbl
 
 .. list-table::
    :header-rows: 1
-   :widths: 16 22 16 46
+   :widths: 20 16 46
 
    * - Canonical name
-     - Aliases
      - Key tools
      - Purpose
-   * - :doc:`download`
-     - ``configure``, ``install``, ``download_db``, ``setup``
+   * - :doc:`dependency`
+     - (none -- checks ``$PATH``)
+     - Setup: check that AAFTF's external tools and Python packages are installed
+   * - :doc:`database`
      - (urllib only)
-     - Fetch/cache reference databases into ``$AAFTF_DB``
+     - Setup: list or download reference databases into ``$AAFTF_DB``
    * - :doc:`trim`
-     - ``trim_reads``, ``read_trim``
      - bbduk.sh, trimmomatic, fastp
      - Adapter + quality trimming
    * - :doc:`mito`
-     - ``mito_asm``, ``mitochondria``
      - NOVOPlasty, minimap2
-     - De novo mitochondrial genome assembly
+     - (Optional) De novo mitochondrial genome assembly
    * - :doc:`filter`
-     - ``filter_reads``, ``read_filter``
      - bbduk.sh, bowtie2, bwa, minimap2, samtools
      - Remove contaminant/PhiX reads
    * - :doc:`assemble`
-     - ``asm``, ``spades``
-     - spades.py, megahit, unicycler
+     - spades.py, megahit, unicycler, flye
      - Assemble cleaned reads
    * - :doc:`vecscreen`
-     - ``vectorscreen``, ``vector_blast``
      - blastn, makeblastdb
      - Vector/Euk/Prok/Mito contamination screen
+   * - :doc:`taxpurge`
+     - sourmash
+     - Remove contigs classified outside the kept phyla (run by the pipelines only with ``-p``)
+   * - :doc:`covpurge`
+     - bwa, samtools
+     - Remove contigs with low Illumina read coverage
    * - :doc:`fcs_screen`
-     - ``ncbi_fcs``, ``ncbi_fcs-screen``
      - run_fcsadaptor.sh (singularity/docker)
-     - NCBI FCS-adaptor vector trimming
+     - (Optional) NCBI FCS-adaptor vector trimming
    * - :doc:`fcs_gx_purge`
-     - ``ncbi_fcs-gx``, ``ncbi_fcs_gx``, ``gx``
      - run_gx.py (NCBI FCS-GX)
-     - NCBI FCS-GX genomic cross-contamination purge
-   * - :doc:`sourpurge`
-     - ``purge``
-     - sourmash, bwa, samtools
-     - Taxonomy + low-coverage contig purge
+     - (Optional) NCBI FCS-GX genomic cross-contamination purge
    * - :doc:`rmdup`
-     - ``dedup``
      - minimap2
      - Remove redundant/duplicate contigs
    * - :doc:`polish`
-     - ``pilon``, ``polca``
-     - pilon, nextPolish, polca, bwa, samtools
-     - Short/long-read assembly polishing
+     - polypolish, pypolca, nextPolish2, racon, bwa, samtools, minimap2, yak, freebayes
+     - (Optional) Short/long-read assembly polishing
    * - :doc:`sort`
-     - --
      - (BioPython only)
      - Sort contigs by length, rename headers
    * - :doc:`assess`
-     - ``stats``
      - (BioPython only)
      - Assembly completeness / summary statistics
    * - :doc:`depth`
-     - ``coverage``, ``cov``
      - minimap2, bwa, samtools, mosdepth
-     - Per-contig read-depth report + outlier flags
-   * - :doc:`fix_tbl`
-     - ``fix``
-     - (none)
-     - Adjust NCBI ``.tbl`` feature coordinates after FCS trimming
+     - (Optional) Per-contig read-depth report + outlier flags
    * - :doc:`pipeline`
-     - --
-     - all of the above (except fcs_screen/fcs_gx_purge/depth)
-     - Run the full trim -> ... -> assess pipeline in one command
+     - those of the steps it runs
+     - ``pipeline_short``: trim -> filter -> assemble -> vecscreen -> [taxpurge] -> covpurge -> rmdup -> sort -> assess
+       in one command; ``pipeline_long`` (long reads) and ``pipeline_hybrid`` (Illumina + long reads)
+   * - :doc:`fix_tbl`
+     - (none)
+     - Annotation: adjust NCBI ``.tbl`` feature coordinates after FCS trimming
 
-Every subcommand accepts ``-v/--debug`` (verbose logging; also usually retains temp working
-directories) and ``--pipe`` (suppress the "your next command might be" hint printed at the end --
-set automatically when a step is invoked from inside ``AAFTF pipeline``).
+``AAFTF -h`` lists the subcommands in four groups: *Setup* (``dependency``, ``database``),
+*Steps* (``trim`` through ``depth``, in the order above; steps marked "(Optional)" are not run by
+``pipeline_short``), *Pipeline* (``pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid``) and
+*Annotation* (``fix_tbl``).
+
+Common options and exit codes
+=============================
+
+Every subcommand accepts ``-v/--verbose`` (verbose logging; also usually retains temp working
+directories) and ``-q/--quiet`` (only warnings and errors, which also hides the "your next
+command might be" hint printed at the end of a step).
+
+Each step with a working directory also writes its log to ``<workdir>/<subcommand>.log`` (everything
+at INFO and above, even with ``-q``, plus full tracebacks on errors). The log is kept whenever the
+working directory is: when you pass your own ``-w/--workdir``, with ``-v``, or when the step fails;
+an auto-created working directory and its log are removed after a successful run. Subcommands
+without a working directory (e.g. ``trim``, ``sort``, ``assess``) write ``./<subcommand>.log`` only
+with ``-v``.
+
+``AAFTF`` exits with status 0 on success, 1 on an error, 2 when a required input file, database or
+tool is missing, and 130 when interrupted with Ctrl-C.

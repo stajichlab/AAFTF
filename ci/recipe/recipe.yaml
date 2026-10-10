@@ -6,10 +6,13 @@
 #       --output-dir dist-conda
 #
 # `version` below is the single source of truth for both the conda package
-# version AND the version baked into AAFTF/_version.py at install time:
+# version AND the version recorded in the installed package's metadata
+# (read at runtime as aaftf.__version__):
 # SETUPTOOLS_SCM_PRETEND_VERSION forces hatch-vcs to record exactly this
 # string, so `AAFTF --version` inside the conda package reports the same
-# version as the package itself. Bump it together with pixi.toml on release.
+# version as the package itself. pyproject.toml derives its version
+# dynamically from git tags (see [tool.hatch.version]), so bump this value
+# together with the release's git tag (vX.Y.Z).
 context:
   name: aaftf
   version: 0.7.0
@@ -42,43 +45,41 @@ requirements:
     - pip
     - hatchling
     - hatch-vcs
-    - setuptools-scm
   run:
-    # Keep in sync with environment.yml / pixi.toml ([feature.common]).
-    - python >=3.9
-    - biopython
-    - packaging
-    - samtools >=1.23,<2
-    - bwa
-    - minimap2
-    - pilon
+    # Same set as the pixi "complete" environment in pyproject.toml (and environment.dev.yml):
+    # what the default pipeline needs, then the tools for optional steps and options.
+    - python >=3.10,<3.15
+    - bbmap >=39.80,<40
+    - spades
     - blast
-    - diamond
     - sourmash
+    - bwa
+    - samtools >=1.24,<2
+    - minimap2
+    - biopython >=1.88
+    - psutil >=5
+    - matplotlib-base >=3
+    - packaging
+    - pigz
     - bowtie2
+    - fastp
     - trimmomatic
     - megahit
     - unicycler
-    - spades
-    - fastp
-    - flye
+    - polypolish >=0.7.1,<0.8
+    - pypolca >=0.5.0,<0.6
+    - freebayes
+    - nextpolish2 >=0.2.2,<0.3
+    - yak
     - racon
-    - fastqc
-    - hifiasm
-    - kraken2
-    - gfatools
+    - mosdepth >=0.3.10
     - novoplasty
     - ncbi-fcs-gx
-    - mosdepth
-    - matplotlib
-    - bbmap >=39.80,<40
-    - masurca >=4.1.4,<5
-    - taxonkit
 
 tests:
   - python:
       imports:
-        - AAFTF
+        - aaftf
       pip_check: true
   - script:
       - AAFTF --version
@@ -91,11 +92,12 @@ about:
   license_file: LICENSE
   summary: Automatic Assembly For The Fungi
   description: |
-    AAFTF is a toolkit for automated fungal genome assembly, cleanup,
-    mitochondrial genome assembly, and polishing. It orchestrates
-    BBDuk/Trimmomatic read cleaning, SPAdes/MEGAHIT/Unicycler assembly,
-    NCBI FCS contamination screening, vector screening, sorting and
-    renaming of contigs, and summary statistics including telomere detection.
+    AAFTF automates draft fungal genome assembly from Illumina reads
+    (optionally with long reads): BBDuk/Trimmomatic/fastp read trimming and
+    contaminant filtering, SPAdes/MEGAHIT/Unicycler assembly, vector and
+    contaminant screening (BLAST, sourmash, NCBI FCS), duplicate removal,
+    optional polishing and mitochondrial assembly, contig sorting and
+    renaming, and summary statistics including telomere detection.
 
 extra:
   recipe-maintainers:
