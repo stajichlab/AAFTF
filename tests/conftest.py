@@ -23,6 +23,7 @@ def _ample_resources(monkeypatch):
     """Keep main()'s -c/-m capping from depending on the test machine; capping tests patch these themselves."""
     # Relies on aaftf.main importing available_cpus/get_ram by name (from aaftf.utility import ...).
     monkeypatch.delenv("SLURM_CPUS_PER_TASK", raising=False)
+    monkeypatch.delenv("SLURM_MEM_PER_NODE", raising=False)
     monkeypatch.setattr("aaftf.main.available_cpus", lambda: 1024)
     monkeypatch.setattr("aaftf.main.get_ram", lambda max_lim=0: 1024.0)
 
