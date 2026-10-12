@@ -76,10 +76,10 @@ def register_subcommands(parser: ap.ArgumentParser) -> ap._SubParsersAction:
         ("Setup (dependencies and databases)", [dependency_menu, database_menu]),
         (
             "Steps",
-            [trim_menu, mito_menu, filter_menu, assemble_menu, vecscreen_menu, taxpurge_menu, covpurge_menu, fcs_screen_menu, fcs_gx_purge_menu, rmdup_menu, polish_menu, sort_menu, assess_menu, depth_menu],
+            [trim_menu, mito_menu, filter_menu, assemble_menu, vecscreen_menu, taxpurge_menu, covpurge_menu, fcs_screen_menu, rmdup_menu, polish_menu, sort_menu, assess_menu, depth_menu],
         ),
         ("Pipeline", [pipeline_short_menu, pipeline_long_menu, pipeline_hybrid_menu]),
-        ("Annotation", [fix_tbl_menu]),
+        ("Utilities", [fcs_gx_purge_menu, fix_tbl_menu]),
     ]
     for title, menus in groups:
         first = len(subparsers._choices_actions)
@@ -517,29 +517,27 @@ def fcs_gx_purge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_fcsgx = subparsers.add_parser(
         "fcs_gx_purge",
-        description="Purge contigs based on fcs_gx results",
-        help="(Optional) Purge contigs based on contamination search with fcs_gx",
+        description="Remove contaminant contigs from one or more assemblies with NCBI FCS-GX, on a large-memory node: the job needs about as much free memory as the database (~470 GB for the full gxdb) and stops early when there is not enough. A database on /dev/shm, or on storage that passes a quick random-read test, is used in place; otherwise it is copied once to a per-job folder in $TMPDIR (--copy_to), shared by all the assemblies and removed afterwards. Writes <input prefix>.fcsgx_cleaned.fasta for each input.",
+        help="Purge contaminant contigs from assemblies with NCBI FCS-GX (needs RAM for the ~470 GB database)",
         formatter_class=CustomHelpFormatter,
     )
 
     required = parser_fcsgx.add_argument_group("required arguments")
     optional = parser_fcsgx.add_argument_group("optional arguments")
 
-    required.add_argument("-i", "--input", type=str, required=True, help="Input genome assembly FASTA", metavar="FASTA")
+    required.add_argument("-i", "--input", type=str, nargs="+", required=True, help="Input genome assembly FASTA files", metavar="FASTA")
 
-    required.add_argument("-o", "--outfile", type=str, required=True, help="Output FCS-GX-purged assembly FASTA", metavar="FASTA")  # think about sensible replacement in future
+    required.add_argument("-d", "--db", type=str, required=True, help="FCS-GX database: its path prefix (e.g. /path/gxdb/all for /path/gxdb/all.gxi, all.gxs, all.taxa.tsv, ...), or the folder holding it. All files sharing the prefix are used, and copied together when the database is copied", metavar="DB")
+
+    required.add_argument("-t", "--taxid", type=int, required=True, help="NCBI taxonomy ID of the organism (or a parent taxon, e.g. 4890 for Ascomycota); FCS-GX judges contamination against it, so a wrong ID can drop real contigs", metavar="INT")
+
+    optional.add_argument("-o", "--outdir", type=str, help="Directory for the cleaned assemblies and FCS-GX reports; default: next to each input", metavar="DIR")
 
     optional.add_argument("-w", "--workdir", "--tmpdir", type=str, dest="workdir", help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
-    optional.add_argument(
-        "-t",
-        "--taxid",
-        type=int,
-        default=4890,
-        help="NCBI Taxonomy ID for contamaination matches, i.e. 4890 for Ascomycota",
-    )
+    optional.add_argument("-c", "--cpus", type=int, metavar="INT", help="Number of CPUs/threads for run_gx.py (GX_NUM_CORES); default: all CPUs allocated to the job")
 
-    optional.add_argument("-d", "--db", type=str, default="/my_tmpfs/gxdb/all", help="gxdb database path")
+    optional.add_argument("--copy_to", type=str, help="Fast node-local folder for the per-job database copy, made only when the database is not on /dev/shm and fails a random-read speed test; default: $TMPDIR (the job's own folder under SLURM), or /scratch when it is not set", metavar="DIR")
 
     add_verbosity_args(optional)
 
@@ -812,7 +810,7 @@ def fix_tbl_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     parser_fix = subparsers.add_parser(
         "fix_tbl",
         description="Fix NCBI tbl file from a trim report from NCBI-FCS",
-        help="Fix the TBL file offsets from trimmimg",
+        help="Fix the TBL file offsets from trimming",
         formatter_class=CustomHelpFormatter,
     )
 
@@ -972,10 +970,6 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
 
     optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
 
-    optional.add_argument("--fcs_gx_db", type=str, help="NCBI FCS-GX database (e.g. /path/gxdb/all); when given, contaminant contigs are removed with FCS-GX (fcs_gx_purge) instead of taxpurge, which -p/--phylum would run; needs --taxid", metavar="DB")
-
-    optional.add_argument("--taxid", type=int, help="NCBI taxonomy ID of the organism, for --fcs_gx_db (e.g. 4890 for Ascomycota)", metavar="INT")
-
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 
     optional.add_argument("-c", "--cpus", type=int, metavar="INT", default=1, help="Number of CPUs/threads to use")
@@ -1029,10 +1023,6 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
 
     optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
-
-    optional.add_argument("--fcs_gx_db", type=str, help="NCBI FCS-GX database (e.g. /path/gxdb/all); when given, contaminant contigs are removed with FCS-GX (fcs_gx_purge) instead of taxpurge, which -p/--phylum would run; needs --taxid", metavar="DB")
-
-    optional.add_argument("--taxid", type=int, help="NCBI taxonomy ID of the organism, for --fcs_gx_db (e.g. 4890 for Ascomycota)", metavar="INT")
 
     optional.add_argument("-w", "--workdir", type=str, help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
 
@@ -1111,10 +1101,6 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
 
     optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
-
-    optional.add_argument("--fcs_gx_db", type=str, help="NCBI FCS-GX database (e.g. /path/gxdb/all); when given, contaminant contigs are removed with FCS-GX (fcs_gx_purge) instead of taxpurge, which -p/--phylum would run; needs --taxid", metavar="DB")
-
-    optional.add_argument("--taxid", type=int, help="NCBI taxonomy ID of the organism, for --fcs_gx_db (e.g. 4890 for Ascomycota)", metavar="INT")
 
     optional.add_argument("--mincovpct", default=5, type=int, help="Remove contigs whose coverage is below this percent of the N50 contigs' average coverage", metavar="PCT")
 

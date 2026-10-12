@@ -35,7 +35,7 @@ the pipelines use by default):
 | [MEGAHIT](https://github.com/voutcn/megahit), [Unicycler](https://github.com/rrwick/Unicycler) | `assemble --method megahit` / `unicycler` (also `pipeline_short`/`pipeline_hybrid --method`) |
 | [NOVOPlasty](https://github.com/ndierckx/NOVOPlasty) | `mito` (mitochondrial genome) |
 | [NCBI FCS-adaptor](https://github.com/ncbi/fcs) (with singularity/apptainer or docker) | `fcs_screen` |
-| [NCBI FCS-GX](https://github.com/ncbi/fcs-gx) ([paper](https://pubmed.ncbi.nlm.nih.gov/38409096/)) | `fcs_gx_purge` (needs a large-memory machine or a fast SSD) |
+| [NCBI FCS-GX](https://github.com/ncbi/fcs-gx) ([paper](https://pubmed.ncbi.nlm.nih.gov/38409096/)) | `fcs_gx_purge` (needs RAM for the whole ~470 GB database) |
 | [NextPolish2](https://github.com/Nextomics/NextPolish2) + yak | `polish --method nextpolish2` |
 | [mosdepth](https://github.com/brentp/mosdepth) | `depth` |
 | pigz | faster read counting (falls back to gzip) |
@@ -77,7 +77,9 @@ $ AAFTF database taxpurge     # sourmash databases for taxpurge (pipelines with 
 
 `fcs_screen` also needs the FCS-adaptor script and container image (`AAFTF database fcs_script fcs_image`,
 or pass `--fcs_script`/`--image`). `fcs_gx_purge` needs an FCS-GX database set up separately
-(see the [FCS-GX wiki](https://github.com/ncbi/fcs/wiki/FCS-GX)) and passed with `-d/--db`.
+(see the [FCS-GX wiki](https://github.com/ncbi/fcs/wiki/FCS-GX)) and passed with `-d/--db`;
+run it on a node with enough memory for the database. A database on `/dev/shm` or fast storage is used
+in place; otherwise it is copied to a per-job folder in `$TMPDIR` (`--copy_to`) for the run.
 
 # Commands
 `AAFTF -h` lists the subcommands in four groups.
@@ -97,7 +99,6 @@ or pass `--fcs_script`/`--image`). `fcs_gx_purge` needs an FCS-GX database set u
 | 4 | `vecscreen` | BLAST-based vector/contaminant screen of contigs, following NCBI VecScreen | cleaned FASTA (and `.mitochondria.fasta`) |
 | 5 | `taxpurge` | Drop contigs sourmash classifies outside your phyla (`-p`); the pipelines run it only when given `-p` | purged FASTA |
 | - | `fcs_screen` | (Optional; pipelines: `--fcs_screen`) NCBI FCS-adaptor vector screen | cleaned FASTA |
-| - | `fcs_gx_purge` | (Optional; pipelines: `--fcs_gx_db DB --taxid INT`, instead of `taxpurge`) Drop the contigs NCBI FCS-GX marks EXCLUDE | purged FASTA |
 | 6 | `covpurge` | Drop contigs with low Illumina read coverage (bwa) | purged FASTA |
 | 7 | `rmdup` | Remove duplicate and contained contigs (minimap2) | deduplicated FASTA |
 | - | `polish` | (Optional) Polish with Polypolish (default), pypolca, NextPolish2 or Racon; recommended only with long reads | polished FASTA |
@@ -113,7 +114,9 @@ or pass `--fcs_script`/`--image`). `fcs_gx_purge` needs an FCS-GX database set u
 | `pipeline_long` | Long reads: assemble (Flye), vecscreen, [taxpurge with `-p`], rmdup, polish (Racon), sort, assess | `<prefix>.final.fasta` |
 | `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), vecscreen, [taxpurge with `-p`], covpurge, rmdup, polish, sort, assess | `<prefix>.final.fasta` |
 
-**Annotation**
+**Utilities**
+- `fcs_gx_purge` - drop the contigs NCBI FCS-GX marks EXCLUDE from one or more assemblies (needs RAM
+  for the whole ~470 GB database; not a pipeline step)
 - `fix_tbl` - fix an NCBI `.tbl` feature table after FCS trimmed or excluded contigs
 
 ## Common options and output
@@ -354,13 +357,17 @@ Optional steps, run between the ones above:
 # NCBI FCS-adaptor vector screen (needs a container engine and `AAFTF database fcs_script fcs_image`)
 AAFTF fcs_screen -i $OUTDIR/${BASE}.vecscreen.fasta -o $OUTDIR/${BASE}.fcs_screen.fasta
 
-# NCBI FCS-GX contaminant purge (FCS-GX database set up separately; -t is the NCBI taxonomy ID)
-AAFTF fcs_gx_purge -i $OUTDIR/${BASE}.fcs_screen.fasta -o $OUTDIR/${BASE}.fcs_gx.fasta \
-    -d /path/to/gxdb/all -t 4890
-
 # polish before sorting, when you have long reads (or hybrid data)
 AAFTF polish -c $CPU --method racon -i $OUTDIR/${BASE}.rmdup.fasta \
     -lr nanopore.fastq.gz -o $OUTDIR/${BASE}.polish.fasta
+```
+
+NCBI FCS-GX contaminant purge of finished assemblies, run separately on a large-memory node (the
+database is used in place when fast enough, otherwise copied once to `$TMPDIR` for all the inputs; `-t`
+is the NCBI taxonomy ID):
+```
+AAFTF fcs_gx_purge -i $OUTDIR/*.final.fasta -d /path/to/gxdb/all -t 4890 -o $OUTDIR/fcsgx
+# writes <prefix>.fcsgx_cleaned.fasta and <prefix>.fcs_gx_report.txt for each input
 ```
 
 ## Depth of coverage
