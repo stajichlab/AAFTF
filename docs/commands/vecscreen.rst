@@ -107,5 +107,5 @@ Example
     # writes genomes/STRAINX.vecscreen.fasta and genomes/STRAINX.vecscreen.mitochondria.fasta
     AAFTF vecscreen -c 16 -i genomes/STRAINX.spades.fasta -o genomes/STRAINX.vecscreen.fasta
 
-Next step: :doc:`taxpurge` (sourmash-based) or :doc:`fcs_gx_purge` (NCBI FCS-GX-based) --
-alternative approaches to the same taxonomic-contamination-purge step.
+Next step: :doc:`taxpurge` (sourmash-based taxonomic purge). :doc:`fcs_gx_purge` (NCBI FCS-GX) is
+an alternative run separately, on a large-memory node, on finished assemblies.

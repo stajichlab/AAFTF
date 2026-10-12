@@ -53,11 +53,9 @@ Optional steps the pipelines run on request, in every pipeline:
 * :doc:`fcs_screen` (NCBI FCS-adaptor adaptor/vector screen, with ``--fcs_screen``; needs a
   container engine and ``AAFTF database fcs_script fcs_image``), right after :doc:`vecscreen`,
   writing ``{base}.fcs_screen.fasta``.
-* A taxonomic screen, **one of**: :doc:`taxpurge` (sourmash, with ``-p/--phylum``) or
-  :doc:`fcs_gx_purge` (NCBI FCS-GX, with ``--fcs_gx_db DB --taxid INT``; the FCS-GX database is set
-  up separately), writing ``{base}.taxpurge.fasta`` or ``{base}.fcs_gx.fasta``. FCS-GX covers
-  NCBI's full taxonomy, so it replaces taxpurge rather than being combined with it; giving both
-  options is an error.
+* :doc:`taxpurge` (sourmash taxonomic screen, with ``-p/--phylum``), writing
+  ``{base}.taxpurge.fasta``. :doc:`fcs_gx_purge` (NCBI FCS-GX) is not a pipeline step, since it
+  needs its ~470 GB database in RAM; run it separately on the finished assemblies.
 
 Cutoffs / defaults
 ------------------
@@ -104,10 +102,6 @@ Cutoffs / defaults
    * - ``--fcs_screen``, ``--container_engine``
      - off; ``--container_engine``: fcs_screen's default (singularity)
      - Also run :doc:`fcs_screen` (NCBI FCS-adaptor) after vecscreen
-   * - ``--fcs_gx_db``, ``--taxid``
-     - off
-     - Run :doc:`fcs_gx_purge` (NCBI FCS-GX) with this database and NCBI taxonomy ID instead of
-       taxpurge (not with ``-p``); ``--taxid`` is required with ``--fcs_gx_db``
 
 Invocation
 ----------
@@ -119,7 +113,7 @@ Invocation
                          [-mc MINCONTIGLEN] [--method {spades,megahit,unicycler}]
                          [-a ACCESSIONS ...] [-u URLS ...] [--sourdb DB ...]
                          [--mincovpct PCT] [--fcs_screen] [--container_engine ENGINE]
-                         [--fcs_gx_db DB --taxid INT] [-w WORKDIR]
+                         [-w WORKDIR]
                          [--assembler_args ARG ...] [--tmpdir DIR] [-q] [-v]
 
 ``-1/--read1`` and ``-o/--out`` (basename) are required.

@@ -63,7 +63,7 @@ Command Reference
      - (Optional) NCBI FCS-adaptor vector trimming
    * - :doc:`fcs_gx_purge`
      - run_gx.py (NCBI FCS-GX)
-     - (Optional) NCBI FCS-GX genomic cross-contamination purge
+     - (Utility, not a pipeline step) NCBI FCS-GX cross-contamination purge of one or more assemblies; needs RAM for the ~470 GB database
    * - :doc:`rmdup`
      - minimap2
      - Remove redundant/duplicate contigs
@@ -85,12 +85,12 @@ Command Reference
        in one command; ``pipeline_long`` (long reads) and ``pipeline_hybrid`` (Illumina + long reads)
    * - :doc:`fix_tbl`
      - (none)
-     - Annotation: adjust NCBI ``.tbl`` feature coordinates after FCS trimming
+     - Utility: adjust NCBI ``.tbl`` feature coordinates after FCS trimming
 
 ``AAFTF -h`` lists the subcommands in four groups: *Setup* (``dependency``, ``database``),
 *Steps* (``trim`` through ``depth``, in the order above; steps marked "(Optional)" are not run by
 ``pipeline_short``), *Pipeline* (``pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid``) and
-*Annotation* (``fix_tbl``).
+*Utilities* (``fcs_gx_purge``, ``fix_tbl``).
 
 Common options and exit codes
 =============================

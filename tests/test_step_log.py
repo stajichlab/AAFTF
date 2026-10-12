@@ -27,8 +27,8 @@ def _fcs_gx(tmp_path, *extra, run_gx_rc=0):
         Path(outdir, "asm.4890.fcs_gx_report.txt").write_text(_REPORT_HEADER)
         return subprocess.CompletedProcess(cmd, run_gx_rc)
 
-    argv = ["AAFTF", "fcs_gx_purge", "-i", str(asm), "-o", str(tmp_path / "out.fasta"), "-d", str(db), *extra]
-    with patch.object(sys, "argv", argv), patch("aaftf.fcs_gx_purge.subprocess.run", side_effect=_fake_run):
+    argv = ["AAFTF", "fcs_gx_purge", "-i", str(asm), "-o", str(tmp_path / "out"), "-d", str(db), "-t", "4890", *extra]
+    with patch.object(sys, "argv", argv), patch("aaftf.fcs_gx_purge.subprocess.run", side_effect=_fake_run), patch("aaftf.fcs_gx_purge._in_ram", return_value=True), patch("aaftf.fcs_gx_purge.shutil.which", return_value="/usr/bin/run_gx.py"):
         return main()
 
 
@@ -37,7 +37,7 @@ class TestWorkdirLog:
         assert _fcs_gx(tmp_path, "-w", str(tmp_path / "wd")) == 0
         log = (tmp_path / "wd" / "fcs_gx_purge.log").read_text()
         assert "Running AAFTF" in log  # logged before the work directory existed
-        assert "fcs-gx assembly is" in log and "Your next command might be:" in log
+        assert "out/asm.fcsgx_cleaned.fasta: 1 contigs" in log
         assert "\033[" not in log  # no terminal colour codes
 
     def test_quiet_still_logs_info_to_file(self, tmp_path, capsys):

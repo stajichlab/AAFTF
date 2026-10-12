@@ -2,43 +2,83 @@
 fcs_gx_purge
 ============
 
-Purges contaminant contigs from an assembly using NCBI's **FCS-GX** tool -- a genome
+Purges contaminant contigs from one or more assemblies using NCBI's **FCS-GX** tool -- a genome
 cross-contamination screen that classifies every contig/region against a comprehensive reference
 database of taxonomy-labeled genomes, rather than the k-mer/sketch-based approach used by
-:doc:`taxpurge`. This is an alternative to ``taxpurge`` for the taxonomic-contamination-purge
-step of the pipeline; pick one or the other (or run both and compare).
+:doc:`taxpurge`.
+
+FCS-GX needs its whole database (~470 GB for the full ``gxdb``) in RAM, so ``fcs_gx_purge`` is a
+standalone utility (listed under "Utilities" in ``AAFTF --help``), **not** a pipeline step: the
+``pipeline_*`` subcommands use :doc:`taxpurge` (with ``-p``) as their taxonomic screen. Run
+``fcs_gx_purge`` separately, on a large-memory node, on finished assemblies -- ideally several at
+once, since the database is set up only once per run.
 
 Algorithm
 =========
 
-1. Runs NCBI's ``run_gx.py --fasta INPUT --tax-id TAXID --gx-db DB --out-dir WORKDIR``, which
-   aligns/classifies assembly sequences against the FCS-GX reference database and writes a report
-   named ``{input_basename}.{taxid}.fcs_gx_report.txt``.
-2. Parses that report (tab-separated: ``seq_id start_pos end_pos seq_len action div
-   agg_cont_cov top_tax_name``). Only rows whose action is ``EXCLUDE`` mark a sequence for
-   removal; ``TRIM``, ``FIX``, ``REVIEW`` and other actions are logged as warnings and the
-   sequence is **kept** (partial-contig edits are not applied -- review them manually).
-3. Writes all contigs not excluded to the output FASTA; a copy of the FCS-GX report is saved
-   alongside the output as ``{outfile_basename}.fcs_gx-taxonomy.tsv`` for later review.
+1. Checks that ``run_gx.py`` is on ``PATH``, that every input exists and that the database's
+   ``.gxi`` exists (``FileNotFoundError``, exit code 2, otherwise) -- before any time is spent
+   copying the database.
+2. Unless the database is on tmpfs (e.g. ``/dev/shm``, where it is already in RAM), checks that
+   the job has enough RAM to keep the whole database cached: its size plus 5%. Available RAM
+   respects SLURM / cgroup memory limits. If it is too small, the run stops before anything is
+   copied, with a ``MemoryError`` (exit code 1) that suggests a memory request, e.g.
+   ``sbatch --mem=...G``.
+3. Decides where ``run_gx.py`` reads the database from:
 
-``run_gx.py`` stderr goes to ``fcs_gx.log`` in the work directory, which also holds
-``fcs_gx_purge.log`` and is kept when given with ``-w``, with ``-v``, or when the run fails. If
-``run_gx.py`` exits non-zero or writes no report, the command fails with a ``RuntimeError``
-(exit code 1). Unless ``-q`` is given, the suggested next command (:doc:`rmdup`) is printed.
+   * on tmpfs (``/dev/shm``): used in place;
+   * otherwise a quick **speed test** reads random 4 KiB blocks from the largest database file
+     (the ``.gxs``) -- FCS-GX's own access pattern -- for at most 256 reads or 3 seconds. A mean
+     read time of at most 0.2 ms (local NVMe/SSD, or data already in the page cache) means the
+     database is used in place;
+   * slower storage (network filesystems such as Lustre/GPFS/NFS, spinning disks) is copied once
+     -- every file sharing the database prefix -- into a new per-job folder
+     ``aaftf-gxdb-<SLURM_JOB_ID>-*`` in ``--copy_to``: by default ``$TMPDIR`` (under SLURM
+     usually the job's own node-local folder, which SLURM removes at the end of the job), or
+     ``/scratch`` when ``$TMPDIR`` is not set. Its free space is checked first (``OSError``
+     otherwise). The copy is skipped, with a warning, when ``--copy_to`` is on the same
+     filesystem as the database (it could not be faster), and made with a warning when
+     ``--copy_to`` is on a network filesystem.
+
+   The log reports the measured read time and filesystem type.
+4. For each assembly, runs ``run_gx.py --fasta INPUT --tax-id TAXID --gx-db DB --out-dir DIR``
+   with ``GX_NUM_CORES`` set to ``-c/--cpus``, and parses its report (tab-separated: ``seq_id start_pos end_pos seq_len
+   action div agg_cont_cov top_tax_name``). Only rows whose action is ``EXCLUDE`` mark a sequence
+   for removal; ``TRIM``, ``FIX``, ``REVIEW`` and other actions are logged as warnings and the
+   sequence is **kept** (partial-contig edits are not applied -- review them manually).
+5. Removes the copy at the end, also when a run fails. A job killed outright (out of memory,
+   time limit) cannot clean up; the default ``$TMPDIR`` is removed by SLURM on most clusters.
+   Otherwise remove leftover ``aaftf-gxdb-*`` folders yourself.
+
+Each assembly's ``run_gx.py`` stderr goes to ``fcs_gx.log`` in its own subfolder of the work
+directory, which also holds ``fcs_gx_purge.log`` and is kept when given with ``-w``, with ``-v``,
+or when the run fails. If ``run_gx.py`` exits non-zero or writes no report, the command fails with
+a ``RuntimeError`` (exit code 1).
+
+Outputs
+=======
+
+For each input, with ``<prefix>`` its file name without ``.fasta``/``.fa``/``.fna``/``.fas``/``.fsa``
+(and an optional ``.gz``), written to ``-o/--outdir`` or, by default, next to the input:
+
+* ``<prefix>.fcsgx_cleaned.fasta`` -- the assembly without the ``EXCLUDE`` contigs
+* ``<prefix>.fcs_gx_report.txt`` -- the FCS-GX report, for later review
+
+Two inputs with the same ``<prefix>`` going to the same folder are an error (``ValueError``).
 
 Requires the FCS-GX database
-================================
+============================
 
-Unlike ``taxpurge``, FCS-GX needs a very large (hundreds of GB), memory-mapped reference
-database set up separately per NCBI's instructions
+FCS-GX needs a very large reference database set up separately per NCBI's instructions
 (https://github.com/ncbi/fcs/wiki/FCS-GX) -- AAFTF does not download or manage this database for
-you. ``-d/--db`` must point at that database (default placeholder:
-``/my_tmpfs/gxdb/all``, i.e. a fast local/tmpfs mount is strongly recommended given the database
-size). ``fcs_gx_purge`` stops immediately (``FileNotFoundError``, exit code 2) if ``{db}.gxi``
-is not found.
+you. ``-d/--db`` (required) is the database path prefix, e.g. ``/path/gxdb/all`` for
+``/path/gxdb/all.gxi``, ``all.gxs``, ``all.taxa.tsv``, ...; the ``.gxi`` file itself or the folder
+holding it (if it has only one ``.gxi``) also work. The database is all those files together, not
+only the ``.gxi``: they are measured, tested and copied as one. Plan for a job memory request of about the database size plus 5% plus a
+little headroom (roughly 500 GB for the full ``gxdb``).
 
 Cutoffs / defaults
-===================
+==================
 
 .. list-table::
    :header-rows: 1
@@ -47,13 +87,28 @@ Cutoffs / defaults
    * - Parameter
      - Default
      - Meaning
-   * - ``-t/--taxid``
-     - 4890
-     - NCBI Taxonomy ID for the query organism (4890 = Ascomycota); FCS-GX uses this to decide
-       what counts as "self" vs. contaminant
    * - ``-d/--db``
-     - ``/my_tmpfs/gxdb/all``
-     - Path to the pre-built FCS-GX database (must exist; large memory/SSD recommended)
+     - (required)
+     - FCS-GX database path prefix
+   * - ``-t/--taxid``
+     - (required)
+     - NCBI Taxonomy ID for the query organism or a parent taxon (e.g. 4890 = Ascomycota); FCS-GX
+       uses this to decide what counts as "self" vs. contaminant, so a wrong ID can drop real contigs
+   * - ``-c/--cpus``
+     - CPUs allocated to the job
+     - Threads for ``run_gx.py`` (``GX_NUM_CORES``)
+   * - ``-o/--outdir``
+     - next to each input
+     - Directory for the cleaned assemblies and FCS-GX reports
+   * - ``--copy_to``
+     - ``$TMPDIR``, else ``/scratch``
+     - Fast node-local folder for the per-job database copy
+   * - Speed test
+     - 0.2 ms
+     - Largest mean random 4 KiB read time at which the database is used in place
+   * - Memory check
+     - database size + 5%
+     - RAM available to the job (not checked for a database on tmpfs)
    * - Contig removal criterion
      - ``EXCLUDE`` action
      - FCS-GX decides the ``action`` internally; AAFTF drops only ``EXCLUDE`` sequences and
@@ -64,17 +119,24 @@ Invocation
 
 .. code-block:: text
 
-    AAFTF fcs_gx_purge -i FASTA -o FASTA [-w DIR] [-t TAXID] [-d DB] [-q] [-v]
+    AAFTF fcs_gx_purge -i FASTA [FASTA ...] -d DB -t TAXID [-o OUTDIR] [-w DIR] [-c INT]
+                       [--copy_to DIR] [-q] [-v]
 
-``-i/--input`` and ``-o/--outfile`` are required; ``-d/--db`` must point at a real database
-unless it lives at the default path (the run aborts without a valid ``{db}.gxi``).
+``-i/--input`` (one or more assemblies), ``-d/--db`` and ``-t/--taxid`` are required.
 
 Example
 =======
 
+A SLURM job screening several finished assemblies; a database on slow shared storage is copied
+once to the job's own ``$TMPDIR``:
+
 .. code-block:: bash
 
-    AAFTF fcs_gx_purge -i genomes/STRAINX.vecscreen.fasta -o genomes/STRAINX.fcsgx.fasta \
-        -d /fast_local/gxdb/all -t 4890
+    #!/bin/bash -l
+    #SBATCH --mem=500G -c 16 --time=12:00:00 -J fcsgx
 
-Next step: :doc:`covpurge` (same as after :doc:`taxpurge`).
+    AAFTF fcs_gx_purge -d /shared/db/gxdb/all -t 4890 -o genomes/fcsgx \
+        -i genomes/STRAINX.final.fasta genomes/STRAINY.final.fasta genomes/STRAINZ.final.fasta
+
+    # writes genomes/fcsgx/STRAINX.fcsgx_cleaned.fasta and genomes/fcsgx/STRAINX.fcs_gx_report.txt,
+    # and the same for STRAINY and STRAINZ

@@ -368,14 +368,17 @@ class TestMainHelpGroups:
 
     def test_steps_group_has_every_step(self, capsys):
         names = self._section(self._help(capsys), "Steps")
-        steps = {"trim", "mito", "filter", "assemble", "vecscreen", "fcs_screen", "fcs_gx_purge", "taxpurge", "covpurge", "rmdup", "polish", "sort", "assess", "depth"}
+        steps = {"trim", "mito", "filter", "assemble", "vecscreen", "fcs_screen", "taxpurge", "covpurge", "rmdup", "polish", "sort", "assess", "depth"}
         assert set(names) == steps
 
     def test_pipeline_group(self, capsys):
         assert self._section(self._help(capsys), "Pipeline") == ["pipeline_short", "pipeline_long", "pipeline_hybrid"]
 
-    def test_annotation_group(self, capsys):
-        assert self._section(self._help(capsys), "Annotation") == ["fix_tbl"]
+    def test_utilities_group(self, capsys):
+        assert self._section(self._help(capsys), "Utilities") == ["fcs_gx_purge", "fix_tbl"]
+
+    def test_no_annotation_group(self, capsys):
+        assert "Annotation:" not in self._help(capsys)
 
 
 def _subcommand_parsers():
