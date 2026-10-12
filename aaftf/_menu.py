@@ -517,7 +517,7 @@ def fcs_gx_purge_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_fcsgx = subparsers.add_parser(
         "fcs_gx_purge",
-        description="Remove contaminant contigs from one or more assemblies with NCBI FCS-GX, on a large-memory node: the job needs about as much free memory as the database (~470 GB for the full gxdb) and stops early when there is not enough. A database on /dev/shm, or on storage that passes a quick random-read test, is used in place; otherwise it is copied once to a per-job folder in $TMPDIR (--copy_to), shared by all the assemblies and removed afterwards. Writes <input prefix>.fcsgx_cleaned.fasta for each input.",
+        description="Remove contaminant contigs from one or more assemblies with NCBI FCS-GX, on a large-memory node: the job needs about as much free memory as the database (~470 GB for the full gxdb) and stops early when there is not enough. A database on /dev/shm, or on storage that passes a quick random-read test, is used in place; otherwise it is copied once to a per-job folder in $TMPDIR (--copy_to), shared by all the assemblies and removed afterwards. Writes <input prefix>.fcsgx_cleaned.fasta for each input. To run several rounds with different -t/--taxid, copy the database to fast storage yourself first (e.g. /dev/shm or $TMPDIR) and pass that copy with -d: a database AAFTF copies is removed when each run ends, so every round would copy it again.",
         help="Purge contaminant contigs from assemblies with NCBI FCS-GX (needs RAM for the ~470 GB database)",
         formatter_class=CustomHelpFormatter,
     )

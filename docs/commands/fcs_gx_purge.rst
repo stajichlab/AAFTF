@@ -140,3 +140,29 @@ once to the job's own ``$TMPDIR``:
 
     # writes genomes/fcsgx/STRAINX.fcsgx_cleaned.fasta and genomes/fcsgx/STRAINX.fcs_gx_report.txt,
     # and the same for STRAINY and STRAINZ
+
+Several rounds with different taxonomy IDs
+==========================================
+
+``-t/--taxid`` applies to every assembly of a run, so assemblies of different organisms need
+separate runs. A database copy that ``fcs_gx_purge`` makes itself is removed when each run ends,
+so every round would copy the ~470 GB database again. Instead, copy it once yourself to fast
+storage -- ``/dev/shm`` or a node-local ``$TMPDIR`` -- and pass that copy with ``-d``:
+``fcs_gx_purge`` uses a database it did not copy in place and never removes it. Remove the copy
+yourself when you are done:
+
+.. code-block:: bash
+
+    #!/bin/bash -l
+    #SBATCH --mem=500G -c 16 --time=24:00:00 -J fcsgx
+
+    GXDB=$TMPDIR/gxdb            # or /dev/shm/gxdb (needs --mem for the database too)
+    mkdir -p "$GXDB"
+    cp /shared/db/gxdb/all.* "$GXDB"/
+    trap 'rm -rf "$GXDB"' EXIT    # remove the copy when the job script ends
+
+    AAFTF fcs_gx_purge -d "$GXDB/all" -t 4890 -o genomes/fcsgx -i genomes/ASCO*.final.fasta
+    AAFTF fcs_gx_purge -d "$GXDB/all" -t 5204 -o genomes/fcsgx -i genomes/BASIDIO*.final.fasta
+
+A copy in ``/dev/shm`` stays in RAM if the job is killed before ``trap`` runs; a copy in the job's
+``$TMPDIR`` is removed by SLURM on most clusters.
