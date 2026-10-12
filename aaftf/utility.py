@@ -310,15 +310,88 @@ def available_cpus() -> int:
     return os.cpu_count() or 1
 
 
+def _read_int(path: str) -> int | None:
+    """Return the integer in a one-value sysfs file, or None if missing or not a number (e.g. ``max``)."""
+    try:
+        with open(path) as fh:
+            return int(fh.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _inactive_file(stat_path: str, key: str) -> int:
+    """Return the reclaimable page-cache bytes (``key``) from a cgroup ``memory.stat`` file, or 0."""
+    try:
+        with open(stat_path) as fh:
+            for line in fh:
+                name, _, value = line.partition(" ")
+                if name == key:
+                    return int(value)
+    except (OSError, ValueError):
+        pass
+    return 0
+
+
+def _cgroup_memory_available(proc_cgroup: str = "/proc/self/cgroup", sysfs: str = "/sys/fs/cgroup") -> int | None:
+    """Return the bytes still free under the tightest cgroup memory limit, or None if there is none.
+
+    SLURM (``ConstrainRAMSpace``), systemd user slices on login nodes and
+    containers limit memory with cgroups, which ``/proc/meminfo`` does not
+    show. The limit is usually set on a parent cgroup (e.g. ``job_<id>``, not
+    the ``task_0`` the process sits in), so every cgroup from the process's own
+    up to the root is checked. Free = limit - (usage - reclaimable page cache).
+
+    Args:
+        proc_cgroup: The process's cgroup membership file.
+        sysfs: Mount point of the cgroup filesystem.
+
+    Returns:
+        Free bytes under the tightest limit (at least 0), or None when unlimited or unknown.
+    """
+    try:
+        with open(proc_cgroup) as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return None
+    best = None
+    for line in lines:
+        parts = line.split(":", 2)
+        if len(parts) != 3:
+            continue
+        _, controllers, path = parts
+        if controllers == "":  # cgroup v2
+            root = sysfs
+            limit_f, usage_f, cache_key = "memory.max", "memory.current", "inactive_file"
+        elif "memory" in controllers.split(","):  # cgroup v1
+            root = os.path.join(sysfs, "memory")
+            limit_f, usage_f, cache_key = "memory.limit_in_bytes", "memory.usage_in_bytes", "total_inactive_file"
+        else:
+            continue
+        d = os.path.normpath(root + "/" + path.lstrip("/"))
+        while True:
+            limit = _read_int(os.path.join(d, limit_f))
+            if limit is not None and limit < 1 << 60:  # v1 reports "unlimited" as a huge number
+                usage = _read_int(os.path.join(d, usage_f)) or 0
+                usage -= _inactive_file(os.path.join(d, "memory.stat"), cache_key)
+                free = max(limit - max(usage, 0), 0)
+                best = free if best is None else min(best, free)
+            if d == root or not d.startswith(root):
+                break
+            d = os.path.dirname(d)
+    return best
+
+
 def get_ram(max_lim: float = 0) -> float:
-    """Get the available RAM on system, in GB, kept safely under the true value.
+    """Get the RAM available to this process, in GB, kept safely under the true value.
+
+    The smallest of: the machine's available memory (``psutil``), the free
+    memory under any cgroup limit (SLURM job, login-node user slice,
+    container), the SLURM allocation (``SLURM_MEM_PER_NODE``) and the process
+    address-space limit (``ulimit -v``). Off Linux only the first applies.
 
     Rounded down to the nearest 10 once available RAM exceeds 10 GB;
     otherwise rounded down to 1 decimal with a small safety margin
     subtracted, clamped at 0. This never exceeds the true available RAM.
-
-    This is a simplistic approach which does not take into account shared
-    HPC allocations.
 
     Args:
         max_lim: Optional upper bound (GB) to cap the result at; 0 means no cap.
@@ -326,7 +399,22 @@ def get_ram(max_lim: float = 0) -> float:
     Returns:
         Available RAM in GB.
     """
-    avail_gb = psutil.virtual_memory().available / (1024.0**3)
+    avail = psutil.virtual_memory().available
+    cgroup_free = _cgroup_memory_available()
+    if cgroup_free is not None:
+        avail = min(avail, cgroup_free)
+    slurm_mem = os.environ.get("SLURM_MEM_PER_NODE", "")
+    if slurm_mem.isdigit() and int(slurm_mem) > 0:
+        avail = min(avail, int(slurm_mem) * 1024**2)  # MB
+    rlimit_as = getattr(psutil, "RLIMIT_AS", None)
+    if rlimit_as is not None:
+        try:
+            soft, _ = psutil.Process().rlimit(rlimit_as)
+            if soft != psutil.RLIM_INFINITY and soft > 0:
+                avail = min(avail, soft)
+        except (OSError, psutil.Error):
+            pass
+    avail_gb = avail / (1024.0**3)
     safe_gb = avail_gb // 10 * 10 if avail_gb > 10 else max(round(avail_gb, 1) - 0.1, 0)
     return min(safe_gb, max_lim) if max_lim else safe_gb
 

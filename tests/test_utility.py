@@ -625,12 +625,17 @@ class TestGetRam:
     """get_ram() rounds available RAM down (to a multiple of 10 above 10 GB, else 1 decimal minus 0.1)."""
 
     @staticmethod
-    def _ram(monkeypatch, avail_gb, max_lim=0):
+    def _ram(monkeypatch, avail_gb, max_lim=0, cgroup_bytes=None, rlimit=None):
         from types import SimpleNamespace
+
+        import psutil
 
         from aaftf.utility import get_ram
 
         monkeypatch.setattr("aaftf.utility.psutil.virtual_memory", lambda: SimpleNamespace(available=avail_gb * 1024**3))
+        monkeypatch.setattr("aaftf.utility._cgroup_memory_available", lambda: cgroup_bytes)
+        soft = psutil.RLIM_INFINITY if rlimit is None else rlimit
+        monkeypatch.setattr("aaftf.utility.psutil.Process", lambda: SimpleNamespace(rlimit=lambda res: (soft, soft)))
         return get_ram(max_lim)
 
     @pytest.mark.parametrize("avail, expected", [(25.7, 20.0), (10.5, 10.0), (3.05, 2.9), (0.04, 0.0)])
@@ -644,6 +649,67 @@ class TestGetRam:
 
     def test_max_lim_above_available_does_not_raise_it(self, monkeypatch):
         assert self._ram(monkeypatch, 25.7, max_lim=64) == 20.0
+
+    def test_cgroup_limit_caps(self, monkeypatch):
+        assert self._ram(monkeypatch, 900, cgroup_bytes=64 * 1024**3) == 60.0
+
+    def test_slurm_mem_per_node_caps(self, monkeypatch):
+        monkeypatch.setenv("SLURM_MEM_PER_NODE", "8192")
+        assert self._ram(monkeypatch, 900) == pytest.approx(7.9)
+
+    def test_rlimit_caps(self, monkeypatch):
+        assert self._ram(monkeypatch, 900, rlimit=32 * 1024**3) == 30.0
+
+
+class TestCgroupMemoryAvailable:
+    """_cgroup_memory_available() finds the tightest limit anywhere up the process's cgroup tree."""
+
+    @staticmethod
+    def _write(path, text):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+
+    def test_no_proc_file(self, tmp_path):
+        from aaftf.utility import _cgroup_memory_available
+
+        assert _cgroup_memory_available(str(tmp_path / "missing"), str(tmp_path)) is None
+
+    def test_v2_limit_on_parent_job_cgroup(self, tmp_path):
+        from aaftf.utility import _cgroup_memory_available
+
+        proc = tmp_path / "cgroup"
+        proc.write_text("0::/system.slice/slurmstepd.scope/job_1/step_0/user/task_0\n")
+        sysfs = tmp_path / "sys"
+        task = sysfs / "system.slice/slurmstepd.scope/job_1/step_0/user/task_0"
+        job = sysfs / "system.slice/slurmstepd.scope/job_1"
+        self._write(task / "memory.max", "max\n")
+        self._write(job / "memory.max", f"{8 * 1024**3}\n")
+        self._write(job / "memory.current", f"{3 * 1024**3}\n")
+        self._write(job / "memory.stat", f"anon 1\ninactive_file {1024**3}\n")
+        # 8 GiB limit - (3 GiB used - 1 GiB reclaimable cache)
+        assert _cgroup_memory_available(str(proc), str(sysfs)) == 6 * 1024**3
+
+    def test_v2_unlimited(self, tmp_path):
+        from aaftf.utility import _cgroup_memory_available
+
+        proc = tmp_path / "cgroup"
+        proc.write_text("0::/user.slice\n")
+        self._write(tmp_path / "sys/user.slice/memory.max", "max\n")
+        assert _cgroup_memory_available(str(proc), str(tmp_path / "sys")) is None
+
+    def test_v1_tightest_limit_wins(self, tmp_path):
+        from aaftf.utility import _cgroup_memory_available
+
+        proc = tmp_path / "cgroup"
+        proc.write_text("5:cpu,cpuacct:/slurm/uid_1/job_2\n4:memory:/slurm/uid_1/job_2/step_0\n")
+        mem = tmp_path / "sys/memory"
+        self._write(mem / "memory.limit_in_bytes", "9223372036854771712\n")  # unlimited
+        self._write(mem / "slurm/uid_1/job_2/memory.limit_in_bytes", f"{16 * 1024**3}\n")
+        self._write(mem / "slurm/uid_1/job_2/memory.usage_in_bytes", "0\n")
+        self._write(mem / "slurm/uid_1/job_2/step_0/memory.limit_in_bytes", f"{4 * 1024**3}\n")
+        self._write(mem / "slurm/uid_1/job_2/step_0/memory.usage_in_bytes", f"{2 * 1024**3}\n")
+        self._write(mem / "slurm/uid_1/job_2/step_0/memory.stat", f"total_inactive_file {1024**3}\n")
+        assert _cgroup_memory_available(str(proc), str(tmp_path / "sys")) == 3 * 1024**3
 
 
 class TestDbDirs:
