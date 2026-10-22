@@ -9,10 +9,18 @@ build:
     python: "3.12"
   apt_packages:
     - graphviz   # `dot` for the workflow diagrams (sphinx.ext.graphviz)
+  jobs:
+    post_checkout:
+      # Read the Docs clones shallowly; fetch the full history and tags so hatch-vcs can find the last tag.
+      - git fetch --unshallow --tags || true
 
 sphinx:
   configuration: docs/conf.py
+  fail_on_warning: false
 
 python:
   install:
-    - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
