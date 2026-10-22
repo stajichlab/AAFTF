@@ -41,6 +41,11 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
 ]
+docs = [
+    "sphinx>=7,<8",
+    "furo",
+    "sphinx-autobuild",
+]
 
 [project.urls]
 Homepage = "https://github.com/stajichlab/AAFTF"
@@ -88,10 +93,15 @@ markers = [
 channels = ["conda-forge", "bioconda"]
 platforms = ["linux-64"]
 
+[tool.pixi.activation.env]
+# Keep pixi environments isolated from packages installed with `pip install --user`
+PYTHONNOUSERSITE = "1"
+
 # ---------------------------------------------------------------------------
-# "default" feature (the top-level tables, included in every environment): what
-# `AAFTF pipeline` needs with its default settings -- see REQUIRED_TOOLS /
-# REQUIRED_PYTHON_PACKAGES in aaftf/dependency.py -- plus AAFTF itself.
+# Top-level dependencies (included in every environment): the external tools
+# `AAFTF pipeline` needs with its default settings -- see REQUIRED_TOOLS in
+# aaftf/dependency.py. Python packages are not listed here: they come from
+# [project] dependencies / extras through the aaftf pypi-dependency below.
 # Mirrored by environment.yml.
 # ---------------------------------------------------------------------------
 [tool.pixi.dependencies]
@@ -102,6 +112,7 @@ blast = "*"
 bwa = "*"
 samtools = ">=1.24,<2"
 minimap2 = "*"
+bowtie2 = ">=2.5.5,<3"
 # pipeline_long / pipeline_hybrid: flye assembly, racon + polypolish/pypolca polishing
 flye = "*"
 racon = "*"
@@ -109,20 +120,15 @@ polypolish = ">=0.7.1,<0.8"
 pypolca = ">=0.5.0,<0.6"
 freebayes = "*"
 mosdepth = ">=0.3.10"     # depth: the pipelines tag mitochondrial contigs in the final assembly
-biopython = ">=1.88"
-psutil = ">=5"
-matplotlib-base = ">=3"
-packaging = "*"
-bowtie2 = ">=2.5.5,<3"
 
-[tool.pixi.pypi-dependencies]
-aaftf = { path = ".", editable = true }
+[tool.pixi.feature.prod.pypi-dependencies]
+aaftf = { path = ".", editable = false }
 
 # ---------------------------------------------------------------------------
 # "optional" feature: tools only used by optional steps (polish, mito,
 # fcs_screen, fcs_gx_purge) or non-default options (trim --method fastp /
 # trimmomatic, assemble --method megahit / unicycler, pipeline_short --method megahit /
-# unicycler, pipeline_hybrid --method unicycler, filter --aligner bowtie2)
+# unicycler, pipeline_hybrid --method unicycler)
 # -- OPTIONAL_TOOLS in aaftf/dependency.py.
 # The complete environment (default + optional) is mirrored by environment.dev.yml.
 # ---------------------------------------------------------------------------
@@ -130,7 +136,6 @@ aaftf = { path = ".", editable = true }
 pigz = "*"
 sourmash = ">=4.8"       # taxpurge (pipelines run it only with -p/--phylum)
 sourmash_plugin_branchwater = ">=0.9.15"  # taxpurge: fastmultigather
-bowtie2 = "*"
 fastp = "*"
 trimmomatic = "*"
 megahit = "*"
@@ -151,23 +156,22 @@ install-spades-multiarch = { cmd = "SPADES_ROOT=$CONDA_PREFIX/opt/spades SPADES_
 install-megahit-from-source = { cmd = "MEGAHIT_BUILD_PATH=$PATH bash install_scripts/install_megahit_from_source.sh", description = "Rebuild MEGAHIT from source for older (x86-64-v2) CPUs" }
 
 # ---------------------------------------------------------------------------
-# "dev" feature: test and lint tools.
+# "dev" feature: AAFTF editable with the `dev` and `docs` extras (test, lint
+# and docs tools come from [project.optional-dependencies]).
 # ---------------------------------------------------------------------------
+[tool.pixi.feature.dev.pypi-dependencies]
+aaftf = { path = ".", editable = true, extras = ["dev", "docs"] }
+
 [tool.pixi.feature.dev.dependencies]
-pytest = ">=8.0.0"
-pytest-cov = ">=5.0.0"
-pre-commit = ">=4"
-# docs: same Sphinx version as docs/requirements.txt (used by Read the Docs)
-sphinx = ">=7,<8"
-furo = "*"
+ruff = "*"
 graphviz = "*"           # `dot` for the workflow diagrams (sphinx.ext.graphviz)
-sphinx-autobuild = "*"
 
 [tool.pixi.feature.dev.tasks]
-docs = { cmd = "sphinx-build -b html docs docs/_build/html", description = "Build the HTML docs into docs/_build/html" }
-docs-serve = { cmd = "sphinx-autobuild docs docs/_build/html", description = "Serve the docs on http://127.0.0.1:8000, rebuilding on every change" }
+test = "pytest"
+docs = "sphinx-build -b html docs docs/_build/html"
+docs-serve = "sphinx-autobuild docs docs/_build/html"
 
 [tool.pixi.environments]
-default = { solve-group = "aaftf" }                                      # default pipeline
-complete = { features = ["optional"], solve-group = "aaftf" }           # + every optional tool
-dev = { features = ["optional", "dev"], solve-group = "aaftf" }         # + test/lint tools
+default = { features = ["prod"] }                       # default pipeline
+complete = { features = ["prod", "optional"] }          # + every optional tool
+dev = { features = ["optional", "dev"] }                # + AAFTF editable, test/lint/docs tools
