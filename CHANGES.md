@@ -81,7 +81,7 @@ check the **Breaking changes** before updating scripts.
 ### Added
 
  - `pipeline_short`, `pipeline_long` and `pipeline_hybrid` can run NCBI FCS-adaptor and FCS-GX on the
-   contigs: `--fcs_screen` (with `--container_engine`) runs `fcs_screen` right after vecscreen, and
+   contigs: `--fcs_screen` (with `--container_engine`) runs `fcs_screen` instead of vecscreen (both screen for the same adaptors and vectors), and
    `--fcs_gx_db DB --taxid INT` runs `fcs_gx_purge` as the taxonomic screen instead of `taxpurge`
    (FCS-GX covers NCBI's full taxonomy; `-p` and `--fcs_gx_db` together are an error). Both are off
    by default.

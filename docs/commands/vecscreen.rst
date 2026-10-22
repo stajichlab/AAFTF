@@ -3,7 +3,9 @@ vecscreen
 =========
 
 Trims and splits adaptor/vector sequence out of assembled contigs, applying the rules NCBI's
-FCS-adaptor uses, with one BLASTN search against a database built for fungal assemblies.
+FCS-adaptor uses, with one BLASTN search against a database built for fungal assemblies. It is an
+alternative to :doc:`fcs_screen`, which runs NCBI's FCS-adaptor itself in a container: run one or
+the other, not both.
 
 Database
 ========

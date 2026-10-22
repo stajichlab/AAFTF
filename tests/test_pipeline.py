@@ -323,18 +323,19 @@ class TestPipelineParsers:
 
 
 class TestFcsSteps:
-    """--fcs_screen adds NCBI FCS-adaptor right after vecscreen; FCS-GX is not a pipeline step."""
+    """--fcs_screen runs NCBI FCS-adaptor instead of vecscreen; FCS-GX is not a pipeline step."""
 
     def test_not_run_by_default(self, tmp_path):
         assert "fcs_screen" not in set(_run_pipeline(tmp_path))
 
     def test_fcs_screen_with_taxpurge(self, tmp_path):
-        """fcs_screen (adaptors, not taxonomy) runs between vecscreen and taxpurge."""
+        """fcs_screen takes vecscreen's place, between assemble and taxpurge."""
         base = str(tmp_path / "sample")
         calls = _run_steps(pipeline.run_short, tmp_path, read1="R1.fq.gz", read2="R2.fq.gz", phylum=["Ascomycota"], fcs_screen_run=True, container_engine="docker")
-        assert [step for step, _ in calls][3:6] == ["vecscreen", "fcs_screen", "taxpurge"]
+        assert [step for step, _ in calls][2:5] == ["assemble", "fcs_screen", "taxpurge"]
+        assert "vecscreen" not in [step for step, _ in calls]
         steps = dict(calls)
-        assert (steps["fcs_screen"]["infile"], steps["fcs_screen"]["container_engine"]) == (f"{base}.vecscreen.fasta", "docker")
+        assert (steps["fcs_screen"]["infile"], steps["fcs_screen"]["container_engine"]) == (steps["assemble"]["out"], "docker")
         assert steps["taxpurge"]["input"] == f"{base}.fcs_screen.fasta"
         assert set(steps["fcs_screen"]) == set(_cli_defaults("fcs_screen")) | {"pipe"}
 

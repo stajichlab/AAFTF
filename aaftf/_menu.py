@@ -970,7 +970,7 @@ def pipeline_short_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         metavar="DB",
     )
 
-    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
+    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen) instead of vecscreen; needs a container engine and 'AAFTF database fcs_script fcs_image'")
 
     optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
 
@@ -1024,7 +1024,7 @@ def pipeline_long_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         metavar="DB",
     )
 
-    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
+    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen) instead of vecscreen; needs a container engine and 'AAFTF database fcs_script fcs_image'")
 
     optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
 
@@ -1102,7 +1102,7 @@ def pipeline_hybrid_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         metavar="DB",
     )
 
-    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Also screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen, after vecscreen); needs a container engine and 'AAFTF database fcs_script fcs_image'")
+    optional.add_argument("--fcs_screen", dest="fcs_screen_run", action="store_true", help="Screen the contigs for adaptors and vectors with NCBI FCS-adaptor (fcs_screen) instead of vecscreen; needs a container engine and 'AAFTF database fcs_script fcs_image'")
 
     optional.add_argument("--container_engine", choices=["singularity", "docker"], help="Container engine for --fcs_screen; default: fcs_screen's default (singularity)")
 

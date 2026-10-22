@@ -4,16 +4,22 @@ Pipelines
 
 Three subcommands run the whole raw-reads-to-clean-assembly workflow in a single command:
 
-* ``pipeline_short`` -- Illumina reads: trim -> filter -> assemble -> vecscreen -> [taxpurge] ->
-  covpurge -> rmdup -> sort -> assess.
-* ``pipeline_long`` -- long reads (ONT/PacBio) only: assemble (flye) -> vecscreen ->
-  [taxpurge] -> rmdup -> polish (racon) -> sort -> assess.
+* ``pipeline_short`` -- Illumina reads: trim -> filter -> assemble -> vecscreen | fcs_screen ->
+  [taxpurge] -> covpurge -> rmdup -> sort -> depth -> assess.
+* ``pipeline_long`` -- long reads (ONT/PacBio) only: assemble (flye) -> vecscreen | fcs_screen ->
+  [taxpurge] -> rmdup -> polish (racon) -> sort -> depth -> assess.
 * ``pipeline_hybrid`` -- Illumina + long reads: trim -> filter -> assemble (flye or unicycler) ->
-  vecscreen -> [taxpurge] -> covpurge -> rmdup -> polish -> sort -> assess.
+  vecscreen | fcs_screen -> [taxpurge] -> covpurge -> rmdup -> polish -> sort -> depth -> assess.
+
+The adaptor/vector screen is **either** :doc:`vecscreen` (default) **or**, with ``--fcs_screen``,
+:doc:`fcs_screen` (NCBI FCS-adaptor). Both screen the contigs for the same adaptors and vectors, so
+running both is redundant: use ``--fcs_screen`` when you want NCBI's own tool (e.g. ahead of a
+GenBank submission) and have a container engine; otherwise keep the default vecscreen, which
+needs only BLAST.
 
 :doc:`taxpurge` runs only when ``-p/--phylum`` is given, so the pipelines also work when the
-organism's taxonomy is unknown (the contigs are then screened by :doc:`vecscreen`,
-:doc:`covpurge` and :doc:`rmdup` only). :doc:`covpurge` needs Illumina reads, so ``pipeline_long``
+organism's taxonomy is unknown (the contigs are then screened by :doc:`vecscreen` or
+:doc:`fcs_screen`, :doc:`covpurge` and :doc:`rmdup` only). :doc:`covpurge` needs Illumina reads, so ``pipeline_long``
 does not run it. Polishing always runs after the cleaning steps, so no time is spent polishing
 contigs that are then discarded.
 
@@ -51,8 +57,8 @@ annotation coordinate fixups), and :doc:`database` (run once, ahead of time, to 
 Optional steps the pipelines run on request, in every pipeline:
 
 * :doc:`fcs_screen` (NCBI FCS-adaptor adaptor/vector screen, with ``--fcs_screen``; needs a
-  container engine and ``AAFTF database fcs_script fcs_image``), right after :doc:`vecscreen`,
-  writing ``{base}.fcs_screen.fasta``.
+  container engine and ``AAFTF database fcs_script fcs_image``), run instead of
+  :doc:`vecscreen` and writing ``{base}.fcs_screen.fasta`` in place of ``{base}.vecscreen.fasta``.
 * :doc:`taxpurge` (sourmash taxonomic screen, with ``-p/--phylum``), writing
   ``{base}.taxpurge.fasta``. :doc:`fcs_gx_purge` (NCBI FCS-GX) is not a pipeline step, since it
   needs its ~470 GB database in RAM; run it separately on the finished assemblies.
@@ -101,7 +107,7 @@ Cutoffs / defaults
      - covpurge low-coverage removal threshold (percent of N50-contig coverage)
    * - ``--fcs_screen``, ``--container_engine``
      - off; ``--container_engine``: fcs_screen's default (singularity)
-     - Also run :doc:`fcs_screen` (NCBI FCS-adaptor) after vecscreen
+     - Run :doc:`fcs_screen` (NCBI FCS-adaptor) instead of vecscreen
 
 Invocation
 ----------

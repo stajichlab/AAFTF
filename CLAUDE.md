@@ -77,7 +77,7 @@ Keyword parameters of each `run()` (besides the trailing `**kwargs`):
 ## Pipeline step defaults
 
 `pipeline_short` runs trim → filter → assemble → vecscreen → [taxpurge] → covpurge → rmdup → sort → depth → assess (mito, fcs_screen and polish are optional and not run; fcs_gx_purge is never run by a pipeline).
-`pipeline_long` runs assemble (flye) → vecscreen → [taxpurge] → rmdup → polish (racon) → sort → depth (long reads) → assess (no covpurge: it needs Illumina reads). In every pipeline `-p/--phylum` is optional and taxpurge runs only when it is given (`_taxpurge_options()`), so the pipelines work when the taxonomy is unknown. Every pipeline can also run `fcs_screen` (`--fcs_screen`, dest `fcs_screen_run`) right after vecscreen (`_fcs_options()`), writing `{base}.fcs_screen.fasta`. `fcs_gx_purge` is not a pipeline step: its ~470 GB database must be loaded into RAM, so it is run separately on finished assemblies.
+`pipeline_long` runs assemble (flye) → vecscreen → [taxpurge] → rmdup → polish (racon) → sort → depth (long reads) → assess (no covpurge: it needs Illumina reads). In every pipeline `-p/--phylum` is optional and taxpurge runs only when it is given (`_taxpurge_options()`), so the pipelines work when the taxonomy is unknown. Every pipeline can run `fcs_screen` (`--fcs_screen`, dest `fcs_screen_run`) instead of vecscreen (`_fcs_options()`; both screen for the same adaptors/vectors, so only one runs), writing `{base}.fcs_screen.fasta` in place of `{base}.vecscreen.fasta`. `fcs_gx_purge` is not a pipeline step: its ~470 GB database must be loaded into RAM, so it is run separately on finished assemblies.
 `pipeline_hybrid` runs trim → filter → assemble (flye on the long reads) → vecscreen → [taxpurge] → covpurge → rmdup → polish (racon) → polish (polypolish for paired, pypolca for single-end filtered Illumina reads) → sort → depth (Illumina reads) → assess; `depth` writes `{base}.final.fasta` from `{base}.sorted.fasta` with likely mitochondrial contigs tagged (`_tag_mito()`; on failure it only warns and copies the sorted file); all pipelines clean (vecscreen/taxpurge/covpurge/rmdup) before polishing, via the shared `_clean_and_finish(assembly, ..., taxpurge_options, covpurge_options, polish_steps)`, so discarded contigs are never polished; with `--method unicycler` Unicycler gets both read types and both polish steps are skipped. A step whose output file already exists is skipped (`_run_step`). Each step is called with `_step_kwargs(name, shared, **step_options)`:
 - it starts from that step's CLI defaults, read from its `_menu.py` parser (`_subcommand_defaults()`), so every `run()` parameter is present and the pipeline never drifts from `AAFTF <step>` defaults — do not hard-code step settings in `pipeline.py`
 - `shared` pipeline options (`cpus`, `memory`, `workdir`, `debug`, `quiet`) go only to steps that have that option; a `None` value (e.g. no `--memory`) keeps the step default. Exception: `assemble` gets `{workdir}/assemble_{method}` (`_assemble_workdir()`), since SPAdes restarts from and MEGAHIT refuses an existing folder, and `filter` has already created the pipeline workdir
@@ -89,8 +89,8 @@ Keyword parameters of each `run()` (besides the trailing `**kwargs`):
 Recommended order for full assembly QC:
 
 ```
-trim → [mito optional, PE only] → filter → assemble → vecscreen
-  → [fcs_screen optional] → [taxpurge, needs a phylum] → covpurge → rmdup
+trim → [mito optional, PE only] → filter → assemble → vecscreen or fcs_screen
+  → [taxpurge, needs a phylum] → covpurge → rmdup
   → [polish optional, mainly with long reads] → sort → assess → [depth optional]
 
 separately, on the finished assemblies: [fcs_gx_purge, needs RAM for its database]

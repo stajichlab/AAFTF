@@ -11,11 +11,12 @@ Three pipelines, one per kind of sequencing data:
   → sort → assess. With ``--method unicycler`` both read types go to Unicycler, which polishes its own
   assembly, so the polish steps are skipped.
 
-Optionally, NCBI FCS-adaptor (``fcs_screen``, ``--fcs_screen``) also screens the contigs for
-adaptors right after vecscreen. NCBI FCS-GX (``fcs_gx_purge``) is not a pipeline step: its
+The adaptor/vector screen is either vecscreen (default) or, with ``--fcs_screen``, NCBI
+FCS-adaptor (``fcs_screen``) in its place; both screen for the same adaptors and vectors, so only
+one is run. NCBI FCS-GX (``fcs_gx_purge``) is not a pipeline step: its
 ~470 GB database must be loaded into RAM, so it is run on its own on the finished assemblies.
 
-All three share the same order: the contigs are cleaned (vecscreen, taxpurge, covpurge, rmdup) before
+All three share the same order: the contigs are cleaned (vecscreen or fcs_screen, taxpurge, covpurge, rmdup) before
 any polishing, so no time is spent polishing contigs that are then discarded. ``taxpurge`` runs only
 when ``--phylum`` is given, so the pipelines also work when the organism's taxonomy is unknown.
 
@@ -95,7 +96,7 @@ def run_short(
         mincontiglen: Minimum contig length kept by ``rmdup`` and ``sort``.
         workdir: Working directory for steps that take ``-w/--workdir``; None keeps each step's default.
         sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
-        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) after ``vecscreen``.
+        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) instead of ``vecscreen``.
         container_engine: ``fcs_screen`` container engine; None keeps its default.
         mincovpct: Minimum percent of N50 coverage below which ``covpurge`` removes contigs.
         debug: Show debug output and keep temporary files in every step.
@@ -145,7 +146,7 @@ def run_long(
         genome_size: Estimated genome size for Flye (e.g. ``40m``), or None to let Flye estimate it.
         phylum: Phyla whose sourmash matches are kept by ``taxpurge``; None skips ``taxpurge``.
         sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
-        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) after ``vecscreen``.
+        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) instead of ``vecscreen``.
         container_engine: ``fcs_screen`` container engine; None keeps its default.
         cpus: Threads for every step that takes ``-c/--cpus``.
         assembler_args: Extra arguments passed through to Flye.
@@ -218,7 +219,7 @@ def run_hybrid(
         mincontiglen: Minimum contig length kept by ``rmdup`` and ``sort``.
         workdir: Working directory for steps that take ``-w/--workdir``; None keeps each step's default.
         sourdb: ``taxpurge`` databases (names in ``SOURMASH_DATABASES``); None keeps its default.
-        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) after ``vecscreen``.
+        fcs_screen_run: Run ``fcs_screen`` (NCBI FCS-adaptor) instead of ``vecscreen``.
         container_engine: ``fcs_screen`` container engine; None keeps its default.
         mincovpct: Minimum percent of N50 coverage below which ``covpurge`` removes contigs.
         debug: Show debug output and keep temporary files in every step.
@@ -307,7 +308,7 @@ def _clean_and_finish(
     fcs: dict[str, dict[str, Any] | None] | None = None,
     depth_options: dict[str, Any] | None = None,
 ) -> None:
-    """Run vecscreen → fcs_screen → taxpurge → covpurge → rmdup → polish → sort → depth → assess on ``assembly``.
+    """Run vecscreen (or fcs_screen) → taxpurge → covpurge → rmdup → polish → sort → depth → assess on ``assembly``.
 
     Polishing comes after the cleaning steps so contigs that are discarded are never polished.
 
@@ -320,21 +321,19 @@ def _clean_and_finish(
         covpurge_options: ``covpurge`` options (reads, mincovpct), or None to skip ``covpurge``.
         polish_steps: ``polish`` options for each polishing round, in order; each needs ``method``
             and writes ``{basename}.{method}.fasta``, which the next round (or ``sort``) reads.
-        fcs: ``fcs_screen`` options (from ``_fcs_options``); skipped when None, or when ``fcs``
-            is None.
+        fcs: ``fcs_screen`` options (from ``_fcs_options``); ``fcs_screen`` replaces ``vecscreen``
+            unless they are None, or ``fcs`` is None.
         depth_options: ``depth`` read options; ``depth`` maps them to the sorted assembly and
             writes ``{basename}.final.fasta`` with likely mitochondrial contigs tagged (none is
             removed). When None, or when ``depth`` fails, the sorted assembly is used untagged.
     """
-    vecscreen_file = basename + ".vecscreen.fasta"
-    _run_step(vecscreen, "vecscreen", vecscreen_file, shared, infile=assembly, outfile=vecscreen_file)
-
-    rmdup_input = vecscreen_file
     fcs = fcs or {}
     if fcs.get("fcs_screen") is not None:
-        fcs_screen_file = basename + ".fcs_screen.fasta"
-        _run_step(fcs_screen, "fcs_screen", fcs_screen_file, shared, infile=rmdup_input, outfile=fcs_screen_file, **fcs["fcs_screen"])
-        rmdup_input = fcs_screen_file
+        rmdup_input = basename + ".fcs_screen.fasta"
+        _run_step(fcs_screen, "fcs_screen", rmdup_input, shared, infile=assembly, outfile=rmdup_input, **fcs["fcs_screen"])
+    else:
+        rmdup_input = basename + ".vecscreen.fasta"
+        _run_step(vecscreen, "vecscreen", rmdup_input, shared, infile=assembly, outfile=rmdup_input)
     if taxpurge_options is not None:
         taxpurge_file = basename + ".taxpurge.fasta"
         _run_step(taxpurge, "taxpurge", taxpurge_file, shared, input=rmdup_input, outfile=taxpurge_file, **taxpurge_options)
