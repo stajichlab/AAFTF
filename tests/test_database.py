@@ -1,5 +1,6 @@
 """Unit tests for aaftf/database.py (no network access)."""
 
+import gzip
 import os
 import stat
 import sys
@@ -52,14 +53,21 @@ class TestListDb:
         shared.mkdir()
         mine.mkdir()
         (shared / DATABASES["univec"]["filename"]).write_text("x")
-        (mine / DATABASES["proks"]["filename"]).write_text("x")
+        (mine / DATABASES["phix"]["filename"]).write_text("x")
 
         out = self._list(monkeypatch, capsys, [shared, mine])
 
         assert _row(out, "univec").endswith(str(shared.resolve()))
-        assert _row(out, "proks").endswith(str(mine.resolve()))
-        assert _row(out, "euks").endswith("not downloaded")
-        assert "1.0 KB" in _row(out, "euks")  # remote size estimate
+        assert _row(out, "phix").endswith(str(mine.resolve()))
+        assert _row(out, "fcs_script").endswith("not downloaded")
+        assert "1.0 KB" in _row(out, "fcs_script")  # remote size estimate
+        assert _row(out, "contamdb").endswith("not built")  # built locally, nothing to download
+
+    def test_contamdb_sources_fulfilled_once_it_is_built(self, monkeypatch, capsys, tmp_path):
+        (tmp_path / "contamdb.fa").write_text(">x\nACGT\n")
+        out = self._list(monkeypatch, capsys, [tmp_path])
+        assert _row(out, "phix").endswith("fulfilled by contamdb") and _row(out, "univec").endswith("fulfilled by contamdb")
+        assert _row(out, "contamdb").endswith(str(tmp_path.resolve()))
 
     def test_first_folder_wins_for_duplicates(self, monkeypatch, capsys, tmp_path):
         shared, mine = tmp_path / "shared", tmp_path / "mine"
@@ -82,13 +90,13 @@ class TestListDb:
 
 class TestResolve:
     def test_abbreviation_and_file_name(self):
-        assert _resolve(["univec", "contam_in_prok.fa"]) == ["univec", "proks"]
+        assert _resolve(["univec", "GCF_000819615.1_ViralProj14015_genomic.fna.gz"]) == ["univec", "phix"]
 
     def test_case_insensitive(self):
-        assert _resolve(["UNIVEC", "Contam_In_Prok.FA"]) == ["univec", "proks"]
+        assert _resolve(["UNIVEC", "GCF_000819615.1_VIRALPROJ14015_GENOMIC.FNA.GZ"]) == ["univec", "phix"]
 
     def test_all_and_duplicates(self):
-        selected = _resolve(["univec", "all", "UniVec"])
+        selected = _resolve(["univec", "all", "UniVec_Core"])
         assert selected[0] == "univec" and sorted(selected) == sorted(DATABASES) and len(selected) == len(set(selected))
 
     def test_sourmash_database_brings_its_lineages(self):
@@ -110,21 +118,21 @@ class TestDownload:
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
         calls = []
         with patch("aaftf.database.download_file", side_effect=_fake_download(calls)):
-            run(databases=["univec", "contam_in_prok.fa"])
+            run(databases=["univec", "GCF_000819615.1_ViralProj14015_genomic.fna.gz"])
         assert calls == [
-            (DATABASES["univec"]["url"], str(tmp_path.resolve() / "UniVec")),
-            (DATABASES["proks"]["url"], str(tmp_path.resolve() / "contam_in_prok.fa")),
+            (DATABASES["univec"]["url"], str(tmp_path.resolve() / "UniVec_Core")),
+            (DATABASES["phix"]["url"], str(tmp_path.resolve() / "GCF_000819615.1_ViralProj14015_genomic.fna.gz")),
         ]
 
     def test_existing_copy_in_another_folder_is_reused(self, monkeypatch, tmp_path):
         shared, mine = tmp_path / "shared", tmp_path / "mine"
         shared.mkdir()
-        (shared / "UniVec").write_text("shared")
+        (shared / "UniVec_Core").write_text("shared")
         monkeypatch.setenv("AAFTF_DB", f"{shared}{os.pathsep}{mine}")
         calls = []
         with patch("aaftf.database.download_file", side_effect=_fake_download(calls)):
             run(databases=["univec"])
-        assert calls[0][1] == str(shared.resolve() / "UniVec")
+        assert calls[0][1] == str(shared.resolve() / "UniVec_Core")
 
     def test_fcs_script_made_executable(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
@@ -144,8 +152,8 @@ class TestDownload:
 
         with patch("aaftf.database.download_file", side_effect=_flaky):
             with pytest.raises(RuntimeError):
-                run(databases=["univec", "proks"])
-        assert [url for url, _ in calls] == [DATABASES["proks"]["url"]]
+                run(databases=["univec", "phix"])
+        assert [url for url, _ in calls] == [DATABASES["phix"]["url"]]
 
 
 class TestDownloadCli:
@@ -160,8 +168,8 @@ class TestDownloadCli:
         assert self._parse(["AAFTF", "database"]).databases == []
 
     def test_names_and_force(self):
-        args = self._parse(["AAFTF", "database", "univec", "contam_in_prok.fa", "--force"])
-        assert args.databases == ["univec", "contam_in_prok.fa"] and args.force is True
+        args = self._parse(["AAFTF", "database", "univec", "GCF_000819615.1_ViralProj14015_genomic.fna.gz", "--force"])
+        assert args.databases == ["univec", "GCF_000819615.1_ViralProj14015_genomic.fna.gz"] and args.force is True
 
     def test_old_flags_removed(self):
         with patch.object(sys, "argv", ["AAFTF", "database", "--skip-core"]):
@@ -177,8 +185,8 @@ class TestRequiredOptionalGroups:
         assert all(isinstance(entry["required"], bool) for entry in DATABASES.values())
 
     def test_required_set_is_what_the_default_pipeline_reads(self):
-        # filter reads phix + univec; vecscreen univec, euks, proks, mitodb (taxpurge and its sourmash databases run only with -p)
-        assert {abbr for abbr, e in DATABASES.items() if e["required"]} == {"phix", "univec", "euks", "proks", "mitodb"}
+        # filter and vecscreen read contamdb (built from univec + phix) (taxpurge and its sourmash databases run only with -p)
+        assert {abbr for abbr, e in DATABASES.items() if e["required"]} == {"phix", "univec", "contamdb"}
 
     def test_listing_shows_required_then_optional(self, monkeypatch, capsys, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
@@ -186,7 +194,7 @@ class TestRequiredOptionalGroups:
             run()
         out = capsys.readouterr().out
         required_at, optional_at = out.index("Needed by the default pipeline:"), out.index("Only for non-default options or optional steps:")
-        assert required_at < out.index("\n  phix ") < out.index("\n  mitodb ") < optional_at < out.index("\n  gbk-fungi ") < out.index("\n  human-hg38 ") < out.index("\n  fcs_image ")
+        assert required_at < out.index("\n  phix ") < out.index("\n  univec ") < out.index("\n  contamdb ") < optional_at < out.index("\n  gbk-fungi ") < out.index("\n  human-hg38 ") < out.index("\n  fcs_image ")
         assert "Other files" not in out  # heading only when the folder holds other files
 
     def test_other_files_get_their_own_heading(self, monkeypatch, capsys, tmp_path):
@@ -239,7 +247,7 @@ class TestRequiredOptionalGroups:
         assert "inner.sst" not in out
 
     def test_required_and_optional_keywords(self):
-        assert _resolve(["required"]) == ["phix", "univec", "euks", "proks", "mitodb"]
+        assert _resolve(["required"]) == ["phix", "univec", "contamdb"]
         assert _resolve(["optional"]) == [
             "gbk-fungi",
             "gbk-fungi-lineages",
@@ -252,7 +260,7 @@ class TestRequiredOptionalGroups:
             "fcs_script",
             "fcs_image",
         ]
-        assert _resolve(["REQUIRED", "fcs_script"]) == ["phix", "univec", "euks", "proks", "mitodb", "fcs_script"]
+        assert _resolve(["REQUIRED", "fcs_script"]) == ["phix", "univec", "contamdb", "fcs_script"]
 
 
 class TestInstallIndex:
@@ -345,3 +353,148 @@ class TestInstallIndex:
             run(databases=["human-hg38"])
         rc.assert_not_called()
         dl.assert_not_called()
+
+
+class TestContamdb:
+    """`AAFTF database contamdb` builds contamdb.fa and its BLAST database, shared by filter and vecscreen."""
+
+    UNIVEC = ">gnl|uv|A1 pUC19 cloning vector\nACGTACGT\n>gnl|uv|B2 Saccharomyces cerevisiae 2-micron ori\nGGGG\n>gnl|uv|C3 Aspergillus nidulans trpC terminator\nCCCC\n>gnl|uv|D4 Illumina PCR primer\nTTTT\n"
+
+    @staticmethod
+    def _fake_makeblastdb(cmds, fail=False):
+        def _run(cmd, *args, **kwargs):
+            cmds.append(cmd)
+            if not fail:
+                out = cmd[cmd.index("-out") + 1]
+                for suffix in (".nhr", ".nin", ".nsq"):
+                    Path(out + suffix).write_text("x")
+            return Namespace(returncode=1 if fail else 0)
+
+        return _run
+
+    def _build(self, monkeypatch, tmp_path, fail=False):
+        db = tmp_path / "db"
+        monkeypatch.setenv("AAFTF_DB", str(db))
+        lam, adapters = tmp_path / "lambda.fa.gz", tmp_path / "adapters.fa"
+        with gzip.open(lam, "wt") as fh:
+            fh.write(">lambda\nTTGG\n")
+        adapters.write_text(">TruSeq_Adapter\nAGATCGGAAG\n")
+        contents = {DATABASES["univec"]["url"]: self.UNIVEC, DATABASES["phix"]["url"]: ">NC_001422.1 phiX174\nGAGTTTTATC\n"}
+        cmds = []
+
+        def _download(url, dest, force=False):
+            Path(dest).parent.mkdir(parents=True, exist_ok=True)
+            with (gzip.open if dest.endswith(".gz") else open)(dest, "wt") as fh:
+                fh.write(contents[url])
+            return dest
+
+        with (
+            patch("aaftf.database.download_file", side_effect=_download),
+            patch("aaftf.database.bbtools_resources", return_value=[str(lam), str(adapters)]),
+            patch("aaftf.database.require_tools"),
+            patch("aaftf.database.run_cmd", side_effect=self._fake_makeblastdb(cmds, fail)),
+        ):
+            if fail:
+                with pytest.raises(RuntimeError):
+                    run(databases=["contamdb"])
+            else:
+                run(databases=["contamdb"])
+        return db.resolve(), cmds
+
+    def test_build_filters_fungal_entries_and_adds_phix_lambda_adapters(self, monkeypatch, tmp_path):
+        db, cmds = self._build(monkeypatch, tmp_path)
+        names = [line[1:] for line in (db / "contamdb.fa").read_text().splitlines() if line.startswith(">")]
+        assert names == ["gnl|uv|A1 pUC19 cloning vector", "gnl|uv|D4 Illumina PCR primer", "NC_001422.1 phiX174", "lambda", "TruSeq_Adapter"]
+        assert cmds == [["makeblastdb", "-dbtype", "nucl", "-in", str(db / "contamdb.fa"), "-out", str(db / "contamdb"), "-title", "contamdb"]]
+        # the sources AAFTF downloaded are removed once contamdb is built
+        assert not (db / "UniVec_Core").exists() and not (db / DATABASES["phix"]["filename"]).exists()
+
+    def test_sources_in_a_shared_folder_are_kept(self, monkeypatch, tmp_path):
+        shared, mine = tmp_path / "shared", tmp_path / "mine"
+        shared.mkdir()
+        mine.mkdir()  # writable, but a read-only shared folder is simulated by db_write_dir below
+        (shared / "UniVec_Core").write_text(self.UNIVEC)
+        with gzip.open(shared / DATABASES["phix"]["filename"], "wt") as fh:
+            fh.write(">NC_001422.1 phiX174\nGAGTTTTATC\n")
+        monkeypatch.setenv("AAFTF_DB", f"{shared}{os.pathsep}{mine}")
+        monkeypatch.setattr("aaftf.database.db_write_dir", lambda: mine.resolve())
+        adapters = tmp_path / "adapters.fa"
+        adapters.write_text(">TruSeq_Adapter\nAGATCGGAAG\n")
+        with (
+            patch("aaftf.database.bbtools_resources", return_value=[str(adapters)]),
+            patch("aaftf.database.require_tools"),
+            patch("aaftf.database.run_cmd", side_effect=self._fake_makeblastdb([])),
+        ):
+            run(databases=["contamdb"])
+        assert (mine / "contamdb.fa").is_file()
+        assert (shared / "UniVec_Core").is_file() and (shared / DATABASES["phix"]["filename"]).is_file()
+
+    def test_build_checks_the_blast_database(self, monkeypatch, tmp_path):
+        self._build(monkeypatch, tmp_path, fail=True)
+
+    def test_existing_fasta_is_kept_and_only_indexed(self, monkeypatch, tmp_path):
+        """A user-edited contamdb.fa is not rebuilt; its BLAST database is."""
+        from aaftf.database import build_contamdb
+
+        (tmp_path / "contamdb.fa").write_text(">mine\nACGT\n")
+        monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+        cmds = []
+        with patch("aaftf.database.require_tools"), patch("aaftf.database.run_cmd", side_effect=self._fake_makeblastdb(cmds)), patch("aaftf.database.download_file") as download:
+            assert build_contamdb() == str(tmp_path.resolve() / "contamdb")
+            assert len(cmds) == 1
+            build_contamdb()  # index now current: nothing to do
+            assert len(cmds) == 1
+        download.assert_not_called()
+        assert (tmp_path / "contamdb.fa").read_text() == ">mine\nACGT\n"
+
+    def test_blast_database_rebuilt_when_fasta_is_newer(self, monkeypatch, tmp_path):
+        from aaftf.database import require_contamdb
+
+        for suffix in (".nhr", ".nin", ".nsq"):
+            (tmp_path / f"contamdb{suffix}").write_text("x")
+            os.utime(tmp_path / f"contamdb{suffix}", (1, 1))
+        (tmp_path / "contamdb.fa").write_text(">added\nACGT\n")
+        monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+        cmds = []
+        with patch("aaftf.database.require_tools"), patch("aaftf.database.run_cmd", side_effect=self._fake_makeblastdb(cmds)):
+            assert require_contamdb() == str(tmp_path.resolve() / "contamdb")  # FASTA only: no index check
+            assert cmds == []
+            require_contamdb(blast=True)
+        assert len(cmds) == 1
+
+    def test_require_raises_without_fasta(self, monkeypatch, tmp_path):
+        from aaftf.database import find_contamdb, require_contamdb
+
+        for suffix in (".nhr", ".nin", ".nsq"):
+            (tmp_path / f"contamdb{suffix}").write_text("x")  # an index alone is not enough
+        monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+        assert find_contamdb() is None
+        with pytest.raises(FileNotFoundError, match="AAFTF database contamdb"):
+            require_contamdb()
+
+
+class TestFulfilledSkipped:
+    """A file only needed to build a database that is already built is not downloaded again."""
+
+    def _run(self, monkeypatch, tmp_path, names, **kwargs):
+        monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+        calls = []
+        with patch("aaftf.database.download_file", side_effect=_fake_download(calls)):
+            run(databases=names, **kwargs)
+        return [url for url, _ in calls]
+
+    def test_contamdb_sources_skipped_once_built(self, monkeypatch, tmp_path):
+        (tmp_path / "contamdb.fa").write_text(">x\nACGT\n")
+        assert self._run(monkeypatch, tmp_path, ["phix", "univec"]) == []
+
+    def test_force_downloads_them(self, monkeypatch, tmp_path):
+        (tmp_path / "contamdb.fa").write_text(">x\nACGT\n")
+        assert self._run(monkeypatch, tmp_path, ["phix"], force=True) == [DATABASES["phix"]["url"]]
+
+    def test_sources_downloaded_while_contamdb_is_not_built(self, monkeypatch, tmp_path):
+        assert self._run(monkeypatch, tmp_path, ["phix"]) == [DATABASES["phix"]["url"]]
+
+    def test_sketch_file_skipped_with_no_build_once_indexed(self, monkeypatch, tmp_path):
+        (tmp_path / "hg38-entire.rocksdb").mkdir()
+        (tmp_path / "hg38-entire.rocksdb" / "CURRENT").write_text("MANIFEST-000005\n")
+        assert self._run(monkeypatch, tmp_path, ["human-hg38"], no_build=True) == []

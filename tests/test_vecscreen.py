@@ -1,6 +1,7 @@
-"""Unit tests for aaftf/vecscreen.py (blastn/makeblastdb are mocked)."""
+"""Unit tests for aaftf/vecscreen.py (blastn is mocked)."""
 
 import logging
+from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,182 +24,76 @@ def _read_fasta(path):
     return recs
 
 
-def _row(qid, pident, length, qstart, qend):
-    return [qid, "hit_" + qid, str(pident), str(length), "0", "0", str(qstart), str(qend), "1", "50", "1e-10", "100"]
-
-
-# --- _screen_euk_prok_contamination -------------------------------------------------------------
-
-
-def test_euk_prok_screen_filters_and_sorts():
-    rows = {
-        "CONTAM_EUKS": [
-            _row("c1", 98.0, 50, 300, 100),  # qualifies (98/50), reversed coords -> sorted
-            _row("c2", 97.9, 99, 1, 99),  # fails: <98 at <100bp
-            _row("c3", 94.0, 100, 10, 110),  # qualifies (94/100)
-        ],
-        "CONTAM_PROKS": [
-            _row("c1", 90.0, 200, 500, 700),  # qualifies (90/200), same contig grouped
-            _row("c4", 93.9, 199, 1, 199),  # fails
-        ],
-    }
-
-    def fake(infile, workdir, prefix, contam, cpus, pid):
-        return rows[contam]
-
-    with patch("aaftf.vecscreen._run_blastn_screen", side_effect=fake):
-        regions = vecscreen._screen_euk_prok_contamination("in.fa", "wd", "p", 2, "90.0")
-    assert regions == {
-        "c1": [(100, 300, "CONTAM_EUKS", "hit_c1", 98.0), (500, 700, "CONTAM_PROKS", "hit_c1", 90.0)],
-        "c3": [(10, 110, "CONTAM_EUKS", "hit_c3", 94.0)],
-    }
-
-
-def test_write_euk_cleaned_splits_regions(tmp_path):
-    infile = tmp_path / "in.fa"
-    seq = "A" * 10 + "C" * 5 + "G" * 10
-    infile.write_text(f">c1\n{seq}\n>c2\nTTTT\n")
-    assert vecscreen._write_euk_cleaned(str(infile), {}, str(tmp_path), "p") == str(infile)
-    out = vecscreen._write_euk_cleaned(str(infile), {"c1": [(11, 15, "E", "h", 99.0)]}, str(tmp_path), "p")
-    assert _read_fasta(out) == {"split0_c1": "A" * 10, "split1_c1": "G" * 10, "c2": "TTTT"}
-
-
-def test_screen_mitochondria_flags_long_hits():
-    to_remove = {}
-    rows = [_row("m1", 99, 120, 1, 120), _row("m2", 99, 119, 1, 119)]
-    with patch("aaftf.vecscreen._run_blastn_screen", return_value=rows) as blast:
-        hits = vecscreen._screen_mitochondria("q.fa", "wd", "p", 1, to_remove)
-    assert hits == ["m1"]
-    assert to_remove == {"m1": ("MitoScreen", "hit_m1", 99.0)}
-    assert blast.call_args.args[3:] == ("MITO", 1, vecscreen.BLAST_PERCENT_ID_MITO_MATCH)
-
-
-# --- _classify_vector_hits ----------------------------------------------------------------------
-
-
 def _vec_row(qid, qstart, qend, score, qlen=1000):
-    return "\t".join([qid, "vec", "100", "30", "0", "0", str(qstart), str(qend), "1", "30", "1", "50", str(score), str(qlen)])
+    """A row of the vecscreen report (``_OUTFMT`` columns)."""
+    return "\t".join([qid, "vec", "100", str(abs(qend - qstart) + 1), str(qstart), str(qend), "1e-5", "40", str(score), str(qlen)])
+
+
+# --- _read_vector_hits --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    ("qstart", "qend", "score", "high", "low"),
+    ("qstart", "qend", "score", "kept"),
     [
-        (1, 30, 24, True, True),  # terminal strong
-        (1, 30, 19, True, False),  # terminal moderate
-        (1, 30, 18, False, False),  # terminal weak
-        (975, 1000, 24, True, True),  # 3' terminal strong
-        (500, 530, 30, True, True),  # internal strong
-        (500, 530, 25, True, False),  # internal moderate
-        (500, 530, 24, False, False),  # internal weak (would be strong if terminal)
-        (26, 60, 24, False, False),  # 26 > 25 -> internal, so 24 is weak
+        (1, 30, 16, True),  # at the 5' tip: >= 16
+        (1, 30, 15, False),
+        (971, 1000, 16, True),  # at the 3' tip
+        (10, 40, 19, True),  # terminal (within 50 bp), not at the tip: >= 19
+        (10, 40, 18, False),
+        (950, 960, 19, True),  # 3' terminal: 1000 - 960 < 50
+        (500, 530, 30, True),  # internal: Strong only
+        (500, 530, 29, False),  # internal moderate no longer splits
+        (51, 80, 29, False),  # 51 > 50 -> internal
+        (600, 500, 30, True),  # minus-strand coordinates are sorted
     ],
 )
-def test_classify_thresholds(tmp_path, qstart, qend, score, high, low):
+def test_read_vector_hits_thresholds(tmp_path, qstart, qend, score, kept):
     tab = tmp_path / "r.tab"
     tab.write_text(_vec_row("c1", qstart, qend, score) + "\n")
-    for stringency, expected in (("high", high), ("low", low)):
-        hits, n = vecscreen._classify_vector_hits(str(tab), stringency, {})
-        assert n == int(expected)
-        assert ("c1" in hits) == expected
+    hits = vecscreen._read_vector_hits(str(tab))
+    assert hits == ({"c1": [tuple(sorted((qstart, qend)))]} if kept else {})
 
 
-def test_classify_positions_and_skip_removed(tmp_path):
-    tab = tmp_path / "r.tab"
-    tab.write_text("\n".join([_vec_row("c1", 40, 5, 30), _vec_row("c1", 990, 960, 30), _vec_row("c1", 500, 540, 30), _vec_row("gone", 1, 30, 40)]) + "\n")
-    hits, n = vecscreen._classify_vector_hits(str(tab), "high", {"gone": ("MitoScreen", "x", 99.0)})
-    assert n == 3
-    assert hits == {
-        "c1": [
-            ("vec", 1000, [5, 40], 30, True, "5"),
-            ("vec", 1000, [960, 990], 30, True, "3"),
-            ("vec", 1000, [500, 540], 30, False, None),
-        ]
-    }
+# --- _vector_regions ----------------------------------------------------------------------------
 
 
-# --- _write_trimmed_and_split / _group ----------------------------------------------------------
+def test_vector_regions_merge_and_extend_to_ends():
+    # 5' hit within 50 bp is extended to the start; hits < 50 bp apart merge; 3' hit extended to the end
+    assert vecscreen._vector_regions([(20, 40), (500, 520), (560, 580), (300, 320), (310, 330), (960, 975)], 1000) == [(0, 40), (299, 330), (499, 580), (959, 1000)]
 
 
-def test_group_drops_short_tail():
-    assert list(vecscreen._group([1, 2, 3, 4, 5], 2)) == [(1, 2), (3, 4)]
+def test_vector_regions_far_apart_stay_separate():
+    assert vecscreen._vector_regions([(400, 420), (100, 150)], 1000) == [(99, 150), (399, 420)]
+
+
+# --- _write_cleaned -----------------------------------------------------------------------------
 
 
 def test_terminal_trim_and_internal_split(tmp_path):
     fa = tmp_path / "in.fa"
-    seq_t = "N" * 20 + "A" * 300 + "T" * 30  # 350bp: 5' vector 1..20, 3' vector 321..350
+    seq_t = "N" * 20 + "A" * 300 + "T" * 30  # 350 bp: vector 11..20 (extended to 1) and 321..350
     seq_s = "A" * 250 + "G" * 50 + "C" * 250  # internal vector 251..300
     fa.write_text(f">term\n{seq_t}\n>split\n{seq_s}\n>short\n{'A' * 199}\n>ok\n{'A' * 200}\n")
-    hits = {
-        "term": [("v", 350, [1, 20], 30, True, "5"), ("v", 350, [321, 350], 30, True, "3")],
-        "split": [("v", 550, [251, 300], 30, False, None), ("v", 550, [251, 300], 30, False, None)],
-    }
-    out = tmp_path / "out.fsa"
-    vecscreen._write_trimmed_and_split(str(fa), hits, str(out))
+    hits = {"term": [(11, 20), (321, 350)], "split": [(251, 300), (251, 300)]}
+    out = tmp_path / "out.fa"
+    assert vecscreen._write_cleaned(str(fa), hits, str(out)) == (4, 4)
     assert _read_fasta(out) == {"term": "A" * 300, "split1_split": "A" * 250, "split2_split": "C" * 250, "ok": "A" * 200}
 
 
-def test_split_pieces_shorter_than_200_dropped(tmp_path):
+def test_pieces_shorter_than_200_dropped(tmp_path):
     fa = tmp_path / "in.fa"
-    fa.write_text(">c\n" + "A" * 100 + "G" * 50 + "C" * 250 + "\n")
-    out = tmp_path / "out.fsa"
-    vecscreen._write_trimmed_and_split(str(fa), {"c": [("v", 400, [101, 150], 30, False, None)]}, str(out))
-    assert _read_fasta(out) == {"split2_c": "C" * 250}
+    fa.write_text(">c\n" + "A" * 100 + "G" * 50 + "C" * 250 + "\n>t\n" + "A" * 230 + "\n")
+    out = tmp_path / "out.fa"
+    vecscreen._write_cleaned(str(fa), {"c": [(101, 150)], "t": [(201, 230)]}, str(out))
+    assert _read_fasta(out) == {"split2_c": "C" * 250, "t": "A" * 200}  # 100 bp piece dropped; 200 bp kept
 
 
-def test_parse_clean_blastn(tmp_path):
+def test_mostly_vector_contig_excluded(tmp_path):
     fa = tmp_path / "in.fa"
-    fa.write_text(">c\n" + "A" * 300 + "\n")
-    tab = tmp_path / "r.tab"
-    tab.write_text(_vec_row("c", 1, 30, 30, qlen=300) + "\n")
-    n, cleaned = vecscreen._parse_clean_blastn(str(fa), str(tmp_path / "pre"), str(tab), "high")
-    assert (n, cleaned) == (1, str(tmp_path / "pre") + ".clean.fsa")
-    assert _read_fasta(cleaned) == {"c": "A" * 270}
-
-
-# --- _write_final_outputs -----------------------------------------------------------------------
-
-
-def test_write_final_outputs(tmp_path):
-    vec = tmp_path / "vec.fa"
-    vec.write_text(">keep\nAAAA\n>mito\nCCCC\n>contam\nGGGG\n")
-    out, mito = tmp_path / "clean.fa", tmp_path / "mito.fa"
-    vecscreen._write_final_outputs(str(vec), {"mito": ("MitoScreen", "h", 99.0), "contam": ("X", "h", 99.0)}, ["mito"], str(out), str(mito))
-    assert _read_fasta(out) == {"keep": "AAAA"}
-    assert _read_fasta(mito) == {"mito": "CCCC"}
-
-
-# --- _make_blastdb / _run_vecscreen_rounds ------------------------------------------------------
-
-
-def test_make_blastdb_skips_up_to_date_index(tmp_path):
-    fa = tmp_path / "db.fa"
-    fa.write_text(">a\nA\n")
-    with patch("aaftf.vecscreen.call") as call:
-        vecscreen._make_blastdb("nucl", str(fa), str(tmp_path / "db"))
-        assert call.call_args.args[0][:3] == ["makeblastdb", "-dbtype", "nucl"]
-        Path(tmp_path / "db.nin").write_text("")
-        call.reset_mock()
-        vecscreen._make_blastdb("nucl", str(fa), str(tmp_path / "db"))
-        call.assert_not_called()
-        vecscreen._make_blastdb("prot", str(fa), str(tmp_path / "db"))
-        call.assert_called_once()
-
-
-def test_vecscreen_rounds_repeat_until_clean(tmp_path):
-    fa = tmp_path / "in.fa"
-    fa.write_text(">c\n" + "A" * 300 + "\n")
-    reports = iter([_vec_row("c", 1, 30, 30, qlen=300) + "\n", ""])
-    queries = []
-
-    def fake_call(cmd, **kw):
-        queries.append(cmd[cmd.index("-query") + 1])
-        Path(cmd[cmd.index("-out") + 1]).write_text(next(reports))
-
-    with patch("aaftf.vecscreen.call", side_effect=fake_call):
-        final = vecscreen._run_vecscreen_rounds(str(fa), str(tmp_path), "p", 1, "high", {})
-    assert queries == [str(fa), str(tmp_path / "p.r0.clean.fsa")]
-    assert final == str(tmp_path / "p.r1.clean.fsa")
-    assert _read_fasta(final) == {"c": "A" * 270}
+    fa.write_text(">v\n" + "A" * 1000 + "\n>half\n" + "A" * 1000 + "\n")
+    out = tmp_path / "out.fa"
+    vecscreen._write_cleaned(str(fa), {"v": [(100, 300), (340, 700)], "half": [(1, 500)]}, str(out))
+    assert _read_fasta(out) == {"half": "A" * 500}  # exactly 50% is kept, > 50% excluded
 
 
 # --- run() --------------------------------------------------------------------------------------
@@ -208,31 +103,25 @@ def test_vecscreen_rounds_repeat_until_clean(tmp_path):
 def test_run_end_to_end(tmp_path, monkeypatch, caplog, pipe):
     monkeypatch.chdir(tmp_path)
     infile = tmp_path / "asm.fasta"
-    infile.write_text(">keep\n" + "A" * 300 + "\n>mito\n" + "C" * 300 + "\n")
-    srcs = []
-    for name in ("univec", "euks", "proks", "mitodb"):
-        p = tmp_path / f"{name}.fa"
-        p.write_text(">x\nACGT\n")
-        srcs.append(str(p))
-    wd = tmp_path / "wd"
-    blast_calls = []
+    infile.write_text(">keep\n" + "A" * 300 + "\n>trim\n" + "C" * 300 + "\n")
+    cmds = []
 
-    def fake_call(cmd, **kw):
-        if cmd[0] == "makeblastdb":
-            return 0
-        out = cmd[cmd.index("-out") + 1]
-        blast_calls.append(Path(out).name)
-        rows = "mito\tmt\t99.5\t300\t0\t0\t1\t300\t1\t300\t0\t500\n" if "MITO" in out else ""
-        Path(out).write_text(rows)
-        return 0
+    def fake_run(cmd, *args, **kw):
+        cmds.append(cmd)
+        Path(cmd[cmd.index("-out") + 1]).write_text(_vec_row("trim", 1, 30, 25, qlen=300) + "\n" + _vec_row("keep", 120, 150, 29, qlen=300) + "\n")
+        return Namespace(returncode=0)
 
     caplog.set_level(logging.INFO)
     (tmp_path / "sub").mkdir()
-    with patch("aaftf.vecscreen.require_databases", return_value=srcs), patch("aaftf.vecscreen.call", side_effect=fake_call):
-        vecscreen.run(infile=str(infile), outfile="sub/asm.vecscreen.fasta", workdir=str(wd), pipe=pipe)
-    assert blast_calls == ["CONTAM_EUKS.asm.vecscreen.blastn", "CONTAM_PROKS.asm.vecscreen.blastn", "MITO.asm.vecscreen.blastn", "asm.vecscreen.r0.vecscreen.tab"]
-    # both outputs go next to -o/--outfile, not into the current directory
-    assert _read_fasta(tmp_path / "sub" / "asm.vecscreen.fasta") == {"keep": "A" * 300}
-    assert _read_fasta(tmp_path / "sub" / "asm.vecscreen.mitochondria.fasta") == {"mito": "C" * 300}
-    assert not (tmp_path / "asm.vecscreen.fasta").exists()
+    with patch("aaftf.vecscreen.require_tools"), patch("aaftf.vecscreen.require_contamdb", return_value="/db/contamdb"), patch("aaftf.vecscreen.run_cmd", side_effect=fake_run):
+        vecscreen.run(infile=str(infile), outfile="sub/asm.vecscreen.fasta", workdir=str(tmp_path / "wd"), pipe=pipe)
+    (cmd,) = cmds
+    assert cmd[: 1 + len(vecscreen.VECSCREEN_TASK_ARGS)] == ["blastn", *vecscreen.VECSCREEN_TASK_ARGS] and cmd[cmd.index("-db") + 1] == "/db/contamdb"
+    assert _read_fasta(tmp_path / "sub" / "asm.vecscreen.fasta") == {"keep": "A" * 300, "trim": "C" * 270}
     assert ("AAFTF taxpurge" in caplog.text) is (not pipe)
+
+
+def test_run_needs_the_database(tmp_path, monkeypatch):
+    monkeypatch.setenv("AAFTF_DB", str(tmp_path))
+    with patch("aaftf.vecscreen.require_tools"), pytest.raises(FileNotFoundError, match="AAFTF database contamdb"):
+        vecscreen.run(infile="in.fa", outfile="out.fa")

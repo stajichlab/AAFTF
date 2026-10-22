@@ -46,7 +46,7 @@ Short reads (pipeline_short)
        mito [label=<<b>mito</b><br/><font point-size="9">optional, paired reads</font>>, style="rounded,dashed", fillcolor=white]
        assemble [label=<<b>assemble</b><br/><font point-size="9">spades (default) / megahit / unicycler</font>>]
        subgraph cluster_clean { label="Contig cleaning"
-           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
+           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST adaptor/vector screen</font>>]
            covpurge [label=<<b>covpurge</b><br/><font point-size="9">drop low-coverage contigs</font>>]
            rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
        }
@@ -98,7 +98,7 @@ not run :doc:`commands/polish`.
      - ``{base}.{method}.fasta``
    * - vecscreen
      - assembled FASTA
-     - ``{base}.vecscreen.fasta`` (+ ``{base}.mitochondria.fasta``)
+     - ``{base}.vecscreen.fasta``
    * - taxpurge (with ``--phylum``)
      - vecscreen FASTA
      - ``{base}.taxpurge.fasta``
@@ -183,7 +183,7 @@ Long reads (pipeline_long)
        reads [label="long-read FASTQ\nONT or PacBio", shape=note, fillcolor="#fdf1d8", color="#b7862d"]
        assemble [label=<<b>assemble</b><br/><font point-size="9">flye</font>>]
        subgraph cluster_clean { label="Contig cleaning"
-           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
+           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST adaptor/vector screen</font>>]
            rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
        }
        subgraph cluster_taxonomy { label="Taxonomic screen (optional)"
@@ -225,7 +225,7 @@ Illumina reads for contig coverage.
      - ``{base}.flye.fasta``
    * - vecscreen
      - flye FASTA
-     - ``{base}.vecscreen.fasta`` (+ ``{base}.mitochondria.fasta``)
+     - ``{base}.vecscreen.fasta``
    * - taxpurge (with ``--phylum``)
      - vecscreen FASTA
      - ``{base}.taxpurge.fasta``
@@ -297,7 +297,7 @@ Illumina + long reads (pipeline_hybrid)
        }
        assemble [label=<<b>assemble</b><br/><font point-size="9">flye (default): long reads<br/>unicycler: both read types</font>>]
        subgraph cluster_clean { label="Contig cleaning"
-           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST vector + contaminant screen</font>>]
+           vecscreen [label=<<b>vecscreen</b><br/><font point-size="9">BLAST adaptor/vector screen</font>>]
            covpurge [label=<<b>covpurge</b><br/><font point-size="9">drop low-coverage contigs</font>>]
            rmdup [label=<<b>rmdup</b><br/><font point-size="9">remove redundant contigs</font>>]
        }
@@ -346,7 +346,7 @@ the polish steps are skipped.
      - ``{base}.flye.fasta`` or ``{base}.unicycler.fasta``
    * - vecscreen
      - assembled FASTA
-     - ``{base}.vecscreen.fasta`` (+ ``{base}.mitochondria.fasta``)
+     - ``{base}.vecscreen.fasta``
    * - taxpurge (with ``--phylum``)
      - vecscreen FASTA
      - ``{base}.taxpurge.fasta``

@@ -9,6 +9,35 @@ if one is missing, stop with the ``AAFTF database ...`` command that fetches it.
 exception is ``filter``'s ``-a/--screen_accessions`` and ``-u/--screen_urls``, which fetch those
 extra sequences themselves.)
 
+The contamination database (``contamdb``)
+==========================================
+
+``filter`` (reads, before assembly) and ``vecscreen`` (contigs, after assembly) screen against the
+same database. ``AAFTF database contamdb`` (also part of ``required``) builds it, rather than
+downloading it, as ``contamdb.fa`` plus a BLAST database next to it (``contamdb.nhr``, ``.nin``,
+``.nsq``, ...), from:
+
+1. UniVec_Core (downloaded as ``univec`` if missing), without every entry whose name contains
+   ``yeast``, ``cerevisiae``, ``pombe``, ``pichia``, ``kluyveromyces``, ``aspergillus``,
+   ``neurospora``, ``candida``, ``2-micron`` or ``shuttle`` (case-insensitive). These hold fungal
+   genomic sequence (selection markers, origins, plasmid parts) that would match, and split, genuine
+   fungal contigs.
+2. The PhiX genome (downloaded as ``phix`` if missing).
+3. The BBTools ``lambda.fa.gz`` (lambda phage spike-in) and ``adapters.fa``, from the
+   ``resources/`` folder next to ``bbduk.sh``.
+
+Both steps only require ``contamdb.fa``, so you can add your own sequences to it. ``vecscreen``
+checks the BLAST database before it starts and rebuilds it with ``makeblastdb`` when a file is
+missing, empty or older than ``contamdb.fa``. ``AAFTF database contamdb`` keeps an existing
+``contamdb.fa`` (it only updates the BLAST database); ``--force`` rebuilds it from its sources,
+discarding any sequences you added.
+
+Once ``contamdb`` is built, the downloaded UniVec_Core and PhiX files are deleted (only from the
+folder AAFTF downloads into; a copy in another ``$AAFTF_DB`` folder may be shared and is kept).
+``AAFTF database`` then lists them as ``fulfilled by contamdb`` and skips them when asked for again
+(``required``, ``all``, or by name), just as a sourmash sketch file is skipped once its RocksDB
+index is built (``fulfilled by rocksdb``, also with ``--no-build``); ``--force`` downloads them.
+
 Where databases are stored
 ==========================
 
@@ -32,8 +61,9 @@ Databases
 Run ``AAFTF database`` with no arguments to list every database: its short name, file, size,
 which subcommands use it, and the folder it is stored in (or ``not downloaded``, with the
 remote size). Like ``AAFTF dependency``, the list is split in two: the databases ``AAFTF pipeline_short``
-needs with its default settings (``phix``, ``univec``, ``euks``, ``proks``, ``mitodb``),
-then those only needed by non-default options or optional steps (the sourmash databases and their lineage CSVs,
+needs with its default settings (``phix`` and ``univec``, which ``contamdb`` is built from --
+shown as ``fulfilled by contamdb`` once it is built, even if their files were removed -- then
+``contamdb``), then the rest (the sourmash databases and their lineage CSVs,
 ``fcs_script``, ``fcs_image``); anything else directly in the database folders is listed last (a subfolder as one
 entry, without its contents or size).
 
@@ -46,19 +76,13 @@ entry, without its contents or size).
      - Used by
    * - ``phix``
      - ``GCF_000819615.1_ViralProj14015_genomic.fna.gz`` (PhiX genome)
-     - ``filter``
+     - ``contamdb`` (source)
    * - ``univec``
-     - ``UniVec``
+     - ``UniVec_Core``
+     - ``contamdb`` (source)
+   * - ``contamdb``
+     - ``contamdb.fa`` and its BLAST database ``contamdb``, built locally (see above)
      - ``filter``, ``vecscreen``
-   * - ``euks``
-     - ``contam_in_euks.fa.gz``
-     - ``vecscreen``
-   * - ``proks``
-     - ``contam_in_prok.fa``
-     - ``vecscreen``
-   * - ``mitodb``
-     - ``mitochondrion.1.1.genomic.fna.gz`` (RefSeq mitochondria)
-     - ``vecscreen``
    * - ``gbk-fungi`` (+ ``gbk-fungi-lineages``)
      - ``genbank-20250408-fungi-k31.zip`` (5.3 GB; GenBank 2025.04 fungi, k=31, scaled=1000) and
        ``genbank-20250408-lineages.fungi.csv``

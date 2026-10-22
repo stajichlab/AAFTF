@@ -6,26 +6,24 @@ with BBDuk k-mer matching, or aligned with bowtie2, bwa or minimap2.
 """
 
 import logging
-import shutil
 from pathlib import Path
 from typing import Any
 
+from aaftf.database import require_contamdb
 from aaftf.resources import SEQ_DBS
-from aaftf.utility import align_to_sorted_bam, basename_from_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, download_file, make_workdir, require_databases, run_cmd
+from aaftf.utility import align_to_sorted_bam, basename_from_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, download_file, make_workdir, run_cmd
 
-__all__ = ["run", "bbtools_screens"]
+__all__ = ["run"]
 
 
 logger = logging.getLogger(__name__)
 
 ALIGNERS = ("bbduk", "bowtie2", "bwa", "minimap2")
 
+
 # Illumina sequencing artifacts and the lambda phage genome (a common spike-in), bundled with
 # BBTools in its resources/ folder; added to every contamination database so that all
 # --aligner choices screen the same sequences
-BBTOOLS_SCREENS = ("sequencing_artifacts.fa.gz", "lambda.fa.gz")
-
-
 def run(
     read1: str,
     read2: str | None = None,
@@ -43,8 +41,8 @@ def run(
 ) -> None:
     """Remove reads matching the contamination database.
 
-    Builds ``contamdb.fa`` in the work directory from PhiX, UniVec, the BBTools artifact and lambda
-    FASTAs and any extra accessions, URLs or local FASTA files. With ``aligner="bbduk"`` reads are
+    Builds ``contamdb.fa`` in the work directory from the ``contamdb`` database (``AAFTF database
+    contamdb``, shared with ``vecscreen``) and any extra accessions, URLs or local FASTA files. With ``aligner="bbduk"`` reads are
     k-mer filtered by BBDuk (paired reads are interleaved first and de-interleaved afterwards);
     otherwise reads are aligned with bowtie2, bwa or minimap2 and the unmapped reads are extracted
     with ``samtools fastq``. Cleaned reads are written to ``{basename}_filtered_1.fastq.gz`` (and
@@ -116,34 +114,10 @@ def run(
         close_step_log()
 
 
-def bbtools_screens() -> list[str]:
-    """Return the BBTools-bundled screening FASTAs (``BBTOOLS_SCREENS``) from its ``resources/`` folder.
-
-    The folder sits next to the real ``bbduk.sh`` script (after resolving the symlink conda/pixi
-    put on ``PATH``).
-
-    Returns:
-        Paths of the sequencing-artifact and lambda phage FASTAs.
-
-    Raises:
-        FileNotFoundError: If ``bbduk.sh`` is not on ``PATH`` or the files are not in its resources folder.
-    """
-    bbduk = shutil.which("bbduk.sh")
-    if not bbduk:
-        raise FileNotFoundError("bbduk.sh not found on PATH; filter needs BBTools (bbmap) for its bundled artifact and lambda phage sequences")
-    resources = Path(bbduk).resolve().parent / "resources"
-    paths = [resources / name for name in BBTOOLS_SCREENS]
-    missing = [str(path) for path in paths if not path.is_file()]
-    if missing:
-        raise FileNotFoundError(f"BBTools screening sequence(s) not found: {', '.join(missing)}")
-    return [str(path) for path in paths]
-
-
 def _build_contamdb(workdir: str, screen_accessions: list[str] | None, screen_urls: list[str] | None, screen_local: list[str] | None) -> str:
     """Write ``<workdir>/contamdb.fa`` from every screening source, unless it is already current.
 
-    The sources are PhiX and UniVec (``AAFTF database``), the BBTools artifact and lambda FASTAs,
-    then the extra accessions (downloaded once into the database folder), URLs and local files.
+    The sources are the ``contamdb`` database's FASTA (``AAFTF database contamdb``), then the extra accessions (downloaded once into the database folder), URLs and local files.
     The list of sources, with their sizes and modification times, is kept next to the database in
     ``contamdb.fa.sources``; the database is rebuilt whenever that list changes.
 
@@ -156,7 +130,7 @@ def _build_contamdb(workdir: str, screen_accessions: list[str] | None, screen_ur
     Returns:
         Path of ``contamdb.fa``.
     """
-    sources = require_databases(["phix", "univec"]) + bbtools_screens()
+    sources = [require_contamdb() + ".fa"]
     sources += [download_file(SEQ_DBS["nucleotide"] % acc, db_file(acc + ".fna")) for acc in screen_accessions or []]
     sources += [download_file(url, str(Path(workdir, Path(url).name))) for url in screen_urls or []]
     sources += [str(Path(f).resolve()) for f in screen_local or []]
