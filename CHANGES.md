@@ -139,7 +139,8 @@ check the **Breaking changes** before updating scripts.
  - Every pipeline runs `depth` after `sort` (Illumina reads in `pipeline_short`/`pipeline_hybrid`,
    long reads in `pipeline_long`) to write `{base}.final.fasta` with mitochondrial contigs tagged,
    plus `{base}.coverage_stats.txt` and `{base}.coverage_stats.mito_candidates.tsv`; if `depth`
-   fails, a warning is logged and the sorted assembly is used untagged.
+   fails, a warning is logged and the sorted assembly is used untagged. `mosdepth` is therefore now one of the
+   tools the default pipelines need (`AAFTF dependency`, `environment.yml`, pixi `default`).
 
 ### Changed
 

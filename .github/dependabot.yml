@@ -1,0 +1,13 @@
+# Weekly version updates for the Python dependencies (pyproject.toml) and the GitHub Actions used by the
+# workflows. pixi.lock is regenerated on Dependabot's pull requests by workflows/dependabot-pixi-lock.yml.
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

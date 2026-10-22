@@ -1,0 +1,23 @@
+# Codecov settings (https://docs.codecov.com/docs/codecov-yaml). The CI uploads one report per unit-test
+# Python version (flag unit-py<version>) and one from the integration tests (flag integration); Codecov merges them.
+# wait for all 6 uploads (5 unit-test Pythons + integration) before reporting, so the status and PR
+# comment show the merged coverage rather than whichever upload arrived first
+codecov:
+  notify:
+    after_n_builds: 6
+comment:
+  after_n_builds: 6
+
+coverage:
+  status:
+    project:
+      default:
+        target: 85
+        threshold: 2
+        paths:
+          - "aaftf"
+    patch:
+      default:
+        target: 80
+        paths:
+          - "aaftf"
