@@ -1,3 +1,10 @@
+[![CI](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12_%7C_3.13_%7C_3.14-blue?logo=python)](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/stajichlab/AAFTF?label=license)](https://github.com/stajichlab/AAFTF/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/AAFTF?label=PyPI)](https://pypi.org/project/AAFTF/)
+[![Container](https://ghcr-badge.egpl.dev/stajichlab/aaftf/latest_tag?trim=major&label=Image)](https://github.com/stajichlab/AAFTF/pkgs/container/aaftf)
+[![Documentation Status](https://app.readthedocs.org/projects/aaftf/badge/?version=latest)](https://aaftf.readthedocs.io/en/latest/)
+
 # AAFTF - Automatic Assembly For The Fungi
 *Authors: Jason Stajich, Jon Palmer and Cheng-Hung Tsai*
 
@@ -7,6 +14,8 @@ AAFTF automates draft genome assembly from Illumina short reads (optionally with
 read trimming and contaminant filtering, assembly, vector and contaminant screening of contigs,
 duplicate removal, contig sorting and renaming, and summary statistics including telomere detection.
 Each step is a subcommand that can be run on its own, or all together with `AAFTF pipeline_short` (Illumina), `pipeline_long` (ONT/PacBio) or `pipeline_hybrid`.
+
+**Documentation:** <https://aaftf.readthedocs.io/en/latest/>
 
 # Requirements
 Python >=3.10 and the external tools below. Everything can be installed with conda (bioconda) or
