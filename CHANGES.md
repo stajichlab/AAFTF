@@ -44,10 +44,29 @@ check the **Breaking changes** before updating scripts.
    sourpurge → rmdup → sort → assess, and each step now uses its own command-line defaults
    (e.g. `assemble` with `--isolate`, `polish` default `polypolish`) unless a pipeline option overrides
    them. `pipeline -m/--memory` is now passed to every step that has `-m` (was 75% of RAM).
- - **Databases are downloaded only by `AAFTF database`**: `filter`, `vecscreen`, `sourpurge` and
-   `fcs_screen` read them from the database folder and stop with the `AAFTF database ...` command to
+ - **Databases are downloaded only by `AAFTF database`**: `filter`, `vecscreen`, `taxpurge` and
+   `fcs_screen` read them from the database folder (`filter` and `vecscreen` read `contamdb`, which
+   `AAFTF database contamdb` builds) and stop with the `AAFTF database ...` command to
    run when one is missing (`filter -a/-u` still download what they are given). `$AAFTF_DB` may list
    several folders separated by `:`, and defaults to `~/.cache/aaftf`.
+ - **`vecscreen` rewritten, following NCBI FCS-adaptor's rules**: one BLASTN search (NCBI's VecScreen
+   settings) against the new `contamdb` database. Terminal hits (within 50 bp of an end) with a score
+   >= 19, or >= 16 at the very end, are trimmed through to that end; internal hits are cut out only
+   when Strong (score >= 30), so weak and moderate matches no longer split chromosomes (long-read
+   contigs could be cut into hundreds of pieces); contigs more than 50% vector and pieces under
+   200 bp are dropped. The Euk/Prok contamination and mitochondrial screens are removed, so
+   `{prefix}.mitochondria.fasta` is no longer written, and so are `-pid/--percent_id` and
+   `-s/--stringency`.
+ - **`filter` and `vecscreen` share one contamination database, `contamdb`**: `contamdb.fa` (plus
+   its BLAST database) holds UniVec_Core without its fungal/yeast-derived entries (names containing
+   yeast, cerevisiae, pombe, pichia, kluyveromyces, aspergillus, neurospora, candida, 2-micron or
+   shuttle), the PhiX genome and BBTools' `lambda.fa.gz` and `adapters.fa`, with duplicate and
+   contained sequences removed. Build it with `AAFTF database contamdb` (part of `required`) before
+   running either step. The `euks`, `proks` and `mitodb` databases are gone, `univec` is now
+   UniVec_Core (was the full UniVec), and `filter` no longer screens BBTools'
+   `sequencing_artifacts.fa.gz`.
+ - **Pipeline output names**: `sort` now writes `{base}.sorted.fasta`; `{base}.final.fasta` is
+   written by `depth`, with likely mitochondrial contigs tagged (see Added).
  - **Exit codes**: errors now exit with 1, a missing input file, tool or database with 2, and Ctrl-C
    with 130 (the traceback is shown with `-v`).
  - **Changed defaults / behaviour**:
@@ -101,6 +120,27 @@ check the **Breaking changes** before updating scripts.
    the locked pixi environment, and a strict Sphinx docs build.
  - conda package recipe (`ci/recipe/recipe.yaml`, rattler-build) and a publishing workflow.
 
+ - **`AAFTF database contamdb`** builds the shared `filter`/`vecscreen` database (see Breaking
+   changes). An existing `contamdb.fa` is kept, so you can add your own sequences to it, and
+   `vecscreen` rebuilds its BLAST database whenever `contamdb.fa` is newer; `--force` rebuilds the
+   FASTA from its sources. Once built, the downloaded UniVec_Core and PhiX are deleted (only from
+   the folder AAFTF downloads into, never from another `$AAFTF_DB` folder) and listed as
+   "fulfilled by contamdb".
+ - Duplicate and contained sequences are removed with BBTools `dedupe.sh` (exact matches, both
+   orientations, seed `k=10`) from `contamdb.fa`, and from `filter`'s combined database when
+   `-a/-u/-s` add sequences; intermediate files are deleted.
+ - **`depth` tags likely mitochondrial contigs** (nothing is removed): a contig is flagged MITO when
+   its depth is >= `--mito_fold` (5) x the nuclear baseline (median depth of contigs >= N50), its GC
+   is >= `--mito_gc_drop` (10) percentage points below the assembly's, and it is >= `--mito_min_len`
+   (1,000) bp. The report gains a GC% column and a mitochondrial-candidates section,
+   `<report>.mito_candidates.tsv` lists the evidence for every contig, and `--tagged FASTA` writes
+   the assembly with `[location=mitochondrion]` (NCBI's source modifier) added to MITO contig
+   headers.
+ - Every pipeline runs `depth` after `sort` (Illumina reads in `pipeline_short`/`pipeline_hybrid`,
+   long reads in `pipeline_long`) to write `{base}.final.fasta` with mitochondrial contigs tagged,
+   plus `{base}.coverage_stats.txt` and `{base}.coverage_stats.mito_candidates.tsv`; if `depth`
+   fails, a warning is logged and the sorted assembly is used untagged.
+
 ### Changed
 
  - **`taxpurge` uses current sourmash databases and commands** instead of `sourmash lca
@@ -137,11 +177,10 @@ check the **Breaking changes** before updating scripts.
    other `-a/-u/-s`), and redoes the aligner index and alignment when they are older than it;
    before, an outdated database or BAM could be reused. The removed/kept read counts are now
    computed the same way for every aligner (from the filtered FASTQ).
- - `filter`: every `--aligner` now screens the same sequences. The Illumina sequencing-artifact and
-   lambda phage FASTAs bundled with BBTools are added to the combined contamination database, so
-   bowtie2, bwa and minimap2 now remove them too (before, only bbduk did, through its built-in
-   `artifacts`/`lambda` references); bbduk no longer also loads BBTools' own PhiX, which duplicated
-   the `phix` database.
+ - `filter`: every `--aligner` now screens the same sequences, the shared `contamdb` database (which
+   includes BBTools' lambda phage and adapter FASTAs), so bowtie2, bwa and minimap2 remove lambda
+   too (before, only bbduk did, through its built-in `lambda` reference); bbduk no longer also
+   loads BBTools' own PhiX or artifact references.
  - `polish` is optional and recommended only with long reads; `rmdup`'s next-command hint now suggests `sort`.
  - `fix_tbl` rewritten: features are clipped at trimmed contig ends and marked partial (`<`/`>`),
    features inside trimmed regions or on excluded contigs are dropped, minus-strand features and
@@ -163,6 +202,9 @@ check the **Breaking changes** before updating scripts.
 
 ### Fixed
 
+ - `AAFTF database` no longer downloads a file that is only needed to build a database already
+   built: PhiX/UniVec_Core once `contamdb` exists, and a sourmash sketch file once its index exists
+   (also with `--no-build`, which used to download it again); `--force` still downloads them.
  - `taxpurge --sourdb_type gtdb` / `gtdbrep` failed: they downloaded GTDB `.zip` collections,
    which `sourmash lca classify` cannot read. `taxpurge` now reads such collections directly.
  - `assemble --merged`: with paired reads SPAdes got the merged reads as a separate single-read
