@@ -22,12 +22,13 @@ jobs:
     steps:
       # hatch-vcs derives the version from the git tag, so the history and tags are required;
       # a shallow checkout would build the package as 0.0.0+unknown.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          filter: tree:0  # full history for the version, without old file contents
           fetch-tags: true
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -52,7 +53,7 @@ jobs:
           PY
 
       - name: Upload distributions
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-dists
           path: dist/
@@ -78,7 +79,7 @@ jobs:
 
     steps:
       - name: Retrieve release distributions
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-dists
           path: dist/

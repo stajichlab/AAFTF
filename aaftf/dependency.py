@@ -26,6 +26,7 @@ REQUIRED_TOOLS = {
     "polypolish": "polish (--method polypolish), pipeline_hybrid (paired reads)",
     "pypolca": "polish (--method pypolca), pipeline_hybrid (single-end reads)",
     "freebayes": "polish (--method pypolca / polca), pipeline_hybrid (single-end reads)",
+    "mosdepth": "depth, pipelines (tag mitochondrial contigs in the final assembly)",
 }
 
 # tools only needed by optional steps or non-default options
@@ -41,7 +42,6 @@ OPTIONAL_TOOLS = {
     "aaftf_polca.sh": "polish (--method polca; installed with AAFTF)",
     "nextPolish2": "polish (--method nextpolish2)",
     "yak": "polish (--method nextpolish2)",
-    "mosdepth": "depth",
     "NOVOPlasty.pl": "mito",
     "run_fcsadaptor.sh": "fcs_screen (or download it with: AAFTF database fcs_script)",
     "singularity": "fcs_screen (--container_engine singularity)",

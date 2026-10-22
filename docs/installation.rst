@@ -131,13 +131,65 @@ The database directory defaults to ``/opt/aaftf_db`` inside the container (overr
 hook ensure the pixi-managed tool PATH survives both interactive (``singularity exec``) and login
 shells (``bash -l``, as used by SLURM/Nextflow task scripts).
 
+External tools
+==============
+
+**Needed by the pipelines** (``pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid`` with their
+default settings):
+
+* `BBTools <https://bbmap.org/>`_ (``bbduk.sh``, ``dedupe.sh``, ``reformat.sh``; needs Java) -- read
+  trimming and filtering, building the ``contamdb`` database
+* `SPAdes <https://github.com/ablab/spades>`_ -- Illumina assembly
+* `NCBI BLAST+ <https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/>`_ -- adaptor/vector
+  screening (``vecscreen``)
+* `bwa <https://github.com/lh3/bwa>`_ and `samtools <https://github.com/samtools/samtools>`_ >= 1.13
+  -- read mapping for ``covpurge``
+* `minimap2 <https://github.com/lh3/minimap2>`_ -- duplicate contig detection (``rmdup``) and read
+  mapping for ``depth``
+* `mosdepth <https://github.com/brentp/mosdepth>`_ -- read depth for ``depth``, which the pipelines
+  run to tag mitochondrial contigs in ``{base}.final.fasta``
+* `Flye <https://github.com/mikolmogorov/Flye>`_ -- long-read assembly (``pipeline_long``,
+  ``pipeline_hybrid``)
+* `Racon <https://github.com/lbcb-sci/racon>`_, `Polypolish <https://github.com/rrwick/Polypolish>`_,
+  `pypolca <https://github.com/gbouras13/pypolca>`_ + freebayes -- polishing (``pipeline_long``,
+  ``pipeline_hybrid``)
+* Python packages: biopython, psutil (and matplotlib for ``depth`` plots)
+
+**Only needed for optional steps or non-default options:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - Tool
+     - Used by
+   * - `sourmash <https://sourmash.readthedocs.io/>`_ >= 4.8 + `branchwater plugin
+       <https://github.com/sourmash-bio/sourmash_plugin_branchwater>`_
+     - ``taxpurge`` (run by the pipelines only with ``-p/--phylum``)
+   * - `fastp <https://github.com/OpenGene/fastp>`_, `Trimmomatic <https://github.com/usadellab/Trimmomatic>`_
+     - ``trim --method fastp`` / ``trimmomatic``
+   * - `bowtie2 <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>`_
+     - ``filter --aligner bowtie2``
+   * - `MEGAHIT <https://github.com/voutcn/megahit>`_, `Unicycler <https://github.com/rrwick/Unicycler>`_
+     - ``assemble --method megahit`` / ``unicycler`` (also the pipelines' ``--method``)
+   * - `NOVOPlasty <https://github.com/ndierckx/NOVOPlasty>`_
+     - ``mito``
+   * - `NCBI FCS-adaptor <https://github.com/ncbi/fcs>`_ (with singularity/apptainer or docker)
+     - ``fcs_screen``
+   * - `NCBI FCS-GX <https://github.com/ncbi/fcs-gx>`_
+     - ``fcs_gx_purge`` (needs RAM for the whole ~470 GB database)
+   * - `NextPolish2 <https://github.com/Nextomics/NextPolish2>`_ + yak
+     - ``polish --method nextpolish2``
+   * - pigz
+     - faster read counting (falls back to gzip)
+
 Checking the installation
 =========================
 
 ``AAFTF dependency`` lists every external tool and Python package AAFTF uses, in two groups: those
 the ``pipeline_*`` subcommands need with their default settings (BBTools and Java, SPAdes, BLAST+,
-bwa, samtools, minimap2, Flye, Racon, Polypolish, pypolca, freebayes; biopython, psutil), and those only needed by optional steps
-(``taxpurge``, ``polish``, ``depth``, ``mito``, ``fcs_screen``, ``fcs_gx_purge``) or non-default options
+bwa, samtools, minimap2, Flye, Racon, Polypolish, pypolca, freebayes, mosdepth; biopython, psutil), and those only needed by optional steps
+(``taxpurge``, ``polish``, ``mito``, ``fcs_screen``, ``fcs_gx_purge``) or non-default options
 (e.g. ``filter --aligner bowtie2``, ``assemble --method megahit``). It exits with an error only
 when something from the first group is missing; ``-q`` prints just the OK/MISSING status.
 

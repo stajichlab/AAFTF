@@ -19,6 +19,7 @@ dependencies:
   - polypolish>=0.7.1,<0.8
   - pypolca>=0.5.0,<0.6
   - freebayes
+  - mosdepth>=0.3.10        # depth: the pipelines tag mitochondrial contigs in the final assembly
   - biopython>=1.88
   - psutil>=5
   - matplotlib-base>=3

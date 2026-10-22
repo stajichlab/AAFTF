@@ -73,6 +73,9 @@ packages = ["aaftf"]
 [tool.hatch.build.targets.sdist]
 include = ["/aaftf", "/tests", "/CHANGES.md", "/patches/polca/aaftf_polca.sh", "/patches/polca/fix_consensus_from_vcf.pl", "/patches/polca/polca.patch"]
 
+[tool.coverage.run]
+source = ["aaftf"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
@@ -105,6 +108,7 @@ racon = "*"
 polypolish = ">=0.7.1,<0.8"
 pypolca = ">=0.5.0,<0.6"
 freebayes = "*"
+mosdepth = ">=0.3.10"     # depth: the pipelines tag mitochondrial contigs in the final assembly
 biopython = ">=1.88"
 psutil = ">=5"
 matplotlib-base = ">=3"
@@ -115,7 +119,7 @@ bowtie2 = ">=2.5.5,<3"
 aaftf = { path = ".", editable = true }
 
 # ---------------------------------------------------------------------------
-# "optional" feature: tools only used by optional steps (polish, depth, mito,
+# "optional" feature: tools only used by optional steps (polish, mito,
 # fcs_screen, fcs_gx_purge) or non-default options (trim --method fastp /
 # trimmomatic, assemble --method megahit / unicycler, pipeline_short --method megahit /
 # unicycler, pipeline_hybrid --method unicycler, filter --aligner bowtie2)
@@ -133,7 +137,6 @@ megahit = "*"
 unicycler = "*"
 nextpolish2 = ">=0.2.2,<0.3"
 yak = "*"
-mosdepth = ">=0.3.10"
 novoplasty = "*"
 ncbi-fcs-gx = "*"
 

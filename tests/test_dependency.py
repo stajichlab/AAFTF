@@ -58,16 +58,16 @@ class TestRun:
         import logging
 
         with caplog.at_level(logging.INFO, logger="aaftf.dependency"):
-            self._run(missing_tools={"bowtie2", "megahit", "mosdepth"}, missing_imports={"matplotlib"})
+            self._run(missing_tools={"bowtie2", "megahit", "yak"}, missing_imports={"matplotlib"})
         assert "Everything the default pipeline needs is installed" in caplog.text
         (note,) = (r.getMessage() for r in caplog.records if "optional tool(s)/package(s) missing" in r.getMessage())
         assert note.startswith("NOTE: 4 ")
-        for name in ("bowtie2", "megahit", "mosdepth", "matplotlib"):
+        for name in ("bowtie2", "megahit", "yak", "matplotlib"):
             assert name in note
         out = capsys.readouterr().out
         assert "[MISSING] bowtie2" in out and "[MISSING] matplotlib" in out
 
-    @pytest.mark.parametrize("tool", ["spades.py", "bbduk.sh", "bwa"])
+    @pytest.mark.parametrize("tool", ["spades.py", "bbduk.sh", "bwa", "mosdepth"])
     def test_missing_pipeline_tool_is_an_error(self, tool):
         with pytest.raises(FileNotFoundError, match=tool):
             self._run(missing_tools={tool})
