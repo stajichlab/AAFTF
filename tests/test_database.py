@@ -355,6 +355,12 @@ class TestInstallIndex:
         dl.assert_not_called()
 
 
+def _copy_dedupe(src, dest, debug=False):
+    """Stand-in for dedupe_fasta (dedupe.sh is not run in unit tests)."""
+    Path(dest).write_text(Path(src).read_text())
+    return Path(dest).read_text().count(">")
+
+
 class TestContamdb:
     """`AAFTF database contamdb` builds contamdb.fa and its BLAST database, shared by filter and vecscreen."""
 
@@ -393,6 +399,7 @@ class TestContamdb:
             patch("aaftf.database.bbtools_resources", return_value=[str(lam), str(adapters)]),
             patch("aaftf.database.require_tools"),
             patch("aaftf.database.run_cmd", side_effect=self._fake_makeblastdb(cmds, fail)),
+            patch("aaftf.database.dedupe_fasta", side_effect=_copy_dedupe),
         ):
             if fail:
                 with pytest.raises(RuntimeError):
@@ -406,6 +413,7 @@ class TestContamdb:
         names = [line[1:] for line in (db / "contamdb.fa").read_text().splitlines() if line.startswith(">")]
         assert names == ["gnl|uv|A1 pUC19 cloning vector", "gnl|uv|D4 Illumina PCR primer", "NC_001422.1 phiX174", "lambda", "TruSeq_Adapter"]
         assert cmds == [["makeblastdb", "-dbtype", "nucl", "-in", str(db / "contamdb.fa"), "-out", str(db / "contamdb"), "-title", "contamdb"]]
+        assert sorted(p.name for p in db.iterdir() if "tmp" in p.name) == []  # no intermediates left
         # the sources AAFTF downloaded are removed once contamdb is built
         assert not (db / "UniVec_Core").exists() and not (db / DATABASES["phix"]["filename"]).exists()
 
@@ -424,6 +432,7 @@ class TestContamdb:
             patch("aaftf.database.bbtools_resources", return_value=[str(adapters)]),
             patch("aaftf.database.require_tools"),
             patch("aaftf.database.run_cmd", side_effect=self._fake_makeblastdb([])),
+            patch("aaftf.database.dedupe_fasta", side_effect=_copy_dedupe),
         ):
             run(databases=["contamdb"])
         assert (mine / "contamdb.fa").is_file()

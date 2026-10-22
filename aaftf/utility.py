@@ -28,7 +28,9 @@ __all__ = [
     "CustomHelpFormatter",
     "PafHit",
     "SubcommandGroup",
+    "bbtools_resources",
     "concat_files",
+    "dedupe_fasta",
     "open_maybe_gz",
     "estimate_read_length",
     "check_file",
@@ -733,6 +735,39 @@ def bbtools_resources(names: Iterable[str]) -> list[str]:
     if missing:
         raise FileNotFoundError(f"BBTools resource file(s) not found: {', '.join(missing)}")
     return [str(path) for path in paths]
+
+
+# dedupe.sh seed length: the shortest contamdb sequences (adaptors/primers) are 10 bp
+DEDUPE_K = 10
+
+
+def dedupe_fasta(src: str | Path, dest: str | Path, debug: bool = False) -> int:
+    """Write ``src`` to ``dest`` without duplicate or contained sequences, with BBTools ``dedupe.sh``.
+
+    Exact duplicates and sequences fully contained in another, in either orientation, are removed
+    at 100% identity (an ``N`` matches only ``N``); partial overlaps are not merged. The seed
+    length is ``DEDUPE_K`` rather than dedupe.sh's default 31, since sequences shorter than it are
+    never found contained and adaptor/primer entries can be as short as 10 bp.
+
+    Args:
+        src: Input FASTA.
+        dest: Output FASTA (overwritten); its name must end in a FASTA extension (e.g. ``.fa``).
+        debug: Show ``dedupe.sh``'s log.
+
+    Returns:
+        Number of sequences written.
+
+    Raises:
+        FileNotFoundError: If ``dedupe.sh`` is not on PATH.
+        RuntimeError: If ``dedupe.sh`` fails or writes no output.
+    """
+    require_tools(["dedupe.sh"], hint="BBTools (bbmap) provides dedupe.sh")
+    cmd = ["dedupe.sh", f"in={src}", f"out={dest}", f"k={DEDUPE_K}", "absorbmatch=t", "absorbcontainment=t", "absorbrc=t", "exact=t", "findoverlap=f", "ow=t"]
+    result = run_cmd(cmd, debug)
+    if result.returncode != 0 or not Path(dest).is_file():
+        raise RuntimeError(f"dedupe.sh failed (exit status {result.returncode}) on {src}")
+    with open(dest) as fh:
+        return sum(line.startswith(">") for line in fh)
 
 
 def require_tools(tools: Iterable[str], hint: str | None = None) -> None:

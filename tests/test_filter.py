@@ -103,6 +103,17 @@ def _stub_databases():
     Path(db_write_dir(), "contamdb.fa").write_text(">univec_core\nACGT\n>phix\nGGCC\n>lambda\nTTGG\n")
 
 
+@pytest.fixture(autouse=True)
+def _stub_dedupe(monkeypatch):
+    """dedupe.sh is not run in unit tests: the combined FASTA is copied through unchanged."""
+
+    def _copy(src, dest, debug=False):
+        Path(dest).write_text(Path(src).read_text())
+        return Path(dest).read_text().count(">")
+
+    monkeypatch.setattr("aaftf.filter.dedupe_fasta", _copy)
+
+
 def _fake_bbtools(root: Path) -> Path:
     """Lay out a BBTools install (bin/bbduk.sh -> opt/bbmap/bbduk.sh, opt/bbmap/resources); return bin/."""
     opt = root / "opt" / "bbmap"
@@ -254,6 +265,7 @@ class TestFilterContamdbCreation:
         contamdb = Path(args.workdir) / "contamdb.fa"
         content = contamdb.read_text()
         assert ">extra" in content
+        assert not (Path(args.workdir) / "contamdb.raw.fa").exists()  # the combined intermediate is removed
 
     def test_contamdb_contains_downloaded_stubs(self, tmp_path):
         read1 = str(tmp_path / "sample_R1.fastq.gz")
