@@ -10,12 +10,11 @@ Algorithm
 
 1. Builds (or reuses a cached) combined contamination FASTA (``contamdb.fa``) from:
 
-   * the PhiX genome and UniVec (always included; they are never downloaded by ``filter`` -- install
-     them first with ``AAFTF database phix univec``, see :doc:`database`; a missing database
-     raises an error, exit code 2);
-   * the Illumina sequencing-artifact and lambda phage (a common spike-in) FASTAs bundled with
-     BBTools (``sequencing_artifacts.fa.gz`` and ``lambda.fa.gz`` in the ``resources/`` folder
-     next to ``bbduk.sh``; always included, error if BBTools is not found);
+   * ``contamdb.fa``, the contamination database shared with :doc:`vecscreen`: UniVec_Core (without
+     its fungal/yeast-derived entries), PhiX, and the BBTools lambda phage and adapter sequences,
+     plus anything you added to it (always included; never built by ``filter`` -- build it first
+     with ``AAFTF database contamdb``, see :doc:`database`; a missing database raises an error,
+     exit code 2);
    * any ``-a/--screen_accessions`` GenBank accessions (downloaded via NCBI eutils);
    * any ``-u/--screen_urls`` remote FASTA URLs (downloaded);
    * any ``-s/--screen_local`` local FASTA files (e.g. a ``mito.fasta`` from :doc:`mito`, so

@@ -90,8 +90,6 @@ class TestDefaults:
             ("assemble", "isolate"),
             ("assemble", "careful"),
             ("assemble", "merged"),
-            ("vecscreen", "percent_id"),
-            ("vecscreen", "stringency"),
             ("taxpurge", "kmer"),
             ("taxpurge", "sourdb"),
             ("taxpurge", "min_hashes"),

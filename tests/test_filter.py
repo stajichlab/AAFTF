@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from aaftf.main import main
-from aaftf.resources import DATABASES, SEQ_DBS
+from aaftf.resources import SEQ_DBS
 from aaftf.utility import db_write_dir
 
 pytestmark = pytest.mark.unit
@@ -99,10 +99,8 @@ def _mock_download(url, dest, force=False):
 
 @pytest.fixture(autouse=True)
 def _stub_databases():
-    """Put stub PhiX/UniVec in the (test-isolated) database folder, as `AAFTF database` would."""
-    for name in ("phix", "univec"):
-        path = Path(db_write_dir(), DATABASES[name]["filename"])
-        _write_stub_gz(path) if path.name.endswith(".gz") else _write_stub_plain(path)
+    """Put a stub contamdb.fa in the (test-isolated) database folder, as `AAFTF database contamdb` would."""
+    Path(db_write_dir(), "contamdb.fa").write_text(">univec_core\nACGT\n>phix\nGGCC\n>lambda\nTTGG\n")
 
 
 def _fake_bbtools(root: Path) -> Path:
@@ -272,8 +270,8 @@ class TestFilterContamdbCreation:
         contamdb = Path(args.workdir) / "contamdb.fa"
         assert contamdb.stat().st_size > 0
 
-    def test_contamdb_includes_bbtools_artifacts_and_lambda(self, tmp_path):
-        """Every --aligner screens the BBTools artifact and lambda sequences, via contamdb."""
+    def test_contamdb_starts_from_the_database_fasta(self, tmp_path):
+        """Every --aligner screens the shared contamdb database (UniVec_Core, PhiX, lambda, adapters)."""
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         args = _make_filter_args(tmp_path, read1=read1, aligner="bwa")
         Path(args.workdir).mkdir(parents=True, exist_ok=True)
@@ -285,31 +283,31 @@ class TestFilterContamdbCreation:
                 run(**vars(args))
 
         content = (Path(args.workdir) / "contamdb.fa").read_text()
-        assert ">contam_0" in content and ">lambda" in content
+        assert content.startswith(">univec_core\nACGT\n>phix\nGGCC\n>lambda\n")
 
 
-class TestBbtoolsScreens:
+class TestBbtoolsResources:
     def test_found_next_to_resolved_bbduk(self):
-        from aaftf.filter import bbtools_screens
+        from aaftf.utility import bbtools_resources
 
-        assert [Path(p).name for p in bbtools_screens()] == ["sequencing_artifacts.fa.gz", "lambda.fa.gz"]
-        assert all(Path(p).parent.name == "resources" for p in bbtools_screens())
+        assert [Path(p).name for p in bbtools_resources(["sequencing_artifacts.fa.gz", "lambda.fa.gz"])] == ["sequencing_artifacts.fa.gz", "lambda.fa.gz"]
+        assert all(Path(p).parent.name == "resources" for p in bbtools_resources(["lambda.fa.gz"]))
 
     def test_missing_bbduk_raises(self, monkeypatch):
-        from aaftf.filter import bbtools_screens
+        from aaftf.utility import bbtools_resources
 
-        monkeypatch.setattr("aaftf.filter.shutil.which", lambda name: None)
+        monkeypatch.setattr("aaftf.utility.shutil.which", lambda name: None)
         with pytest.raises(FileNotFoundError, match="bbduk.sh not found"):
-            bbtools_screens()
+            bbtools_resources(["lambda.fa.gz"])
 
     def test_missing_resource_raises(self, tmp_path, monkeypatch):
-        from aaftf.filter import bbtools_screens
+        from aaftf.utility import bbtools_resources
 
         bindir = _fake_bbtools(tmp_path)
         (tmp_path / "opt" / "bbmap" / "resources" / "lambda.fa.gz").unlink()
-        monkeypatch.setattr("aaftf.filter.shutil.which", lambda name: str(bindir / name))
+        monkeypatch.setattr("aaftf.utility.shutil.which", lambda name: str(bindir / name))
         with pytest.raises(FileNotFoundError, match="lambda.fa.gz"):
-            bbtools_screens()
+            bbtools_resources(["lambda.fa.gz"])
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +378,7 @@ class TestFilterRunBbduk:
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         read2 = str(tmp_path / "sample_R2.fastq.gz")
         cmds, args = _run_filter_bbduk(tmp_path, read1, read2)
-        # contamdb.fa (which already holds PhiX, artifacts and lambda) is the only ref= of bbduk.sh
+        # contamdb.fa (which already holds UniVec_Core, PhiX, lambda and adapters) is the only ref= of bbduk.sh
         refs = [arg for c in cmds if c[0] == "bbduk.sh" for arg in c if arg.startswith("ref=")]
         assert refs == [f"ref={Path(args.workdir, 'contamdb.fa')}"]
 
@@ -537,11 +535,11 @@ class TestFilterDatabases:
                     run(**vars(args))
         return calls
 
-    def test_missing_phix_raises_with_download_command(self, tmp_path):
-        Path(db_write_dir(), DATABASES["phix"]["filename"]).unlink()
+    def test_missing_contamdb_raises_with_build_command(self, tmp_path):
+        Path(db_write_dir(), "contamdb.fa").unlink()
         with pytest.raises(FileNotFoundError) as exc:
             self._run(tmp_path)
-        assert "AAFTF database phix" in str(exc.value)
+        assert "AAFTF database contamdb" in str(exc.value)
 
     def test_databases_are_not_downloaded_by_filter(self, tmp_path):
         assert self._run(tmp_path) == []

@@ -435,8 +435,8 @@ def vecscreen_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_vecscreen = subparsers.add_parser(
         "vecscreen",
-        description="Screen contigs for vector and common contaminantion",
-        help="BLASTN Vector and Contaminant Screening of contigs",
+        description="Trim/split adaptor and vector sequence out of contigs (BLASTN with NCBI's VecScreen settings against UniVec_Core without fungal-derived entries + adapters + PhiX, acted on with NCBI FCS-adaptor's rules)",
+        help="BLASTN adaptor/vector screening of contigs",
         formatter_class=CustomHelpFormatter,
     )
 
@@ -448,10 +448,6 @@ def vecscreen_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     required.add_argument("-o", "--outfile", type=str, required=True, help="Output vector-screened assembly FASTA", metavar="FASTA")
 
     optional.add_argument("-w", "--workdir", "--tmpdir", type=str, dest="workdir", help="Working directory for intermediate files; a temporary one is created and removed afterwards (kept with -v) when not given", metavar="DIR")
-
-    optional.add_argument("-pid", "--percent_id", type=int, help="Minimum percent identity for vector/contaminant BLAST hits", metavar="PCT")
-
-    optional.add_argument("-s", "--stringency", default="high", choices=["high", "low"], help="Stringency to filter VecScreen hits")
 
     optional.add_argument("-c", "--cpus", type=int, metavar="INT", default=1, help="Number of CPUs/threads to use")
 

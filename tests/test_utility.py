@@ -768,16 +768,16 @@ def test_make_workdir_without_setup_logging_writes_no_log(tmp_path):
 class TestRequireDatabases:
     def test_returns_paths_of_stored_databases(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
-        (tmp_path / "UniVec").write_text(">v\nACGT\n")
-        assert require_databases(["univec"]) == [str(tmp_path.resolve() / "UniVec")]
+        (tmp_path / "UniVec_Core").write_text(">v\nACGT\n")
+        assert require_databases(["univec"]) == [str(tmp_path.resolve() / "UniVec_Core")]
 
     def test_missing_raises_with_download_command(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
-        (tmp_path / "UniVec").write_text(">v\nACGT\n")
+        (tmp_path / "UniVec_Core").write_text(">v\nACGT\n")
         with pytest.raises(FileNotFoundError) as exc:
-            require_databases(["univec", "euks", "proks"], hint="or pass --x")
-        assert "missing database(s): euks, proks" in str(exc.value)
-        assert "AAFTF database euks proks (or pass --x)" in str(exc.value)
+            require_databases(["univec", "phix", "fcs_script"], hint="or pass --x")
+        assert "missing database(s): phix, fcs_script" in str(exc.value)
+        assert "AAFTF database phix fcs_script (or pass --x)" in str(exc.value)
 
     def test_never_downloads(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))

@@ -71,7 +71,7 @@ writable one. The steps only read databases; download them once with `AAFTF data
 ```
 $ export AAFTF_DB=/path/with/space/aaftf_db   # or a shared, system-wide location
 $ AAFTF database                                        # list databases and where they are stored
-$ AAFTF database required     # what the default pipeline needs: phix univec euks proks mitodb
+$ AAFTF database required     # what the default pipeline needs: phix univec contamdb
 $ AAFTF database taxpurge     # sourmash databases for taxpurge (pipelines with -p), ~0.7 GB
 ```
 
@@ -96,7 +96,7 @@ in place; otherwise it is copied to a per-job folder in `$TMPDIR` (`--copy_to`) 
 | - | `mito` | (Optional) Assemble the mitochondrial genome with NOVOPlasty, to screen its reads out in `filter` | mitochondrial FASTA |
 | 2 | `filter` | Remove PhiX, vector and other contaminant reads - BBDuk (default), bowtie2, bwa or minimap2 | `<prefix>_filtered_1.fastq.gz`, `<prefix>_filtered_2.fastq.gz` |
 | 3 | `assemble` | Assemble - SPAdes, MEGAHIT, Unicycler or Flye (long reads); `--method` is required | assembly FASTA |
-| 4 | `vecscreen` | BLAST-based vector/contaminant screen of contigs, following NCBI VecScreen | cleaned FASTA (and `.mitochondria.fasta`) |
+| 4 | `vecscreen` | BLAST-based vector/contaminant screen of contigs, following NCBI VecScreen | cleaned FASTA |
 | 5 | `taxpurge` | Drop contigs sourmash classifies outside your phyla (`-p`); the pipelines run it only when given `-p` | purged FASTA |
 | - | `fcs_screen` | (Optional; pipelines: `--fcs_screen`) NCBI FCS-adaptor vector screen | cleaned FASTA |
 | 6 | `covpurge` | Drop contigs with low Illumina read coverage (bwa) | purged FASTA |
@@ -334,7 +334,7 @@ AAFTF assemble --method spades -c $CPU --memory $MEM --read1 $READ1 --read2 $REA
 ### Screening, cleanup and assessment
 
 ```
-# vector/contaminant screen (also writes $OUTDIR/${BASE}.vecscreen.mitochondria.fasta)
+# adaptor/vector screen
 AAFTF vecscreen -c $CPU -i $OUTDIR/${BASE}.spades.fasta -o $OUTDIR/${BASE}.vecscreen.fasta
 
 # keep contigs classified to your phylum (skip if the taxonomy is unknown)

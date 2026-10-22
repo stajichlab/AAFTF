@@ -16,10 +16,15 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from aaftf.resources import DATABASES, TAXPURGE_DEFAULT_DATABASES
-from aaftf.utility import db_dirs, db_file, db_write_dir, download_file, find_db_file, find_db_index, open_url, require_tools, run_cmd, safe_remove, warn_if_home_cache
+from Bio import SeqIO
 
-__all__ = ["run"]
+from aaftf.resources import CONTAMDB, CONTAMDB_BBTOOLS, DATABASES, TAXPURGE_DEFAULT_DATABASES, VECSCREEN_EXCLUDE_TERMS
+from aaftf.utility import bbtools_resources, db_dirs, db_file, db_write_dir, download_file, find_db_file, find_db_index, open_maybe_gz, open_url, require_tools, run_cmd, safe_remove, warn_if_home_cache, write_fasta
+
+__all__ = ["build_contamdb", "find_contamdb", "require_contamdb", "run"]
+
+# files makeblastdb writes for a (single-volume) nucleotide database
+_BLASTDB_SUFFIXES = (".nhr", ".nin", ".nsq")
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +44,10 @@ def run(databases: list[str] | None = None, force: bool = False, no_build: bool 
             writable database folder).
         no_build: For a sourmash database without a published index, download its sketch file
             only, without building (and replacing it with) the RocksDB index.
+
+    A file that was only needed to build a database that is already built (a sourmash sketch
+    file once its index exists, or PhiX/UniVec_Core once ``contamdb.fa`` exists) is skipped
+    unless ``force`` is given.
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ``debug``, ...); ignored.
 
     Raises:
@@ -58,7 +67,12 @@ def run(databases: list[str] | None = None, force: bool = False, no_build: bool 
     for abbr in selected:
         entry = DATABASES[abbr]
         try:
-            if entry.get("index"):
+            fulfilled = None if force else _fulfilled_by(abbr)
+            if fulfilled:
+                logger.info(f"{abbr}: fulfilled by {fulfilled}, skipped (--force downloads it)")
+            elif entry.get("built_from"):
+                build_contamdb(force)
+            elif entry.get("index"):
                 _install_index_archive(entry, force)
             elif entry.get("build_index") and not no_build:
                 _build_index(entry, force)
@@ -75,6 +89,126 @@ def run(databases: list[str] | None = None, force: bool = False, no_build: bool 
         hint = "Re-run the same command later; files already downloaded are skipped unless you pass --force."
         raise RuntimeError("Some downloads failed:\n" + "\n".join(errors) + f"\n{hint}")
     logger.info("Download complete. Run 'AAFTF database' to see where each database is stored.")
+
+
+def build_contamdb(force: bool = False) -> str:
+    """Build ``contamdb.fa`` and its BLAST database, the contamination database of ``filter`` and ``vecscreen``.
+
+    The FASTA is UniVec_Core without the entries whose names contain any of
+    ``VECSCREEN_EXCLUDE_TERMS`` (fungal genomic sequence that would match, and split, real fungal
+    contigs), followed by the PhiX genome and the BBTools ``lambda.fa.gz`` and ``adapters.fa``.
+    UniVec_Core and PhiX are downloaded first if needed. The FASTA is written to a temporary file
+    and renamed when complete, then indexed by ``require_contamdb(blast=True)``. An existing
+    ``contamdb.fa`` (which users may have added their own sequences to) is kept; only its BLAST
+    database is brought up to date. Once the database is built, UniVec_Core and PhiX are deleted,
+    but only from the folder AAFTF downloads into (a copy in another ``$AAFTF_DB`` folder may be
+    shared).
+
+    Args:
+        force: Rebuild the FASTA (and re-download UniVec_Core and PhiX) even if it is present.
+
+    Returns:
+        Path prefix of the database (``<prefix>.fa`` is the FASTA; ``blastn -db <prefix>``).
+
+    Raises:
+        FileNotFoundError: If ``makeblastdb``, ``bbduk.sh`` or a BBTools resource file is missing.
+        RuntimeError: If ``makeblastdb`` fails or does not produce a complete database.
+    """
+    existing = find_contamdb()
+    if existing and not force:
+        logger.info(f"Already present: {existing}.fa")
+        return require_contamdb(blast=True)
+    univec, phix = (download_file(DATABASES[abbr]["url"], db_file(DATABASES[abbr]["filename"], force=force), force=force) for abbr in DATABASES["contamdb"]["built_from"])
+    bbtools = bbtools_resources(CONTAMDB_BBTOOLS)
+
+    fasta = db_write_dir() / CONTAMDB["fasta"]
+    tmp = fasta.with_name(fasta.name + ".tmp")
+    kept = dropped = 0
+    with open(tmp, "w") as out:
+        with open_maybe_gz(univec) as fh:
+            for record in SeqIO.parse(fh, "fasta"):
+                if any(term in record.description.lower() for term in VECSCREEN_EXCLUDE_TERMS):
+                    dropped += 1
+                    continue
+                write_fasta(out, record.description, str(record.seq))
+                kept += 1
+        for source in (phix, *bbtools):
+            with open_maybe_gz(source) as fh:
+                for record in SeqIO.parse(fh, "fasta"):
+                    write_fasta(out, record.description, str(record.seq))
+    tmp.replace(fasta)
+    logger.info(f"Kept {kept:,} UniVec_Core sequences ({dropped:,} fungal/yeast-derived left out), added PhiX, {', '.join(CONTAMDB_BBTOOLS)}: {fasta}")
+    prefix = require_contamdb(blast=True)
+    for source in (univec, phix):
+        if Path(source).parent == db_write_dir():
+            safe_remove(source)
+            logger.info(f"Removed {source}; {CONTAMDB['fasta']} replaces it")
+    return prefix
+
+
+def find_contamdb() -> str | None:
+    """Return the path prefix of the first ``contamdb.fa`` in ``db_dirs()`` (without ``.fa``), or None."""
+    for folder in db_dirs():
+        if (folder / CONTAMDB["fasta"]).is_file():
+            return str(folder / CONTAMDB["blastdb"])
+    return None
+
+
+def require_contamdb(blast: bool = False) -> str:
+    """Return the path prefix of the contamination database, raising if ``contamdb.fa`` is missing.
+
+    Only ``contamdb.fa`` is required, so users can add their own sequences to it. With ``blast``,
+    its BLAST database (``.nhr``, ``.nin``, ``.nsq`` next to it) is also checked, and rebuilt with
+    ``makeblastdb`` when a file is missing, empty or older than ``contamdb.fa``.
+
+    Args:
+        blast: Also make sure the BLAST database is complete and current.
+
+    Returns:
+        The path prefix: ``<prefix>.fa`` is the FASTA, and ``blastn -db <prefix>`` the BLAST database.
+
+    Raises:
+        FileNotFoundError: If no ``contamdb.fa`` is in any ``db_dirs()`` folder, or ``makeblastdb`` is missing.
+        RuntimeError: If ``makeblastdb`` fails or does not produce a complete database.
+    """
+    prefix = find_contamdb()
+    if prefix is None:
+        searched = ", ".join(str(folder) for folder in db_dirs())
+        raise FileNotFoundError(f"missing database: contamdb ({CONTAMDB['fasta']}; searched {searched})\nBuild it first: AAFTF database contamdb")
+    if blast and not _blastdb_current(prefix):
+        require_tools(["makeblastdb"], hint="NCBI BLAST+ builds the contamdb BLAST database")
+        result = run_cmd(["makeblastdb", "-dbtype", "nucl", "-in", prefix + ".fa", "-out", prefix, "-title", CONTAMDB["blastdb"]])
+        if result.returncode != 0 or not _blastdb_current(prefix):
+            raise RuntimeError(f"makeblastdb failed (exit status {result.returncode}) building the BLAST database {prefix}")
+    return prefix
+
+
+def _blastdb_current(prefix: str) -> bool:
+    """Return True if every BLAST database file of ``prefix`` is present, non-empty and not older than ``<prefix>.fa``."""
+    fasta_mtime = Path(prefix + ".fa").stat().st_mtime
+    files = [Path(prefix + suffix) for suffix in _BLASTDB_SUFFIXES]
+    return all(f.is_file() and f.stat().st_size > 0 and f.stat().st_mtime >= fasta_mtime for f in files)
+
+
+def _fulfilled_by(abbr: str) -> str | None:
+    """Return what makes database ``abbr``'s own file unnecessary, or None.
+
+    That is ``"rocksdb"`` for a sourmash sketch file whose RocksDB index is built, or the name of
+    a locally built database (e.g. ``"contamdb"``) that lists ``abbr`` in ``built_from`` and is
+    built. A file still present in a database folder is not reported, since it is in use.
+
+    Args:
+        abbr: Key of ``DATABASES``.
+
+    Returns:
+        ``"rocksdb"``, the building database's abbreviation, or None.
+    """
+    entry = DATABASES[abbr]
+    if entry.get("index") or find_db_file(entry["filename"]):
+        return None
+    if entry.get("build_index") and find_db_index(entry["build_index"]):
+        return "rocksdb"
+    return next((name for name, other in DATABASES.items() if abbr in other.get("built_from", []) and find_db_file(other["filename"])), None)
 
 
 def _install_index_archive(entry: dict[str, Any], force: bool) -> None:
@@ -213,9 +347,11 @@ def _list_db() -> None:
                 size = _folder_size(local_path) if entry.get("index") else Path(local_path).stat().st_size
                 downloaded_total += size
                 size_label, location = _human_size(size), str(Path(local_path).parent)
-            elif index:  # the sketch file was replaced by its index (next row); its download size, not counted
+            elif entry.get("built_from"):  # built locally by AAFTF database, nothing to download
+                size_label, location = "-", "not built"
+            elif fulfilled := _fulfilled_by(abbr):  # only needed to build an index/database that is built; its download size, not counted
                 size = _remote_size(entry["url"])
-                size_label, location = ("unknown" if size is None else _human_size(size)), "fulfilled by rocksdb"
+                size_label, location = ("unknown" if size is None else _human_size(size)), f"fulfilled by {fulfilled}"
             else:
                 size = _remote_size(entry["url"])
                 if size is None:
@@ -239,7 +375,7 @@ def _list_db() -> None:
     for folder in folders:
         if not folder.is_dir():
             continue
-        for f in sorted(f for f in folder.iterdir() if f.name not in known_files):
+        for f in sorted(f for f in folder.iterdir() if f.name not in known_files and not f.name.startswith(CONTAMDB["blastdb"] + ".n")):
             if f.is_dir():
                 rows.append(("-", f"{f.name}/", "-", "-", f"{folder} (other folder)"))
             elif f.is_file():

@@ -148,8 +148,8 @@ when something from the first group is missing; ``-q`` prints just the OK/MISSIN
 Setting up the reference database (``AAFTF_DB``)
 =====================================================
 
-Several subcommands (``filter``, ``vecscreen``, ``taxpurge``, ``fcs_screen``) need UniVec, PhiX,
-eukaryotic/prokaryotic/mitochondrial contamination screens, sourmash taxonomy databases, and/or
+Several subcommands (``filter``, ``vecscreen``, ``taxpurge``, ``fcs_screen``) need UniVec_Core, PhiX,
+the ``contamdb`` contamination database built from them, sourmash taxonomy databases, and/or
 the NCBI FCS-adaptor resources. Download them once with ``AAFTF database``; those subcommands then
 read them from the database folder (and tell you what to download if something is missing). Without
 ``$AAFTF_DB`` this is ``~/.cache/aaftf``; because some databases are several GB, it is best to
@@ -160,7 +160,7 @@ by ``:``, like ``$PATH``):
 
     export AAFTF_DB=/path/with/space/aaftf_db
     AAFTF database                                        # list databases
-    AAFTF database required   # what the default pipeline needs (phix univec euks proks mitodb)
+    AAFTF database required   # what the default pipeline needs (phix univec contamdb)
 
 See :doc:`commands/database` for the list of databases and which subcommands use each (the
 sourmash indices are large, so fetch only the one you need).

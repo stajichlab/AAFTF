@@ -709,6 +709,32 @@ def run_cmd(cmd: Sequence[str], debug: bool = False, cwd: str | Path | None = No
     return subprocess.run(cmd, cwd=cwd, stdout=stdout, stderr=None if debug else subprocess.DEVNULL, env=env)
 
 
+def bbtools_resources(names: Iterable[str]) -> list[str]:
+    """Return the paths of files ``names`` in the BBTools ``resources/`` folder.
+
+    The folder sits next to the real ``bbduk.sh`` script (after resolving the symlink conda/pixi
+    put on ``PATH``).
+
+    Args:
+        names: File names in the resources folder, e.g. ``["adapters.fa"]``.
+
+    Returns:
+        Paths of the files, in the order of ``names``.
+
+    Raises:
+        FileNotFoundError: If ``bbduk.sh`` is not on ``PATH`` or the files are not in its resources folder.
+    """
+    bbduk = shutil.which("bbduk.sh")
+    if not bbduk:
+        raise FileNotFoundError("bbduk.sh not found on PATH; BBTools (bbmap) provides the bundled adapter and lambda phage sequences")
+    resources = Path(bbduk).resolve().parent / "resources"
+    paths = [resources / name for name in names]
+    missing = [str(path) for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"BBTools resource file(s) not found: {', '.join(missing)}")
+    return [str(path) for path in paths]
+
+
 def require_tools(tools: Iterable[str], hint: str | None = None) -> None:
     """Raise FileNotFoundError naming any of ``tools`` that are not on PATH.
 
