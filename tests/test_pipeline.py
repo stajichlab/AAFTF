@@ -11,10 +11,10 @@ from aaftf._menu import register_subcommands
 
 pytestmark = pytest.mark.unit
 
-STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "sort", "assess"]
+STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "sort", "depth", "assess"]
 _MODULE = {"filter": "aaftf_filter", "sort": "aaftf_sort"}
 # the kwarg that names each step's output file (trim and filter derive theirs from basename)
-_OUTPUT = {"assemble": "out", "polish": "outfile", "vecscreen": "outfile", "fcs_screen": "outfile", "taxpurge": "outfile", "covpurge": "outfile", "rmdup": "out", "sort": "out"}
+_OUTPUT = {"assemble": "out", "polish": "outfile", "vecscreen": "outfile", "fcs_screen": "outfile", "taxpurge": "outfile", "covpurge": "outfile", "rmdup": "out", "sort": "out", "depth": "tagged"}
 
 
 def _cli_defaults(step):
@@ -23,14 +23,19 @@ def _cli_defaults(step):
     return {a.dest: a.default for a in parser._actions if a.dest != "help"}
 
 
-def _run_steps(func, tmp_path, **options):
-    """Run a pipeline function with every step's run() replaced; return [(step, kwargs)] in call order."""
+def _run_steps(func, tmp_path, failing=(), **options):
+    """Run a pipeline function with every step's run() replaced; return [(step, kwargs)] in call order.
+
+    Steps named in ``failing`` raise RuntimeError instead of writing their output.
+    """
     base = str(tmp_path / "sample")
     calls = []
 
     def _fake(step):
         def _run(**kwargs):
             calls.append((step, kwargs))
+            if step in failing:
+                raise RuntimeError(f"{step} failed")
             # trim writes _1P/_2P for paired reads and _1U for single-end reads, as aaftf.trim does
             trimmed = f"{base}_1P.fastq.gz" if kwargs.get("read2") else f"{base}_1U.fastq.gz"
             outputs = {"trim": [trimmed], "filter": [f"{base}_filtered_1.fastq.gz"]}.get(step, [kwargs.get(_OUTPUT.get(step, ""))])
@@ -161,7 +166,17 @@ class TestFileChaining:
         assert (calls["covpurge"]["read1"], calls["covpurge"]["read2"]) == (f"{base}_filtered_1.fastq.gz", f"{base}_filtered_2.fastq.gz")
         assert calls["rmdup"]["input"] == f"{base}.covpurge.fasta"
         assert calls["sort"]["input"] == f"{base}.rmdup.fasta"  # polish is optional and not run
+        assert calls["sort"]["out"] == f"{base}.sorted.fasta"
+        assert (calls["depth"]["input"], calls["depth"]["tagged"], calls["depth"]["out"]) == (f"{base}.sorted.fasta", f"{base}.final.fasta", f"{base}.coverage_stats.txt")
+        assert (calls["depth"]["read1"], calls["depth"]["read2"], calls["depth"]["longreads"]) == (f"{base}_filtered_1.fastq.gz", f"{base}_filtered_2.fastq.gz", None)
         assert calls["assess"]["input"] == f"{base}.final.fasta"
+
+    def test_depth_failure_keeps_the_sorted_assembly_untagged(self, tmp_path, caplog):
+        base = str(tmp_path / "sample")
+        calls = dict(_run_steps(pipeline.run_short, tmp_path, failing={"depth"}, read1="R1.fq.gz", read2="R2.fq.gz"))
+        assert calls["assess"]["input"] == f"{base}.final.fasta"
+        assert Path(f"{base}.final.fasta").read_text() == Path(f"{base}.sorted.fasta").read_text()
+        assert "mitochondrial contigs are not tagged" in caplog.text
 
     def test_single_end_reads_have_no_read2(self, tmp_path):
         calls = _run_pipeline(tmp_path, read2=False)
@@ -177,8 +192,8 @@ class TestFileChaining:
         assert calls["covpurge"]["input"] == f"{base}.vecscreen.fasta"
 
 
-LONG_STEPS = ["assemble", "vecscreen", "rmdup", "polish", "sort", "assess"]
-HYBRID_STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "polish", "polish", "sort", "assess"]
+LONG_STEPS = ["assemble", "vecscreen", "rmdup", "polish", "sort", "depth", "assess"]
+HYBRID_STEPS = ["trim", "filter", "assemble", "vecscreen", "taxpurge", "covpurge", "rmdup", "polish", "polish", "sort", "depth", "assess"]
 
 
 def _run_long(tmp_path, **options):
@@ -207,6 +222,8 @@ class TestLongPipeline:
         assert calls["rmdup"]["input"] == f"{base}.vecscreen.fasta"  # no taxpurge without --phylum, no covpurge without Illumina reads
         assert (calls["polish"]["method"], calls["polish"]["infile"], calls["polish"]["longreads"]) == ("racon", f"{base}.rmdup.fasta", "ont.fq.gz")
         assert calls["sort"]["input"] == f"{base}.racon.fasta"
+        # depth maps the long reads with the minimap2 preset matching the Flye read type
+        assert (calls["depth"]["longreads"], calls["depth"]["longread_preset"], calls["depth"]["read1"]) == ("ont.fq.gz", "map-hifi", None)
 
     def test_assemble_gets_own_workdir_subfolder(self, tmp_path):
         calls = dict(_run_long(tmp_path, workdir="wd"))
@@ -215,7 +232,7 @@ class TestLongPipeline:
     def test_phylum_runs_taxpurge(self, tmp_path):
         calls = _run_long(tmp_path, phylum=["Ascomycota"], sourdb=["gbk-fungi"])
         base = str(tmp_path / "sample")
-        assert [step for step, _ in calls] == ["assemble", "vecscreen", "taxpurge", "rmdup", "polish", "sort", "assess"]
+        assert [step for step, _ in calls] == ["assemble", "vecscreen", "taxpurge", "rmdup", "polish", "sort", "depth", "assess"]
         steps = dict(calls)
         purge = steps["taxpurge"]
         assert (purge["input"], purge["phylum"], purge["sourdb"]) == (f"{base}.vecscreen.fasta", ["Ascomycota"], ["gbk-fungi"])
