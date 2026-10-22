@@ -43,7 +43,9 @@ Docker and Singularity images are built from). From a checkout of the repository
     pixi shell -e complete                 # activate the environment
     AAFTF --version
 
-Three environments are defined, each installing AAFTF from the checkout in editable mode:
+Three environments are defined. ``default`` and ``complete`` install AAFTF from the checkout,
+``dev`` installs it in editable mode; AAFTF's Python dependencies (Biopython, matplotlib, ...) come
+from ``pyproject.toml``'s ``[project]`` dependencies, so pixi lists only the external tools:
 
 .. list-table::
    :header-rows: 1
@@ -53,18 +55,20 @@ Three environments are defined, each installing AAFTF from the checkout in edita
      - Features
      - Contents
    * - ``default``
-     - default
+     - prod
      - Only what ``AAFTF pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid`` need with their
-       default settings (BBTools, SPAdes, BLAST+, bwa, samtools, minimap2, Flye, Racon,
-       Polypolish, pypolca, freebayes). ``pixi install`` alone creates this one.
+       default settings (BBTools, SPAdes, BLAST+, bwa, bowtie2, samtools, minimap2, Flye, Racon,
+       Polypolish, pypolca, freebayes, mosdepth). ``pixi install`` alone creates this one.
    * - ``complete``
-     - default, optional
-     - Plus every tool used by optional steps (``polish``, ``depth``, ``mito``, ``fcs_screen``,
+     - prod, optional
+     - Plus every tool used by optional steps (``taxpurge``, ``polish``, ``mito``, ``fcs_screen``,
        ``fcs_gx_purge``) and non-default options (fastp, Trimmomatic, MEGAHIT, Unicycler, ...).
        The Docker and Singularity images use this environment.
    * - ``dev``
-     - default, optional, dev
-     - Plus pytest, pytest-cov and pre-commit, for working on AAFTF itself.
+     - optional, dev
+     - The ``complete`` tools, AAFTF in editable mode with its ``dev`` and ``docs`` extras (pytest,
+       pytest-cov, pre-commit, Sphinx, furo, sphinx-autobuild) plus ruff and Graphviz, for working
+       on AAFTF itself.
 
 ``AAFTF dependency`` reports what an environment is missing.
 

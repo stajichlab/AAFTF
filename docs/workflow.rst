@@ -96,9 +96,9 @@ not run :doc:`commands/polish`.
    * - assemble
      - filtered FASTQ
      - ``{base}.{method}.fasta``
-   * - vecscreen
+   * - vecscreen (or fcs_screen with ``--fcs_screen``)
      - assembled FASTA
-     - ``{base}.vecscreen.fasta``
+     - ``{base}.vecscreen.fasta`` (or ``{base}.fcs_screen.fasta``)
    * - taxpurge (with ``--phylum``)
      - vecscreen FASTA
      - ``{base}.taxpurge.fasta``
@@ -116,7 +116,7 @@ not run :doc:`commands/polish`.
      - ``{base}.final.fasta`` (likely mitochondrial contigs tagged ``[location=mitochondrion]``),
        ``{base}.coverage_stats.txt``, ``{base}.coverage_stats.mito_candidates.tsv`` (+ plots)
    * - assess
-     - sorted FASTA
+     - final FASTA
      - printed stats (optional ``--report`` file)
 
 One command:
@@ -149,6 +149,7 @@ Step by step:
         -o $OUTDIR/${BASE}.spades.fasta -w working_AAFTF/spades_${BASE}
 
     AAFTF vecscreen -c $CPU -i $OUTDIR/${BASE}.spades.fasta -o $OUTDIR/${BASE}.vecscreen.fasta
+    # or, instead of vecscreen (not both): AAFTF fcs_screen -i ... -o $OUTDIR/${BASE}.fcs_screen.fasta
 
     # skip taxpurge if the organism's phylum is unknown (and pass the vecscreen FASTA to covpurge)
     AAFTF taxpurge --phylum Ascomycota \
@@ -160,14 +161,14 @@ Step by step:
 
     AAFTF rmdup -c $CPU -i $OUTDIR/${BASE}.covpurge.fasta -o $OUTDIR/${BASE}.rmdup.fasta
 
-    AAFTF sort -i $OUTDIR/${BASE}.rmdup.fasta -o $OUTDIR/${BASE}.final.fasta
+    AAFTF sort -i $OUTDIR/${BASE}.rmdup.fasta -o $OUTDIR/${BASE}.sorted.fasta
+
+    # coverage report; --tagged writes the final assembly with likely mitochondrial contigs tagged
+    AAFTF depth -i $OUTDIR/${BASE}.sorted.fasta \
+        --read1 $TRIMREAD/${BASE}_filtered_1.fastq.gz --read2 $TRIMREAD/${BASE}_filtered_2.fastq.gz \
+        -c $CPU -o $OUTDIR/${BASE}.coverage_stats.txt --tagged $OUTDIR/${BASE}.final.fasta
 
     AAFTF assess -i $OUTDIR/${BASE}.final.fasta -r $OUTDIR/${BASE}.stats.txt
-
-    # optional coverage report of the final assembly
-    AAFTF depth -i $OUTDIR/${BASE}.final.fasta \
-        --read1 $TRIMREAD/${BASE}_filtered_1.fastq.gz --read2 $TRIMREAD/${BASE}_filtered_2.fastq.gz \
-        -c $CPU -o $OUTDIR/${BASE}.coverage_stats.txt
 
 .. _workflow-long:
 
@@ -223,9 +224,9 @@ Illumina reads for contig coverage.
    * - assemble
      - long-read FASTQ
      - ``{base}.flye.fasta``
-   * - vecscreen
+   * - vecscreen (or fcs_screen with ``--fcs_screen``)
      - flye FASTA
-     - ``{base}.vecscreen.fasta``
+     - ``{base}.vecscreen.fasta`` (or ``{base}.fcs_screen.fasta``)
    * - taxpurge (with ``--phylum``)
      - vecscreen FASTA
      - ``{base}.taxpurge.fasta``
@@ -243,7 +244,7 @@ Illumina reads for contig coverage.
      - ``{base}.final.fasta`` (likely mitochondrial contigs tagged ``[location=mitochondrion]``),
        ``{base}.coverage_stats.txt``, ``{base}.coverage_stats.mito_candidates.tsv`` (+ plots)
    * - assess
-     - sorted FASTA
+     - final FASTA
      - printed stats (optional ``--report`` file)
 
 One command:
@@ -277,7 +278,10 @@ Step by step:
     AAFTF polish --method racon -c $CPU -lr $LONGREADS \
         -i $OUTDIR/${BASE}.rmdup.fasta -o $OUTDIR/${BASE}.racon.fasta
 
-    AAFTF sort -i $OUTDIR/${BASE}.racon.fasta -o $OUTDIR/${BASE}.final.fasta
+    AAFTF sort -i $OUTDIR/${BASE}.racon.fasta -o $OUTDIR/${BASE}.sorted.fasta
+
+    AAFTF depth -i $OUTDIR/${BASE}.sorted.fasta -lr $LONGREADS \
+        -c $CPU -o $OUTDIR/${BASE}.coverage_stats.txt --tagged $OUTDIR/${BASE}.final.fasta
 
     AAFTF assess -i $OUTDIR/${BASE}.final.fasta -r $OUTDIR/${BASE}.stats.txt
 
@@ -350,9 +354,9 @@ the polish steps are skipped.
    * - assemble
      - long reads (flye), or filtered Illumina + long reads (unicycler)
      - ``{base}.flye.fasta`` or ``{base}.unicycler.fasta``
-   * - vecscreen
+   * - vecscreen (or fcs_screen with ``--fcs_screen``)
      - assembled FASTA
-     - ``{base}.vecscreen.fasta``
+     - ``{base}.vecscreen.fasta`` (or ``{base}.fcs_screen.fasta``)
    * - taxpurge (with ``--phylum``)
      - vecscreen FASTA
      - ``{base}.taxpurge.fasta``
@@ -376,7 +380,7 @@ the polish steps are skipped.
      - ``{base}.final.fasta`` (likely mitochondrial contigs tagged ``[location=mitochondrion]``),
        ``{base}.coverage_stats.txt``, ``{base}.coverage_stats.mito_candidates.tsv`` (+ plots)
    * - assess
-     - sorted FASTA
+     - final FASTA
      - printed stats (optional ``--report`` file)
 
 One command:
@@ -420,7 +424,10 @@ Step by step (trim and filter the Illumina reads as in :ref:`workflow-short` fir
     AAFTF polish --method polypolish -c $CPU --read1 $READ1 --read2 $READ2 \
         -i $OUTDIR/${BASE}.racon.fasta -o $OUTDIR/${BASE}.polypolish.fasta
 
-    AAFTF sort -i $OUTDIR/${BASE}.polypolish.fasta -o $OUTDIR/${BASE}.final.fasta
+    AAFTF sort -i $OUTDIR/${BASE}.polypolish.fasta -o $OUTDIR/${BASE}.sorted.fasta
+
+    AAFTF depth -i $OUTDIR/${BASE}.sorted.fasta --read1 $READ1 --read2 $READ2 \
+        -c $CPU -o $OUTDIR/${BASE}.coverage_stats.txt --tagged $OUTDIR/${BASE}.final.fasta
 
     AAFTF assess -i $OUTDIR/${BASE}.final.fasta -r $OUTDIR/${BASE}.stats.txt
 
@@ -437,8 +444,8 @@ None of the ``pipeline_*`` subcommands run these by default:
   database (~470 GB) in RAM, so it is not a pipeline step: run it separately, on a large-memory
   node, on one or more finished assemblies.
 * :doc:`commands/polish` -- other polishers (pypolca, POLCA, NextPolish2) or extra rounds.
-* :doc:`commands/depth` -- per-contig read-depth report of the final assembly, with Illumina
-  and/or long reads.
+* :doc:`commands/depth` -- the pipelines already run it to tag mitochondrial contigs; run it again
+  with other reads (e.g. both Illumina and long reads) or settings for another coverage report.
 
 Each individual command page under :doc:`commands/index` documents its own defaults and cutoffs
 in detail.
