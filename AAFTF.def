@@ -147,7 +147,7 @@ From: debian:bookworm-slim
     if [ "{{ skip_db_download }}" = "1" ]; then
         echo "Skipping database download (skip_db_download=1)"
     else
-        AAFTF database phix univec euks proks mitodb taxpurge fcs_script fcs_image
+        AAFTF database required taxpurge fcs_script fcs_image
     fi
 
     # -------------------------------------------------------------------------

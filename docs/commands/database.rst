@@ -155,7 +155,7 @@ Example
     # See what is available, what is already downloaded, and where
     AAFTF database
 
-    # Everything the default pipeline needs (phix univec euks proks mitodb)
+    # Everything the default pipeline needs (phix univec contamdb)
     AAFTF database required
 
     # ... plus the sourmash databases taxpurge searches (pipelines run with -p/--phylum)
@@ -174,8 +174,8 @@ Container usage
 ================
 
 The Singularity definition (``AAFTF.def``) defaults to ``skip_db_download=1``, so the image
-contains no databases. Build with ``--build-arg skip_db_download=0`` to run ``AAFTF database phix
-univec euks proks mitodb taxpurge fcs_script fcs_image`` during ``%post`` and bake them into the
+contains no databases. Build with ``--build-arg skip_db_download=0`` to run ``AAFTF database required
+taxpurge fcs_script fcs_image`` during ``%post`` and bake them into the
 image at ``/opt/aaftf_db``. Otherwise (and for the Docker image, which never includes them),
 bind-mount a database folder at ``/opt/aaftf_db`` (the container's ``$AAFTF_DB``) and run
 ``AAFTF database NAME ...`` into it before using ``filter``/``vecscreen``/``taxpurge``.

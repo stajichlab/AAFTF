@@ -10,7 +10,7 @@ check the **Breaking changes** before updating scripts.
  - **`pipeline` renamed to `pipeline_short`** (same options and behaviour, no alias for the old name).
 
  - **`sourpurge` split into `taxpurge` and `covpurge`** (no alias for the old name). `taxpurge` is the
-   sourmash taxonomy screen (`-p/--phylum`, `--sourdb`, `--threshold`, `-k/--kmer`,
+   sourmash taxonomy screen (`-p/--phylum`, `--sourdb`, `--min_hashes`, `-k/--kmer`,
    `--just-show-taxonomy`); `covpurge` is the bwa low-coverage screen (`-1/--read1` required,
    `-2/--read2`, `-mc/--mincovpct`, `-c/--cpus`). Run `taxpurge` first so contaminants don't skew
    `covpurge`'s coverage baseline. The pipelines write `{base}.taxpurge.fasta` and
@@ -18,9 +18,9 @@ check the **Breaking changes** before updating scripts.
  - **`-p/--phylum` is optional in every pipeline**: without it `taxpurge` is skipped, so the pipelines
    also run when the organism's taxonomy is unknown. `pipeline_short` and `pipeline_hybrid` always run
    `covpurge`; `pipeline_long` does not (it needs Illumina reads).
- - **sourmash and the `sm_gbk` database are now optional**: since the pipelines need them only with
+ - **sourmash and its databases are now optional**: since the pipelines need them only with
    `-p/--phylum`, `AAFTF dependency` lists sourmash with the optional tools, `AAFTF database required`
-   no longer downloads `sm_gbk` (fetch it with `AAFTF database sm_gbk`), and sourmash moved from the
+   no longer downloads a sourmash database (fetch them with `AAFTF database taxpurge`), and sourmash moved from the
    pixi `default` environment (and `environment.yml`) to the `optional` feature (`complete`).
 
  - **`assemble --method` is required**: there is no default assembler any more (it was spades); pass
@@ -41,7 +41,7 @@ check the **Breaking changes** before updating scripts.
    packaged by SPAdes); `mito --reference` and `mito --starting` (circular mitochondrial genomes are
    always rotated to start at the cob gene); `fix_tbl` no longer reads stdin / writes stdout via `-`.
  - **`pipeline` no longer runs `polish` or `mito`**: it runs trim → filter → assemble → vecscreen →
-   sourpurge → rmdup → sort → assess, and each step now uses its own command-line defaults
+   [taxpurge] → covpurge → rmdup → sort → depth → assess, and each step now uses its own command-line defaults
    (e.g. `assemble` with `--isolate`, `polish` default `polypolish`) unless a pipeline option overrides
    them. `pipeline -m/--memory` is now passed to every step that has `-m` (was 75% of RAM).
  - **Databases are downloaded only by `AAFTF database`**: `filter`, `vecscreen`, `taxpurge` and
@@ -80,21 +80,21 @@ check the **Breaking changes** before updating scripts.
 
 ### Added
 
- - `pipeline_short`, `pipeline_long` and `pipeline_hybrid` can run NCBI FCS-adaptor and FCS-GX on the
-   contigs: `--fcs_screen` (with `--container_engine`) runs `fcs_screen` instead of vecscreen (both screen for the same adaptors and vectors), and
-   `--fcs_gx_db DB --taxid INT` runs `fcs_gx_purge` as the taxonomic screen instead of `taxpurge`
-   (FCS-GX covers NCBI's full taxonomy; `-p` and `--fcs_gx_db` together are an error). Both are off
-   by default.
+ - `pipeline_short`, `pipeline_long` and `pipeline_hybrid` can run NCBI FCS-adaptor: `--fcs_screen`
+   (with `--container_engine`) runs `fcs_screen` instead of vecscreen (both screen for the same
+   adaptors and vectors, so only one runs), writing `{base}.fcs_screen.fasta`. Off by default.
+   NCBI FCS-GX (`fcs_gx_purge`) is not a pipeline step: its ~470 GB database must be in RAM, so run
+   it separately on the finished assemblies.
  - **`assemble --method flye`**: Flye long-read assembly (`-lr/--longreads`, `--longread_type`
    default `nano-hq`, `--genome_size`); resumes a previous run in the workdir with `--resume`, and
    the next-command hint suggests `vecscreen` (polish after cleaning). `-1/--read1` is now required only for
-   spades, megahit and unicycler. Flye is an optional tool (`dependency`, pixi `complete`).
+   spades, megahit and unicycler. Flye is needed by `pipeline_long` / `pipeline_hybrid` (pixi `default`).
  - **`pipeline_long`**: long-read pipeline assemble (flye) → vecscreen → rmdup → polish (racon) →
-   sort → assess; with `-p/--phylum` taxpurge also runs before rmdup (no covpurge, which needs
+   sort → depth → assess; with `-p/--phylum` taxpurge also runs before rmdup (no covpurge, which needs
    Illumina reads).
  - **`pipeline_hybrid`**: Illumina + long reads: trim → filter → assemble (flye) → vecscreen → [taxpurge] →
    covpurge → rmdup → polish (racon, then polypolish for paired or pypolca for single-end reads) → sort →
-   assess (contigs are cleaned before polishing, so discarded contigs are never polished); `--method unicycler` assembles both read types with Unicycler and skips polishing.
+   depth → assess (contigs are cleaned before polishing, so discarded contigs are never polished); `--method unicycler` assembles both read types with Unicycler and skips polishing.
 
  - **`dependency`** (was `check_dependencies`): checks the tools and Python packages in two groups —
    what the default pipeline needs (an error if missing) and what only optional steps or non-default
@@ -109,11 +109,14 @@ check the **Breaking changes** before updating scripts.
    even with `-q`, full tracebacks on errors), kept whenever the working directory is kept (own `-w`,
    `-v`, or a failed run); steps without one write `./<step>.log` with `-v`.
  - `-c/--cpus` and `-m/--memory` are lowered to what the machine/job can provide, with a warning.
- - Grouped `AAFTF -h` (Setup / Steps / Pipeline / Annotation) with optional steps marked "(Optional)".
+ - Grouped `AAFTF -h` (Setup / Steps / Pipeline / Utilities) with optional steps marked "(Optional)".
  - `depth`: quantized coverage plots (heatmap and barplot, paginated by contig length), `--min_contig_len`,
    `--no-plot`, `--plot-format`; errors on samtools merge/index/flagstat failures.
- - pixi environments `default` (default pipeline), `complete` (every optional tool) and `dev` (tests
-   and lint), mirrored by `environment.yml` and `environment.dev.yml`; an `install-bowtie2` task that
+ - pixi environments `default` (default pipeline), `complete` (every optional tool) and `dev` (AAFTF
+   editable with the `dev` and `docs` extras), mirrored by `environment.yml` and `environment.dev.yml`;
+   Python packages come from `[project]` dependencies (same layout as Phyling). A `docs` extra
+   (`pip install ".[docs]"`) replaces `docs/requirements.txt`, and Read the Docs fetches the git tags
+   so the docs show the real version; an `install-bowtie2` task that
    rebuilds bowtie2 with AVX2 support.
  - Documentation site (`docs/`, Read the Docs) with a page for every subcommand, including `dependency`.
  - GitHub Actions CI (`ci.yml`): pre-commit lint, unit tests on Python 3.10–3.14, integration tests in

@@ -140,16 +140,17 @@ This produces, in sequence: ``STRAINX_1P.fastq.gz``/``STRAINX_2P.fastq.gz`` (tri
 ``STRAINX_filtered_1.fastq.gz``/``_2.fastq.gz``
 (filter), ``STRAINX.spades.fasta`` (assemble), ``STRAINX.vecscreen.fasta`` (vecscreen),
 ``STRAINX.taxpurge.fasta`` (taxpurge), ``STRAINX.covpurge.fasta`` (covpurge),
-``STRAINX.rmdup.fasta`` (rmdup), and finally
-``STRAINX.final.fasta`` (sort) with printed/``assess``
-summary statistics.
+``STRAINX.rmdup.fasta`` (rmdup), ``STRAINX.sorted.fasta`` (sort), and finally
+``STRAINX.final.fasta`` with ``STRAINX.coverage_stats.txt`` and
+``STRAINX.coverage_stats.mito_candidates.tsv`` (depth), with printed ``assess`` summary statistics.
+With ``--fcs_screen``, ``STRAINX.fcs_screen.fasta`` is written instead of ``STRAINX.vecscreen.fasta``.
 
 pipeline_long
 =============
 
 Assembles long reads with :doc:`assemble` ``--method flye``, runs :doc:`vecscreen` and
 :doc:`rmdup`, polishes the cleaned contigs once with :doc:`polish` ``--method racon`` using the same
-reads, then runs :doc:`sort` and :doc:`assess`. With ``-p/--phylum``, :doc:`taxpurge` also runs
+reads, then runs :doc:`sort`, :doc:`depth` (long reads; tags mitochondrial contigs) and :doc:`assess`. With ``-p/--phylum``, :doc:`taxpurge` also runs
 between vecscreen and rmdup. :doc:`covpurge` is not run, since it needs Illumina reads for contig
 coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
 
@@ -199,7 +200,8 @@ coverage. Steps are run, defaulted and skipped (resumable) exactly as in ``pipel
         --genome_size 40m -c 24
 
 This produces ``STRAINX.flye.fasta`` (assemble), ``STRAINX.vecscreen.fasta``,
-``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta`` (polish) and ``STRAINX.final.fasta``, then prints the
+``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta`` (polish), ``STRAINX.sorted.fasta`` and
+``STRAINX.final.fasta`` plus the coverage reports (depth), then prints the
 ``assess`` statistics.
 
 pipeline_hybrid
@@ -210,7 +212,7 @@ flye, runs :doc:`vecscreen`, :doc:`taxpurge` (only with ``-p/--phylum``), :doc:`
 Illumina reads) and :doc:`rmdup`, polishes
 the cleaned contigs with :doc:`polish` ``--method racon`` (long reads) and then with the filtered
 Illumina reads -- ``polypolish`` for paired reads, ``pypolca`` for single-end -- and runs
-:doc:`sort` and :doc:`assess`. With ``--method unicycler``, unicycler assembles the filtered Illumina reads together
+:doc:`sort`, :doc:`depth` (Illumina reads; tags mitochondrial contigs) and :doc:`assess`. With ``--method unicycler``, unicycler assembles the filtered Illumina reads together
 with the long reads and both polish steps are skipped, since Unicycler polishes its own assembly.
 Steps are run, defaulted and skipped (resumable) exactly as in ``pipeline_short``.
 
@@ -239,5 +241,6 @@ in ``pipeline_long``. ``-m/--memory`` is passed to trim, filter, assemble and po
 This produces the trim and filter FASTQs as in ``pipeline_short``, then ``STRAINX.flye.fasta``,
 ``STRAINX.vecscreen.fasta``, ``STRAINX.taxpurge.fasta``, ``STRAINX.covpurge.fasta``,
 ``STRAINX.rmdup.fasta``, ``STRAINX.racon.fasta``, ``STRAINX.polypolish.fasta``
-(``STRAINX.pypolca.fasta`` with single-end reads) and ``STRAINX.final.fasta``. With ``--method unicycler`` the assembly is ``STRAINX.unicycler.fasta``
+(``STRAINX.pypolca.fasta`` with single-end reads), ``STRAINX.sorted.fasta`` and ``STRAINX.final.fasta``
+plus the coverage reports (depth). With ``--method unicycler`` the assembly is ``STRAINX.unicycler.fasta``
 and no polish files are written.
