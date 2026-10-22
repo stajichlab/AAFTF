@@ -408,3 +408,50 @@ class TestReadQuantizedBed:
         )
         data = _read_quantized_bed(bed)
         assert len(data["scaffold_1"]) == 2
+
+
+# --- mitochondrial tagging --------------------------------------------------------------------
+
+
+def _row(name, length, mean):
+    return {"chrom": name, "length": length, "bases": length * mean, "mean": mean}
+
+
+def test_gc_content_ignores_ns(tmp_path):
+    from aaftf.depth import _gc_content
+
+    fa = tmp_path / "a.fa"
+    fa.write_text(">a\nGGCCNNNN\n>b\nAATT\n>n\nNNNN\n")
+    gc, total = _gc_content(str(fa))
+    assert gc == {"a": 100.0, "b": 0.0, "n": None}
+    assert total == 50.0
+
+
+def test_mito_candidates_need_high_depth_and_low_gc():
+    from aaftf.depth import _mito_candidates
+
+    rows = [_row("nuc1", 100_000, 30), _row("nuc2", 90_000, 32), _row("nuc3", 80_000, 28), _row("mito", 40_000, 600), _row("rdna", 10_000, 900), _row("tiny_mito", 800, 600), _row("lowgc_nuc", 5_000, 31)]
+    gc = {"nuc1": 50.0, "nuc2": 49.0, "nuc3": 51.0, "mito": 25.0, "rdna": 52.0, "tiny_mito": 25.0, "lowgc_nuc": 30.0}
+    result = _mito_candidates(rows, gc, 49.0, fold=5.0, gc_drop=10.0, min_len=1000)
+    assert result["n50"] == 90_000 and result["baseline"] == 31.0  # median of nuc1/nuc2 (contigs >= N50)
+    # rDNA: high depth, normal GC; tiny_mito: too short; lowgc_nuc: AT-rich, normal depth
+    assert result["tagged"] == {"mito"}
+    assert [r["contig"] for r in result["rows"]][:2] == ["nuc1", "nuc2"]  # longest first
+
+
+def test_write_tagged_keeps_every_contig_and_header(tmp_path):
+    from aaftf.depth import MITO_TAG, _write_tagged
+
+    fa = tmp_path / "in.fa"
+    fa.write_text(">scaffold_1 some description\nACGT\n>scaffold_2\nAATT\n")
+    out = tmp_path / "out.fa"
+    _write_tagged(str(fa), str(out), {"scaffold_2"})
+    headers = [line for line in out.read_text().splitlines() if line.startswith(">")]
+    assert headers == [">scaffold_1 some description", f">scaffold_2 {MITO_TAG}"]
+
+
+@pytest.mark.parametrize(("report", "tsv"), [("coverage_stats.txt", "coverage_stats.mito_candidates.tsv"), ("out/sample.coverage_stats.txt", "out/sample.coverage_stats.mito_candidates.tsv"), ("report", "report.mito_candidates.tsv")])
+def test_mito_tsv_path(report, tsv):
+    from aaftf.depth import _mito_tsv_path
+
+    assert _mito_tsv_path(report) == tsv

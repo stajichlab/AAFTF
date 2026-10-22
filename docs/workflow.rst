@@ -56,11 +56,11 @@ Short reads (pipeline_short)
        fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_finish { label="Finishing"
            sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
+           depth [label=<<b>depth</b><br/><font point-size="9">coverage report, tag mito contigs</font>>]
            assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
        }
-       depth [label=<<b>depth</b><br/><font point-size="9">optional coverage report</font>>, style="rounded,dashed", fillcolor=white]
 
-       reads -> trim -> filter -> assemble -> vecscreen -> covpurge -> rmdup -> sort -> assess [weight=10]
+       reads -> trim -> filter -> assemble -> vecscreen -> covpurge -> rmdup -> sort -> depth -> assess [weight=10]
        trim -> mito [style=dashed]
        mito -> filter [style=dashed, label=" --screen_local"]
        vecscreen -> fcs_screen [style=dashed]
@@ -68,10 +68,8 @@ Short reads (pipeline_short)
        vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
        fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
        taxpurge -> covpurge [style=dashed, ltail=cluster_taxonomy]
-       assess -> depth [style=dashed]
        {rank=same; filter; mito}
        {rank=same; covpurge; taxpurge}
-       {rank=same; assess; depth}
    }
 
 Polishing a short-read-only assembly with the same reads rarely helps, so ``pipeline_short`` does
@@ -110,13 +108,14 @@ not run :doc:`commands/polish`.
      - ``{base}.rmdup.fasta``
    * - sort
      - rmdup FASTA
-     - ``{base}.final.fasta``
+     - ``{base}.sorted.fasta``
+   * - depth
+     - sorted FASTA + reads
+     - ``{base}.final.fasta`` (likely mitochondrial contigs tagged ``[location=mitochondrion]``),
+       ``{base}.coverage_stats.txt``, ``{base}.coverage_stats.mito_candidates.tsv`` (+ plots)
    * - assess
      - sorted FASTA
      - printed stats (optional ``--report`` file)
-   * - depth (optional)
-     - final FASTA + reads
-     - ``coverage_stats.txt`` (+ plots)
 
 One command:
 
@@ -195,19 +194,17 @@ Long reads (pipeline_long)
        }
        subgraph cluster_finish { label="Finishing"
            sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
+           depth [label=<<b>depth</b><br/><font point-size="9">coverage report, tag mito contigs</font>>]
            assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
        }
-       depth [label=<<b>depth</b><br/><font point-size="9">optional coverage report</font>>, style="rounded,dashed", fillcolor=white]
 
-       reads -> assemble -> vecscreen -> rmdup -> racon -> sort -> assess [weight=10]
+       reads -> assemble -> vecscreen -> rmdup -> racon -> sort -> depth -> assess [weight=10]
        vecscreen -> fcs_screen [style=dashed]
        {rank=same; vecscreen; fcs_screen}
        vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
        fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
        taxpurge -> rmdup [style=dashed, ltail=cluster_taxonomy]
-       assess -> depth [style=dashed]
        {rank=same; rmdup; taxpurge}
-       {rank=same; assess; depth}
    }
 
 There are no reads to trim or filter, and :doc:`commands/covpurge` is not run, since it needs
@@ -237,7 +234,11 @@ Illumina reads for contig coverage.
      - ``{base}.racon.fasta``
    * - sort
      - racon FASTA
-     - ``{base}.final.fasta``
+     - ``{base}.sorted.fasta``
+   * - depth
+     - sorted FASTA + reads
+     - ``{base}.final.fasta`` (likely mitochondrial contigs tagged ``[location=mitochondrion]``),
+       ``{base}.coverage_stats.txt``, ``{base}.coverage_stats.mito_candidates.tsv`` (+ plots)
    * - assess
      - sorted FASTA
      - printed stats (optional ``--report`` file)
@@ -311,13 +312,14 @@ Illumina + long reads (pipeline_hybrid)
        }
        subgraph cluster_finish { label="Finishing"
            sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
+           depth [label=<<b>depth</b><br/><font point-size="9">coverage report, tag mito contigs</font>>]
            assess [label=<<b>assess</b><br/><font point-size="9">N50, GC, telomeres, gaps</font>>]
        }
 
        illumina -> trim -> filter [weight=10]
        longreads -> assemble [weight=10]
        filter -> assemble [style=dashed, label=" unicycler"]
-       assemble -> vecscreen -> covpurge -> rmdup -> racon -> short -> sort -> assess [weight=10]
+       assemble -> vecscreen -> covpurge -> rmdup -> racon -> short -> sort -> depth -> assess [weight=10]
        vecscreen -> fcs_screen [style=dashed]
        {rank=same; vecscreen; fcs_screen}
        vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
@@ -364,7 +366,11 @@ the polish steps are skipped.
      - ``{base}.polypolish.fasta`` (paired) or ``{base}.pypolca.fasta`` (single-end)
    * - sort
      - last polished FASTA (rmdup FASTA with unicycler)
-     - ``{base}.final.fasta``
+     - ``{base}.sorted.fasta``
+   * - depth
+     - sorted FASTA + reads
+     - ``{base}.final.fasta`` (likely mitochondrial contigs tagged ``[location=mitochondrion]``),
+       ``{base}.coverage_stats.txt``, ``{base}.coverage_stats.mito_candidates.tsv`` (+ plots)
    * - assess
      - sorted FASTA
      - printed stats (optional ``--report`` file)

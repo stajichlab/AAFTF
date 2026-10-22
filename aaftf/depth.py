@@ -6,6 +6,13 @@ per-contig and whole-assembly coverage statistics.  Contigs with mean
 depth more than 3 standard deviations above the assembly mean are
 flagged as possible contaminants or organelles.
 
+Contigs that are both high-depth (>= ``mito_fold`` x the nuclear baseline, the median depth of
+contigs at least N50 long) and AT-rich (GC at least ``mito_gc_drop`` percentage points below the
+assembly's) are flagged ``MITO`` as likely mitochondrial; ``<report prefix>.mito_candidates.tsv``
+lists every contig with that evidence. Nothing is removed: with ``tagged``, the assembly is
+written again with ``[location=mitochondrion]`` (NCBI's FASTA source modifier) added to the
+header of each MITO contig.
+
 When plotting is enabled (default, requires matplotlib), mosdepth is run in
 quantized mode and three additional plots are produced alongside the report:
   <prefix>.depth_heatmap.<format>   — per-scaffold coverage-class tiles
@@ -17,11 +24,14 @@ import logging
 import math
 import os
 import shutil
+import statistics
 import subprocess
 from pathlib import Path
 from typing import Any
 
-from aaftf.utility import align_to_sorted_bam, check_file, cleanup_workdir, close_step_log, count_fastq, make_workdir, open_maybe_gz, print_cmd, require_tools, run_cmd
+from Bio import SeqIO
+
+from aaftf.utility import align_to_sorted_bam, check_file, cleanup_workdir, close_step_log, count_fastq, make_workdir, open_maybe_gz, print_cmd, require_tools, run_cmd, write_fasta
 
 try:
     import matplotlib
@@ -35,7 +45,7 @@ try:
 except ImportError:
     HAS_MATPLOTLIB = False
 
-__all__ = ["HAS_MATPLOTLIB", "run", "map_reads", "run_flagstat", "run_mosdepth", "parse_mosdepth_summary"]
+__all__ = ["HAS_MATPLOTLIB", "MITO_TAG", "run", "map_reads", "run_flagstat", "run_mosdepth", "parse_mosdepth_summary"]
 
 
 logger = logging.getLogger(__name__)
@@ -53,6 +63,9 @@ _COV_COLOURS = {
 _DEFAULT_LABELS = list(_COV_COLOURS)
 
 _SCAFFOLDS_PER_PAGE = 50
+
+# NCBI FASTA source modifier added to the header of contigs flagged as mitochondrial
+MITO_TAG = "[location=mitochondrion]"
 
 _HEATMAP_MAX_LENGTH_RATIO = 10  # max longest/shortest contig length ratio per page
 
@@ -72,6 +85,10 @@ def run(
     min_contig_len: int = 500,
     no_plot: bool = False,
     plot_format: str = "pdf",
+    tagged: str | None = None,
+    mito_fold: float = 5.0,
+    mito_gc_drop: float = 10.0,
+    mito_min_len: int = 1000,
     **kwargs: Any,
 ) -> None:
     """Execute depth-of-coverage analysis for a genome assembly.
@@ -99,6 +116,11 @@ def run(
         min_contig_len: Minimum contig length included in the outlier statistics.
         no_plot: If True, skip quantized mosdepth and plot generation.
         plot_format: Plot file format (``pdf``, ``svg`` or ``png``).
+        tagged: Write the assembly here with ``MITO_TAG`` added to the header of each contig
+            flagged MITO (no contig is removed); None writes no FASTA.
+        mito_fold: Minimum depth, as a multiple of the nuclear baseline, for the MITO flag.
+        mito_gc_drop: Minimum GC drop below the assembly's GC (percentage points) for the MITO flag.
+        mito_min_len: Minimum contig length (bp) for the MITO flag.
         pipe: Suppress the "next command" hint; set by the ``pipeline_*`` subcommands (not a CLI option).
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ``quiet``); ignored.
 
@@ -227,6 +249,8 @@ def run(
         threshold_3sd = stats["threshold_3sd"]
         n_outliers_2sd = stats["n_outliers_2sd"]
         n_outliers_3sd = stats["n_outliers_3sd"]
+        gc_by_contig, assembly_gc = _gc_content(genome)
+        mito = _mito_candidates(contig_rows, gc_by_contig, assembly_gc, mito_fold, mito_gc_drop, mito_min_len)
         contig_depth_sorted = sorted(contig_rows, key=lambda x: x["mean"], reverse=True)
         contig_length_sorted = sorted(contig_rows, key=lambda x: x["length"], reverse=True)
 
@@ -286,8 +310,8 @@ def run(
             fout.write("  OUTLIER contigs are likely contaminants or organellar sequences.\n")
             fout.write("  ELEVATED contigs are candidates worth inspecting (2–3 SD above mean).\n\n")
 
-            cw = (40, 14, 12)
-            header = f"  {'Contig':<{cw[0]}} {'Length (bp)':>{cw[1]}} {'Mean Depth':>{cw[2]}}  Flag\n"
+            cw = (40, 14, 12, 7)
+            header = f"  {'Contig':<{cw[0]}} {'Length (bp)':>{cw[1]}} {'Mean Depth':>{cw[2]}} {'GC%':>{cw[3]}}  Flag\n"
             fout.write(header)
             fout.write("  " + "-" * (sum(cw) + 10) + "\n")
             for c in contig_depth_sorted:
@@ -298,7 +322,25 @@ def run(
                     flag = "   ELEVATED (inspect — 2–3 SD above mean)"
                 else:
                     flag = ""
-                fout.write(f"  {c['chrom']:<{cw[0]}} {c['length']:>{cw[1]},} {c['mean']:>{cw[2]}.2f}  {flag}\n")
+                if c["chrom"] in mito["tagged"]:
+                    flag = (flag + "; " if flag else "") + "MITO"
+                gc = gc_by_contig.get(c["chrom"])
+                gc_label = f"{gc:.1f}" if gc is not None else "-"
+                fout.write(f"  {c['chrom']:<{cw[0]}} {c['length']:>{cw[1]},} {c['mean']:>{cw[2]}.2f} {gc_label:>{cw[3]}}  {flag}\n")
+
+            # --- Section 4: Mitochondrial candidates ---
+            fout.write("\n=== 4. Mitochondrial Candidates (tagged, not removed) ===\n")
+            fout.write(f"  Nuclear baseline (median depth of contigs >= N50 = {mito['n50']:,} bp): {mito['baseline']:.2f}x\n")
+            fout.write(f"  Assembly GC: {assembly_gc:.1f}%\n")
+            fout.write(f"  MITO rule: depth >= {mito_fold:g}x baseline, GC <= {assembly_gc - mito_gc_drop:.1f}% (assembly - {mito_gc_drop:g}), length >= {mito_min_len:,} bp\n")
+            fout.write(f"  MITO contigs: {len(mito['tagged'])}" + (f" ({', '.join(sorted(mito['tagged']))})" if mito["tagged"] else "") + "\n")
+
+        mito_tsv = _mito_tsv_path(out)
+        _write_mito_tsv(mito_tsv, mito["rows"])
+        logger.info(f"{len(mito['tagged'])} contig(s) flagged MITO; per-contig evidence in {mito_tsv}")
+        if tagged:
+            _write_tagged(genome, tagged, mito["tagged"])
+            logger.info(f"Assembly with mitochondrial contigs tagged {MITO_TAG} written to: {tagged}")
 
         logger.info(f"Coverage report written to: {report_file}")
 
@@ -522,6 +564,100 @@ def parse_mosdepth_summary(
             else:
                 contigs.append(row)
     return total, contigs
+
+
+def _gc_content(fasta: str) -> tuple[dict[str, float | None], float]:
+    """Return each contig's GC% and the assembly's, counting only A/C/G/T bases (Ns are ignored).
+
+    Args:
+        fasta: Assembly FASTA.
+
+    Returns:
+        ``(gc_by_contig, assembly_gc)``; a contig without any A/C/G/T base has GC None.
+    """
+    gc_by_contig: dict[str, float | None] = {}
+    total_gc = total_acgt = 0
+    with open_maybe_gz(fasta) as fh:
+        for record in SeqIO.parse(fh, "fasta"):
+            seq = str(record.seq).upper()
+            gc = seq.count("G") + seq.count("C")
+            acgt = gc + seq.count("A") + seq.count("T")
+            gc_by_contig[record.id] = 100 * gc / acgt if acgt else None
+            total_gc += gc
+            total_acgt += acgt
+    return gc_by_contig, (100 * total_gc / total_acgt if total_acgt else 0.0)
+
+
+def _mito_candidates(contig_rows: list[dict[str, Any]], gc_by_contig: dict[str, float | None], assembly_gc: float, fold: float, gc_drop: float, min_len: int) -> dict[str, Any]:
+    """Flag contigs that are high-depth and AT-rich as likely mitochondrial.
+
+    The nuclear baseline is the median depth of contigs at least N50 long (a median, so a few
+    very high-depth contigs cannot raise it). A contig is flagged when its depth is at least
+    ``fold`` x the baseline, its GC is at least ``gc_drop`` percentage points below the
+    assembly's, and it is at least ``min_len`` bp. rDNA and other nuclear repeats are high-depth
+    but have normal GC, so they are not flagged.
+
+    Args:
+        contig_rows: Per-contig mosdepth rows (``chrom``, ``length``, ``mean``).
+        gc_by_contig: GC% per contig, from ``_gc_content``.
+        assembly_gc: GC% of the whole assembly.
+        fold: Minimum depth as a multiple of the baseline.
+        gc_drop: Minimum GC drop below the assembly's, in percentage points.
+        min_len: Minimum contig length.
+
+    Returns:
+        Dict with ``n50``, ``baseline``, ``tagged`` (set of contig ids) and ``rows`` (one dict per
+        contig, longest first, with the evidence written to the TSV).
+    """
+    lengths = sorted((c["length"] for c in contig_rows), reverse=True)
+    n50, running = 0, 0
+    for length in lengths:
+        running += length
+        if running >= sum(lengths) / 2:
+            n50 = length
+            break
+    nuclear = [c["mean"] for c in contig_rows if c["length"] >= n50]
+    baseline = statistics.median(nuclear) if nuclear else 0.0
+    max_gc = assembly_gc - gc_drop
+
+    tagged: set[str] = set()
+    rows = []
+    for c in sorted(contig_rows, key=lambda c: c["length"], reverse=True):
+        gc = gc_by_contig.get(c["chrom"])
+        fold_change = c["mean"] / baseline if baseline > 0 else 0.0
+        is_mito = c["length"] >= min_len and baseline > 0 and fold_change >= fold and gc is not None and gc <= max_gc
+        if is_mito:
+            tagged.add(c["chrom"])
+        rows.append({"contig": c["chrom"], "length": c["length"], "depth": c["mean"], "fold": fold_change, "gc": gc, "mito": is_mito})
+    return {"n50": n50, "baseline": baseline, "tagged": tagged, "rows": rows}
+
+
+def _mito_tsv_path(report: str) -> str:
+    """Return ``<report without its extension>.mito_candidates.tsv``, next to the report."""
+    path = Path(report)
+    return str(path.with_name((path.stem if path.suffix else path.name) + ".mito_candidates.tsv"))
+
+
+def _write_mito_tsv(path: str, rows: list[dict[str, Any]]) -> None:
+    """Write the per-contig mitochondrial evidence from ``_mito_candidates`` as a TSV."""
+    with open(path, "w") as fh:
+        fh.write("contig\tlength\tmean_depth\tfold_over_baseline\tgc_percent\tmito\n")
+        for r in rows:
+            gc = f"{r['gc']:.2f}" if r["gc"] is not None else "NA"
+            fh.write(f"{r['contig']}\t{r['length']}\t{r['depth']:.2f}\t{r['fold']:.2f}\t{gc}\t{'yes' if r['mito'] else 'no'}\n")
+
+
+def _write_tagged(fasta: str, out: str, tagged: set[str]) -> None:
+    """Write ``fasta`` to ``out`` with ``MITO_TAG`` appended to the header of each contig in ``tagged``.
+
+    Every contig is kept, in order, with its full original header.
+    """
+    with open_maybe_gz(fasta) as fh, open(out, "w") as outfh:
+        for record in SeqIO.parse(fh, "fasta"):
+            header = record.description
+            if record.id in tagged and MITO_TAG not in header:
+                header = f"{header} {MITO_TAG}"
+            write_fasta(outfh, header, str(record.seq))
 
 
 def _depth_outliers(contig_rows: list[dict[str, Any]], total_row: dict[str, Any] | None, min_contig_len: int) -> dict[str, Any]:

@@ -40,17 +40,36 @@ Algorithm
    ``<prefix>.depth_barplot.<format>`` (stacked bar of coverage-class proportions), and
    ``<prefix>.depth_histogram.<format>`` (histogram + boxplot of per-scaffold mean depths),
    in ``--plot-format`` (pdf/svg/png; default pdf).
+8. Flags likely **mitochondrial** contigs (``MITO``) by coverage and GC, with no database: a
+   contig is flagged when its depth is at least ``--mito_fold`` (default 5) times the nuclear
+   baseline (the median depth of contigs at least N50 long), its GC is at least
+   ``--mito_gc_drop`` (default 10) percentage points below the assembly's, and it is at least
+   ``--mito_min_len`` (default 1,000) bp. Fungal mitochondrial DNA is high-copy and AT-rich
+   (about 17-35% GC), while rDNA arrays and other nuclear repeats are high-copy but have normal
+   GC, so they are not flagged. Nothing is removed. ``<report>.mito_candidates.tsv`` (next to the
+   report, e.g. ``coverage_stats.mito_candidates.tsv``) lists every contig with its length, depth,
+   fold over the baseline, GC and verdict, so each call can be checked. With ``--tagged FASTA``
+   the assembly is also written there, every contig kept, with ``[location=mitochondrion]``
+   (NCBI's FASTA source modifier for organelle sequences) added to the header of each MITO
+   contig. The pipelines use this to write ``{base}.final.fasta``.
+
+   A mitochondrial contig with unusually high GC or low copy number, or shorter than
+   ``--mito_min_len``, is missed; check the TSV, and tune the thresholds on assemblies whose
+   mitochondrial contigs are known.
 
 Report contents
 ================
 
-The text report (default ``coverage_stats.txt``) has three sections:
+The text report (default ``coverage_stats.txt``) has four sections:
 
 1. **Read input summary** -- per-file read counts and ``samtools flagstat`` alignment rates.
 2. **Whole-assembly coverage** -- two mean-depth estimates (mosdepth's length-weighted global
    mean, and the unweighted arithmetic mean of per-contig means), plus percent of bases covered
    at >= 1x.
-3. **Per-contig depth table**, sorted by depth descending, with OUTLIER/ELEVATED flags as above.
+3. **Per-contig depth table**, sorted by depth descending, with each contig's GC% and its
+   OUTLIER/ELEVATED/MITO flags as above.
+4. **Mitochondrial candidates** -- the nuclear baseline, assembly GC, the MITO rule as applied,
+   and the MITO contigs.
 
 Cutoffs / defaults
 ===================
@@ -80,6 +99,18 @@ Cutoffs / defaults
    * - ``--plot-format``
      - pdf
      - pdf / svg / png
+   * - ``--mito_fold``
+     - 5
+     - MITO: minimum depth as a multiple of the nuclear baseline
+   * - ``--mito_gc_drop``
+     - 10
+     - MITO: minimum GC drop below the assembly's GC (percentage points)
+   * - ``--mito_min_len``
+     - 1000 (bp)
+     - MITO: minimum contig length
+   * - ``--tagged``
+     - none
+     - Also write the assembly with MITO contigs tagged ``[location=mitochondrion]``
 
 Illumina reads are always mapped with minimap2's ``sr`` preset (or ``bwa mem`` when
 ``--aligner bwa`` is given); there is no separate Illumina preset option.
@@ -92,7 +123,8 @@ Invocation
     AAFTF depth -i FASTA [-o FILE] [-1 FASTQ] [-2 FASTQ] [-lr FASTQ]
                 [--aligner {minimap2,bwa}]
                 [--longread_preset {map-ont,map-pb,map-hifi}]
-                [--min_contig_len MIN_CONTIG_LEN]
+                [--min_contig_len MIN_CONTIG_LEN] [--tagged FASTA]
+                [--mito_fold X] [--mito_gc_drop PCT] [--mito_min_len BP]
                 [--plot-format {pdf,svg,png}] [--no-plot]
                 [-c INT] [-w DIR] [-q] [-v]
 

@@ -111,8 +111,8 @@ in place; otherwise it is copied to a per-job folder in `$TMPDIR` (`--copy_to`) 
 | Subcommand | What it does | Output |
 |---|---|---|
 | `pipeline_short` | Run steps 1-9 on Illumina reads (step 5 only with `-p`) | `<prefix>.final.fasta` |
-| `pipeline_long` | Long reads: assemble (Flye), vecscreen, [taxpurge with `-p`], rmdup, polish (Racon), sort, assess | `<prefix>.final.fasta` |
-| `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), vecscreen, [taxpurge with `-p`], covpurge, rmdup, polish, sort, assess | `<prefix>.final.fasta` |
+| `pipeline_long` | Long reads: assemble (Flye), vecscreen, [taxpurge with `-p`], rmdup, polish (Racon), sort, depth (tags mito contigs), assess | `<prefix>.final.fasta` |
+| `pipeline_hybrid` | Illumina + long reads: trim, filter, assemble (Flye or Unicycler), vecscreen, [taxpurge with `-p`], covpurge, rmdup, polish, sort, depth (tags mito contigs), assess | `<prefix>.final.fasta` |
 
 **Utilities**
 - `fcs_gx_purge` - drop the contigs NCBI FCS-GX marks EXCLUDE from one or more assemblies (needs RAM

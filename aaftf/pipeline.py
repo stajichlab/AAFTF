@@ -26,6 +26,7 @@ the file names that chain the steps together) override them.
 import argparse as ap
 import functools
 import logging
+import shutil
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -33,6 +34,7 @@ from typing import Any
 import aaftf.assemble as assemble
 import aaftf.assess as assess
 import aaftf.covpurge as covpurge
+import aaftf.depth as depth
 import aaftf.fcs_screen as fcs_screen
 import aaftf.filter as aaftf_filter
 import aaftf.polish as polish
@@ -42,6 +44,9 @@ import aaftf.taxpurge as taxpurge
 import aaftf.trim as trim
 import aaftf.vecscreen as vecscreen
 from aaftf.utility import check_file
+
+# minimap2 preset (depth --longread_preset) for each Flye read type (--longread_type)
+LONGREAD_PRESETS = {"nano-raw": "map-ont", "nano-hq": "map-ont", "pacbio-raw": "map-pb", "pacbio-hifi": "map-hifi"}
 
 __all__ = ["run_short", "run_long", "run_hybrid"]
 
@@ -107,7 +112,7 @@ def run_short(
     assembly = basename + f".{method}.fasta"
     _run_step(assemble, "assemble", assembly, shared, **_assemble_workdir(shared, method), read1=filtered_1, read2=filtered_2, out=assembly, method=method, tmpdir=tmpdir, assembler_args=assembler_args)
 
-    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), {"read1": filtered_1, "read2": filtered_2, "mincovpct": mincovpct}, fcs=fcs)
+    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), {"read1": filtered_1, "read2": filtered_2, "mincovpct": mincovpct}, fcs=fcs, depth_options={"read1": filtered_1, "read2": filtered_2})
 
 
 def run_long(
@@ -157,7 +162,8 @@ def run_long(
     fcs = _fcs_options(fcs_screen_run, container_engine)
     shared = _shared(cpus, memory, workdir, debug, quiet)
     assembly = _assemble_flye(longreads, basename, shared, longread_type, genome_size, assembler_args)
-    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), polish_steps=[{"method": "racon", "longreads": longreads}], fcs=fcs)
+    depth_options = {"longreads": longreads, "longread_preset": LONGREAD_PRESETS[longread_type]}
+    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), polish_steps=[{"method": "racon", "longreads": longreads}], fcs=fcs, depth_options=depth_options)
 
 
 def run_hybrid(
@@ -239,7 +245,7 @@ def run_hybrid(
         polish_steps = [{"method": "racon", "longreads": longreads}, {"method": short_method, "read1": filtered_1, "read2": filtered_2}]
 
     covpurge_options = {"read1": filtered_1, "read2": filtered_2, "mincovpct": mincovpct}
-    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), covpurge_options, polish_steps, fcs=fcs)
+    _clean_and_finish(assembly, basename, shared, mincontiglen, _taxpurge_options(phylum, sourdb), covpurge_options, polish_steps, fcs=fcs, depth_options={"read1": filtered_1, "read2": filtered_2})
 
 
 def _shared(cpus: int, memory: int | None, workdir: str | None, debug: bool, quiet: bool) -> dict[str, Any]:
@@ -299,8 +305,9 @@ def _clean_and_finish(
     covpurge_options: dict[str, Any] | None = None,
     polish_steps: list[dict[str, Any]] | tuple[()] = (),
     fcs: dict[str, dict[str, Any] | None] | None = None,
+    depth_options: dict[str, Any] | None = None,
 ) -> None:
-    """Run vecscreen → fcs_screen → taxpurge → covpurge → rmdup → polish → sort → assess on ``assembly``.
+    """Run vecscreen → fcs_screen → taxpurge → covpurge → rmdup → polish → sort → depth → assess on ``assembly``.
 
     Polishing comes after the cleaning steps so contigs that are discarded are never polished.
 
@@ -315,6 +322,9 @@ def _clean_and_finish(
             and writes ``{basename}.{method}.fasta``, which the next round (or ``sort``) reads.
         fcs: ``fcs_screen`` options (from ``_fcs_options``); skipped when None, or when ``fcs``
             is None.
+        depth_options: ``depth`` read options; ``depth`` maps them to the sorted assembly and
+            writes ``{basename}.final.fasta`` with likely mitochondrial contigs tagged (none is
+            removed). When None, or when ``depth`` fails, the sorted assembly is used untagged.
     """
     vecscreen_file = basename + ".vecscreen.fasta"
     _run_step(vecscreen, "vecscreen", vecscreen_file, shared, infile=assembly, outfile=vecscreen_file)
@@ -343,10 +353,32 @@ def _clean_and_finish(
         _run_step(polish, "polish", polish_out, shared, infile=polished, outfile=polish_out, **options)
         polished = polish_out
 
+    sorted_file = basename + ".sorted.fasta"
+    _run_step(aaftf_sort, "sort", sorted_file, shared, input=polished, out=sorted_file, minlen=mincontiglen)
+
     final_file = basename + ".final.fasta"
-    _run_step(aaftf_sort, "sort", final_file, shared, input=polished, out=final_file, minlen=mincontiglen)
+    _tag_mito(sorted_file, final_file, basename, shared, depth_options)
 
     assess.run(**_step_kwargs("assess", shared, input=final_file))
+
+
+def _tag_mito(sorted_file: str, final_file: str, basename: str, shared: dict[str, Any], depth_options: dict[str, Any] | None) -> None:
+    """Write ``final_file``: ``sorted_file`` with likely mitochondrial contigs tagged by ``depth``.
+
+    ``depth`` also writes ``{basename}.coverage_stats.txt`` and ``{basename}.coverage_stats.mito_candidates.tsv``.
+    Tagging is a convenience, so a failure only logs a warning and ``sorted_file`` is copied
+    untagged; ``final_file`` is never missing because of it.
+    """
+    if check_file(final_file):
+        logger.info(f"AAFTF depth output found: {final_file}")
+        return
+    if depth_options is not None:
+        try:
+            _run_step(depth, "depth", final_file, shared, input=sorted_file, out=basename + ".coverage_stats.txt", tagged=final_file, **depth_options)
+            return
+        except Exception as e:
+            logger.warning(f"AAFTF depth failed, so mitochondrial contigs are not tagged: {e}")
+    shutil.copyfile(sorted_file, final_file)
 
 
 def _run_step(module: ModuleType, name: str, output: str, shared: dict[str, Any], **step_options: Any) -> None:

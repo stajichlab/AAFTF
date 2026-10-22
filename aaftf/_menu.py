@@ -893,6 +893,14 @@ def depth_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         help="Disable coverage plot generation",
     )
 
+    optional.add_argument("--tagged", type=str, help="Also write the assembly here, with [location=mitochondrion] added to the header of each contig flagged MITO (no contig is removed)", metavar="FASTA")
+
+    optional.add_argument("--mito_fold", type=float, default=5.0, metavar="X", help="MITO flag: minimum depth as a multiple of the nuclear baseline (median depth of contigs >= N50)")
+
+    optional.add_argument("--mito_gc_drop", type=float, default=10.0, metavar="PCT", help="MITO flag: minimum GC drop below the assembly's GC, in percentage points")
+
+    optional.add_argument("--mito_min_len", type=int, default=1000, metavar="BP", help="MITO flag: minimum contig length")
+
     optional.add_argument("-c", "--cpus", type=int, metavar="INT", default=1, help="Number of CPUs/threads to use")
 
     add_verbosity_args(optional)
