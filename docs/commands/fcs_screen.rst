@@ -3,9 +3,9 @@ fcs_screen
 ==========
 
 Runs NCBI's official **FCS-adaptor** tool (the same tool NCBI uses during genome submission QC)
-to detect and trim residual sequencing-adaptor/vector contamination from assembled contigs. This
-is an alternative (NCBI-authoritative) take on part of what :doc:`vecscreen` does, delegated to
-NCBI's containerized tool rather than reimplemented in AAFTF.
+to detect and trim residual sequencing-adaptor/vector contamination from assembled contigs. It is
+an alternative to :doc:`vecscreen`, which applies the same FCS-adaptor rules to its own BLAST search:
+both screen for the same adaptors and vectors, so run one or the other, not both.
 
 Algorithm
 =========
@@ -70,8 +70,8 @@ Example
         -i genomes/STRAINX.spades.fasta -o genomes/STRAINX.fcs_adaptor.fasta
 
 .. note::
-   ``fcs_screen`` is not currently wired into ``AAFTF pipeline_short`` -- run it as an extra manual step
-   (typically in place of, or alongside, :doc:`vecscreen`) if you need NCBI-authoritative adaptor
-   screening prior to genome submission. See also :doc:`fcs_gx_purge` for NCBI's genomic
+   The pipelines run ``fcs_screen`` instead of :doc:`vecscreen` with ``--fcs_screen`` (see
+   :doc:`pipeline`). Run manually, use it in place of :doc:`vecscreen`, e.g. when you want NCBI's own
+   adaptor screen prior to genome submission. See also :doc:`fcs_gx_purge` for NCBI's genomic
    cross-contamination screen, and :doc:`fix_tbl` for adjusting NCBI ``.tbl`` annotation
    coordinates after FCS trims a sequence.

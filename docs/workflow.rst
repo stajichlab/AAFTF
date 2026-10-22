@@ -16,7 +16,8 @@ end-to-end with its ``pipeline_*`` subcommand. A pipeline skips any step whose o
 exists, so an interrupted run can simply be re-launched with the same command.
 
 All three workflows clean the contigs before anything else is done with them: :doc:`commands/vecscreen`
-(vector and contaminant BLAST screen), :doc:`commands/taxpurge` (sourmash taxonomy screen, run only
+(adaptor/vector BLAST screen) or, in its place, :doc:`commands/fcs_screen` (NCBI FCS-adaptor; both
+screen for the same adaptors and vectors, so choose one), :doc:`commands/taxpurge` (sourmash taxonomy screen, run only
 with ``-p/--phylum``; leave it out if the organism's taxonomy is unknown), :doc:`commands/covpurge`
 (low Illumina read coverage; not in the long-read workflow) and :doc:`commands/rmdup` (redundant
 contigs). Polishing, when the workflow has it, comes after cleaning so discarded contigs are never
@@ -53,7 +54,7 @@ Short reads (pipeline_short)
        subgraph cluster_taxonomy { label="Taxonomic screen (optional)"
            taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash, with -p</font>>, style="rounded,dashed", fillcolor=white]
        }
-       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
+       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, --fcs_screen<br/>(instead of vecscreen)</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_finish { label="Finishing"
            sort [label=<<b>sort</b><br/><font point-size="9">longest first, rename headers</font>>]
            depth [label=<<b>depth</b><br/><font point-size="9">coverage report, tag mito contigs</font>>]
@@ -63,7 +64,8 @@ Short reads (pipeline_short)
        reads -> trim -> filter -> assemble -> vecscreen -> covpurge -> rmdup -> sort -> depth -> assess [weight=10]
        trim -> mito [style=dashed]
        mito -> filter [style=dashed, label=" --screen_local"]
-       vecscreen -> fcs_screen [style=dashed]
+       assemble -> fcs_screen [style=dashed]
+       fcs_screen -> covpurge [style=dashed]
        {rank=same; vecscreen; fcs_screen}
        vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
        fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
@@ -188,7 +190,7 @@ Long reads (pipeline_long)
        subgraph cluster_taxonomy { label="Taxonomic screen (optional)"
            taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash, with -p</font>>, style="rounded,dashed", fillcolor=white]
        }
-       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
+       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, --fcs_screen<br/>(instead of vecscreen)</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_polish { label="Polishing"
            racon [label=<<b>polish</b><br/><font point-size="9">racon with the long reads</font>>]
        }
@@ -199,7 +201,8 @@ Long reads (pipeline_long)
        }
 
        reads -> assemble -> vecscreen -> rmdup -> racon -> sort -> depth -> assess [weight=10]
-       vecscreen -> fcs_screen [style=dashed]
+       assemble -> fcs_screen [style=dashed]
+       fcs_screen -> rmdup [style=dashed]
        {rank=same; vecscreen; fcs_screen}
        vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
        fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
@@ -305,7 +308,7 @@ Illumina + long reads (pipeline_hybrid)
        subgraph cluster_taxonomy { label="Taxonomic screen (optional)"
            taxpurge [label=<<b>taxpurge</b><br/><font point-size="9">sourmash, with -p</font>>, style="rounded,dashed", fillcolor=white]
        }
-       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, with --fcs_screen</font>>, style="rounded,dashed", fillcolor=white]
+       fcs_screen [label=<<b>fcs_screen</b><br/><font point-size="9">NCBI FCS-adaptor, --fcs_screen<br/>(instead of vecscreen)</font>>, style="rounded,dashed", fillcolor=white]
        subgraph cluster_polish { label="Polishing (flye only)"
            racon [label=<<b>polish</b><br/><font point-size="9">racon with the long reads</font>>]
            short [label=<<b>polish</b><br/><font point-size="9">polypolish (paired) / pypolca (single-end)</font>>]
@@ -320,7 +323,8 @@ Illumina + long reads (pipeline_hybrid)
        longreads -> assemble [weight=10]
        filter -> assemble [style=dashed, label=" unicycler"]
        assemble -> vecscreen -> covpurge -> rmdup -> racon -> short -> sort -> depth -> assess [weight=10]
-       vecscreen -> fcs_screen [style=dashed]
+       assemble -> fcs_screen [style=dashed]
+       fcs_screen -> covpurge [style=dashed]
        {rank=same; vecscreen; fcs_screen}
        vecscreen -> taxpurge [style=dashed, lhead=cluster_taxonomy]
        fcs_screen -> taxpurge [style=dashed, lhead=cluster_taxonomy, constraint=false]
@@ -428,7 +432,7 @@ None of the ``pipeline_*`` subcommands run these by default:
 * :doc:`commands/mito` -- assemble the mitochondrial genome from paired Illumina reads, then pass it
   to ``filter --screen_local`` to screen its reads out.
 * :doc:`commands/fcs_screen` -- NCBI FCS-adaptor adaptor/vector screen; the pipelines run it
-  right after vecscreen with ``--fcs_screen``.
+  instead of vecscreen with ``--fcs_screen``.
 * :doc:`commands/fcs_gx_purge` -- NCBI FCS-GX cross-contamination purge. It needs its whole
   database (~470 GB) in RAM, so it is not a pipeline step: run it separately, on a large-memory
   node, on one or more finished assemblies.
