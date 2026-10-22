@@ -826,3 +826,18 @@ class TestComplement:
     def test_all_bases(self):
         # A<->T, C<->G
         assert _rev_comp("ACGT") == "ACGT"
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(__import__("shutil").which("dedupe.sh") is None, reason="needs BBTools dedupe.sh")
+def test_dedupe_fasta_removes_duplicates_and_containments(tmp_path):
+    """Exact copies, reverse complements and contained sequences go; distinct ones stay."""
+    from aaftf.utility import dedupe_fasta
+
+    long_seq = "ACGTTGCAAGGCTTACCGATCGATGCTAGCTAGGATCCAGTCGATCGTAGCTAGCTAGGCTAACG"
+    revcomp = long_seq[::-1].translate(str.maketrans("ACGT", "TGCA"))
+    src = tmp_path / "in.fa"
+    src.write_text(f">long\n{long_seq}\n>copy\n{long_seq}\n>rc\n{revcomp}\n>inside\n{long_seq[10:40]}\n>other\nTTTTGGGGCCCCAAAATTTTGGGGCCCCAAAA\n")
+    assert dedupe_fasta(src, tmp_path / "out.fa") == 2
+    names = sorted(line[1:].split()[0] for line in (tmp_path / "out.fa").read_text().splitlines() if line.startswith(">"))
+    assert len(names) == 2 and "other" in names

@@ -19,7 +19,7 @@ from typing import Any
 from Bio import SeqIO
 
 from aaftf.resources import CONTAMDB, CONTAMDB_BBTOOLS, DATABASES, TAXPURGE_DEFAULT_DATABASES, VECSCREEN_EXCLUDE_TERMS
-from aaftf.utility import bbtools_resources, db_dirs, db_file, db_write_dir, download_file, find_db_file, find_db_index, open_maybe_gz, open_url, require_tools, run_cmd, safe_remove, warn_if_home_cache, write_fasta
+from aaftf.utility import bbtools_resources, db_dirs, db_file, db_write_dir, dedupe_fasta, download_file, find_db_file, find_db_index, open_maybe_gz, open_url, require_tools, run_cmd, safe_remove, warn_if_home_cache, write_fasta
 
 __all__ = ["build_contamdb", "find_contamdb", "require_contamdb", "run"]
 
@@ -96,9 +96,10 @@ def build_contamdb(force: bool = False) -> str:
 
     The FASTA is UniVec_Core without the entries whose names contain any of
     ``VECSCREEN_EXCLUDE_TERMS`` (fungal genomic sequence that would match, and split, real fungal
-    contigs), followed by the PhiX genome and the BBTools ``lambda.fa.gz`` and ``adapters.fa``.
-    UniVec_Core and PhiX are downloaded first if needed. The FASTA is written to a temporary file
-    and renamed when complete, then indexed by ``require_contamdb(blast=True)``. An existing
+    contigs), followed by the PhiX genome and the BBTools ``lambda.fa.gz`` and ``adapters.fa``,
+    without duplicate or contained sequences (``dedupe_fasta``). UniVec_Core and PhiX are
+    downloaded first if needed. The FASTA is assembled in temporary files (always removed) and
+    renamed to ``contamdb.fa`` when complete, then indexed by ``require_contamdb(blast=True)``. An existing
     ``contamdb.fa`` (which users may have added their own sequences to) is kept; only its BLAST
     database is brought up to date. Once the database is built, UniVec_Core and PhiX are deleted,
     but only from the folder AAFTF downloads into (a copy in another ``$AAFTF_DB`` folder may be
@@ -122,9 +123,10 @@ def build_contamdb(force: bool = False) -> str:
     bbtools = bbtools_resources(CONTAMDB_BBTOOLS)
 
     fasta = db_write_dir() / CONTAMDB["fasta"]
-    tmp = fasta.with_name(fasta.name + ".tmp")
+    # intermediates keep a FASTA extension, which dedupe.sh reads the format from
+    raw, dedup = fasta.with_name("contamdb.raw.tmp.fa"), fasta.with_name("contamdb.dedup.tmp.fa")
     kept = dropped = 0
-    with open(tmp, "w") as out:
+    with open(raw, "w") as out:
         with open_maybe_gz(univec) as fh:
             for record in SeqIO.parse(fh, "fasta"):
                 if any(term in record.description.lower() for term in VECSCREEN_EXCLUDE_TERMS):
@@ -136,8 +138,13 @@ def build_contamdb(force: bool = False) -> str:
             with open_maybe_gz(source) as fh:
                 for record in SeqIO.parse(fh, "fasta"):
                     write_fasta(out, record.description, str(record.seq))
-    tmp.replace(fasta)
-    logger.info(f"Kept {kept:,} UniVec_Core sequences ({dropped:,} fungal/yeast-derived left out), added PhiX, {', '.join(CONTAMDB_BBTOOLS)}: {fasta}")
+    try:
+        n_dedup = dedupe_fasta(raw, dedup)
+        dedup.replace(fasta)
+    finally:
+        safe_remove(raw)
+        safe_remove(dedup)
+    logger.info(f"Kept {kept:,} UniVec_Core sequences ({dropped:,} fungal/yeast-derived left out), added PhiX, {', '.join(CONTAMDB_BBTOOLS)}; {n_dedup:,} sequences after removing duplicates and contained ones: {fasta}")
     prefix = require_contamdb(blast=True)
     for source in (univec, phix):
         if Path(source).parent == db_write_dir():

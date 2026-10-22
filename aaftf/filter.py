@@ -11,7 +11,7 @@ from typing import Any
 
 from aaftf.database import require_contamdb
 from aaftf.resources import SEQ_DBS
-from aaftf.utility import align_to_sorted_bam, basename_from_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, download_file, make_workdir, run_cmd
+from aaftf.utility import align_to_sorted_bam, basename_from_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, dedupe_fasta, download_file, make_workdir, run_cmd, safe_remove
 
 __all__ = ["run"]
 
@@ -118,8 +118,10 @@ def _build_contamdb(workdir: str, screen_accessions: list[str] | None, screen_ur
     """Write ``<workdir>/contamdb.fa`` from every screening source, unless it is already current.
 
     The sources are the ``contamdb`` database's FASTA (``AAFTF database contamdb``), then the extra accessions (downloaded once into the database folder), URLs and local files.
-    The list of sources, with their sizes and modification times, is kept next to the database in
-    ``contamdb.fa.sources``; the database is rebuilt whenever that list changes.
+    With extra sources, duplicate or contained sequences are removed (``dedupe_fasta``) from the
+    combined file, which is then deleted. The list of sources, with their sizes and modification
+    times, is kept next to the database in ``contamdb.fa.sources``; the database is rebuilt
+    whenever that list changes.
 
     Args:
         workdir: Work directory to write the database into.
@@ -142,7 +144,16 @@ def _build_contamdb(workdir: str, screen_accessions: list[str] | None, screen_ur
         logger.info(f"Reusing the contamination database {contamdb}")
     else:
         logger.info("Generating combined contamination database {} from:\n{}".format(contamdb, "\n".join(sources)))
-        concat_files(sources, contamdb)
+        if len(sources) == 1:  # the database is already free of duplicates
+            concat_files(sources, contamdb)
+        else:
+            raw = Path(workdir, "contamdb.raw.fa")
+            try:
+                concat_files(sources, raw)
+                n_dedup = dedupe_fasta(raw, contamdb)
+            finally:
+                safe_remove(raw)
+            logger.info(f"{n_dedup:,} sequences after removing duplicates and contained ones")
         manifest.write_text(listing)
     return str(contamdb)
 
