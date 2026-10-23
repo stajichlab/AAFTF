@@ -4321,7 +4321,7 @@ packages:
   - matplotlib>=3
   - packaging
   - psutil>=5
-  - pre-commit>=4 ; extra == 'dev'
+  - pre-commit>=4.6.2 ; extra == 'dev'
   - pytest-cov>=5.0.0 ; extra == 'dev'
   - pytest>=8.0.0 ; extra == 'dev'
   - furo ; extra == 'docs'
