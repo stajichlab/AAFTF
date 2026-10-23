@@ -4318,7 +4318,7 @@ packages:
   name: aaftf
   requires_dist:
   - biopython>=1.88
-  - matplotlib>=3
+  - matplotlib>=3.10.9
   - packaging
   - psutil>=5
   - pre-commit>=4 ; extra == 'dev'
