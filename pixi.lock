@@ -4322,7 +4322,7 @@ packages:
   - packaging
   - psutil>=5
   - pre-commit>=4 ; extra == 'dev'
-  - pytest-cov>=5.0.0 ; extra == 'dev'
+  - pytest-cov>=7.1.0 ; extra == 'dev'
   - pytest>=8.0.0 ; extra == 'dev'
   - furo ; extra == 'docs'
   - sphinx-autobuild ; extra == 'docs'
