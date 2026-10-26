@@ -11,7 +11,7 @@ from typing import Any
 
 from aaftf.database import require_contamdb
 from aaftf.resources import SEQ_DBS
-from aaftf.utility import align_to_sorted_bam, basename_from_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, dedupe_fasta, download_file, make_workdir, run_cmd, safe_remove
+from aaftf.utility import align_to_sorted_bam, basename_from_reads, bbduk_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, dedupe_fasta, download_file, make_workdir, run_cmd, safe_remove
 
 __all__ = ["run"]
 
@@ -159,22 +159,10 @@ def _build_contamdb(workdir: str, screen_accessions: list[str] | None, screen_ur
 
 
 def _filter_bbduk(contamdb: str, forward_reads: str, reverse_reads: str | None, clean_1: str, clean_2: str | None, workdir: str, cpus: int, memory: int, debug: bool) -> None:
-    """K-mer filter the reads against ``contamdb`` with BBDuk into ``clean_1`` (and ``clean_2``).
-
-    Paired reads are interleaved first and de-interleaved afterwards: BBDuk's paired mode
-    (``in=``/``in2=``) silently truncates large paired FASTQ in this BBTools build, while its
-    single-file reader handles an interleaved file correctly.
-    """
+    """K-mer filter the reads against ``contamdb`` with BBDuk into ``clean_1`` (and ``clean_2``)."""
     bbduk = ["bbduk.sh", f"-Xmx{memory}g", f"t={cpus}", "hdist=1", "k=27", "overwrite=true", f"ref={contamdb}"]
     logger.info("Kmer filtering reads using BBDuk")
-    if reverse_reads:
-        interleaved_in = str(Path(workdir, "reads_ivl.fq.gz"))
-        interleaved_out = str(Path(workdir, "reads_ivl.clean.fq.gz"))
-        run_cmd(["shuffle.sh", f"in1={forward_reads}", f"in2={reverse_reads}", f"out={interleaved_in}"], debug)
-        run_cmd(bbduk + [f"in={interleaved_in}", "interleaved=true", f"out={interleaved_out}"], debug)
-        run_cmd(["reformat.sh", f"in={interleaved_out}", f"out1={clean_1}", f"out2={clean_2}"], debug)
-    else:
-        run_cmd(bbduk + [f"in={forward_reads}", f"out={clean_1}"], debug)
+    bbduk_reads(bbduk, forward_reads, reverse_reads, clean_1, clean_2, Path(workdir, "reads"), debug)
 
 
 def _align(aligner: str, contamdb: str, forward_reads: str, reverse_reads: str | None, align_bam: str, workdir: str, cpus: int, debug: bool) -> None:

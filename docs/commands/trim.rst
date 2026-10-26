@@ -12,9 +12,9 @@ Three interchangeable trimming engines are supported via ``--method``:
 
 * **bbduk** (default)
     Runs BBTools' ``bbduk.sh`` with ``ref=adapters ktrim=r k=23 mink=11 hdist=1 ftm=5 tpe tbo``.
-    Because this BBDuk build's paired-mode ``PairStreamer`` (``in1=``/``in2=``) has a bug that
-    silently truncates the read stream on large/variable-length paired FASTQ after a few hundred
-    reads, AAFTF works around it by first interleaving R1/R2 with ``shuffle.sh`` into one file,
+    Because BBDuk's paired-mode ``PairStreamer`` (``in1=``/``in2=``) has a bug (still in BBTools
+    39.91) that crashes or silently truncates the read stream when the two reads of a pair differ
+    in length, AAFTF works around it by first interleaving R1/R2 with ``reformat.sh`` into one file,
     running BBDuk's (unaffected) single-end reader on the interleaved stream, then
     de-interleaving the trimmed output back to ``_1P``/``_2P`` with ``reformat.sh``.
 * **trimmomatic**

@@ -223,7 +223,7 @@ class TestTrimRunBbduk:
         assert any(f"in2={read2}" in " ".join(c) for c in cmds)
 
     def test_pe_command_includes_out1_out2(self, tmp_path):
-        # PE bbduk runs as shuffle.sh -> bbduk.sh -> reformat.sh (see a136d93);
+        # PE bbduk runs as reformat.sh -> bbduk.sh -> reformat.sh (see a136d93);
         # the final out1/out2 filenames are written by the reformat.sh step,
         # not the first command.
         read1 = str(tmp_path / "sample_R1.fastq.gz")

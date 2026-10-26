@@ -737,6 +737,37 @@ def bbtools_resources(names: Iterable[str]) -> list[str]:
     return [str(path) for path in paths]
 
 
+def bbduk_reads(bbduk_cmd: Sequence[str], read1: str, read2: str | None, out1: str, out2: str | None, tmp_prefix: str | Path, debug: bool = False) -> None:
+    """Run ``bbduk_cmd`` (``bbduk.sh`` and its options, no in/out) on the reads.
+
+    Paired reads are interleaved with ``reformat.sh``, run through BBDuk's single-file reader
+    and split back into ``out1``/``out2``: BBDuk's paired mode (``in=``/``in2=``, still in
+    BBTools 39.91) crashes ("List size mismatch") or silently truncates its output when the
+    two reads of a pair differ in length. The interleaved files are removed afterwards.
+
+    Args:
+        bbduk_cmd: The ``bbduk.sh`` command without input/output arguments.
+        read1: Read 1 (forward, or single-end) FASTQ.
+        read2: Read 2 (reverse) FASTQ, or None for single-end.
+        out1: Output read 1 (or single-end) FASTQ.
+        out2: Output read 2 FASTQ (used with ``read2``).
+        tmp_prefix: Path prefix of the temporary interleaved files.
+        debug: Show external command output when True.
+    """
+    if not read2:
+        run_cmd([*bbduk_cmd, f"in={read1}", f"out={out1}"], debug)
+        return
+    interleaved_in = f"{tmp_prefix}_ivl.fq.gz"
+    interleaved_out = f"{tmp_prefix}_ivl.bbduk.fq.gz"
+    try:
+        run_cmd(["reformat.sh", f"in1={read1}", f"in2={read2}", f"out={interleaved_in}"], debug)
+        run_cmd([*bbduk_cmd, f"in={interleaved_in}", "interleaved=true", f"out={interleaved_out}"], debug)
+        run_cmd(["reformat.sh", f"in={interleaved_out}", f"out1={out1}", f"out2={out2}"], debug)
+    finally:
+        safe_remove(interleaved_in)
+        safe_remove(interleaved_out)
+
+
 # dedupe.sh seed length: the shortest contamdb sequences (adaptors/primers) are 10 bp
 DEDUPE_K = 10
 

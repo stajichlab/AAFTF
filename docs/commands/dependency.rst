@@ -14,7 +14,7 @@ groups, and printed in the order listed below:
 
 * **Needed by the default pipelines** (``REQUIRED_TOOLS`` / ``REQUIRED_PYTHON_PACKAGES`` in
   ``aaftf/dependency.py``) -- what ``pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid``
-  need with their default settings: ``bbduk.sh``, ``shuffle.sh``, ``reformat.sh``, ``java``,
+  need with their default settings: ``bbduk.sh``, ``reformat.sh``, ``java``,
   ``spades.py``, ``blastn``, ``makeblastdb``, ``bwa``, ``samtools``, ``minimap2``,
   ``flye``, ``racon``, ``polypolish``, ``pypolca``, ``freebayes``, ``mosdepth``; Python packages
   ``biopython`` and ``psutil``.

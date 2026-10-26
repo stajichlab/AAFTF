@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from aaftf.utility import basename_from_reads, count_fastq, run_cmd, safe_remove
+from aaftf.utility import basename_from_reads, bbduk_reads, count_fastq, run_cmd, safe_remove
 
 __all__ = ["TRIMMOMATIC_TRUSEQSE", "TRIMMOMATIC_TRUSEQPE", "run", "run_bbduk", "run_trimmomatic", "run_fastp"]
 
@@ -118,8 +118,8 @@ def run(
 def run_bbduk(read1: str, read2: str | None, basename: str, cpus: int, memory: int, minlen: int, avgqual: int, debug: bool, pipe: bool) -> None:
     """Trim reads with BBDuk.
 
-    Paired reads are interleaved with ``shuffle.sh`` before trimming and split back into
-    ``<basename>_1P``/``_2P`` files with ``reformat.sh``; single-end output is ``<basename>_1U``.
+    Paired output is ``<basename>_1P``/``_2P`` (see :func:`aaftf.utility.bbduk_reads` for the
+    paired-mode workaround); single-end output is ``<basename>_1U``.
 
     Args:
         read1: Read 1 (forward, or single-end) FASTQ.
@@ -151,33 +151,9 @@ def run_bbduk(read1: str, read2: str | None, basename: str, cpus: int, memory: i
         "tbo",
         "overwrite=true",
     ]
-    if read1 and read2:
-        # Paired mode (in1=/in2=) hits a bug in this BBDuk build's
-        # PairStreamer on large/variable-length paired FASTQ: it silently
-        # truncates the stream after a few hundred reads instead of
-        # erroring loudly. Feed it an INTERLEAVED single file instead
-        # (bbduk's single-end reader handles the full file correctly),
-        # then de-interleave the trimmed output.
-        interleaved_in = f"{basename}_ivl.fq.gz"
-        interleaved_out = f"{basename}_ivl.trimmed.fq.gz"
-        shuffle_cmd = ["shuffle.sh", f"in1={read1}", f"in2={read2}", f"out={interleaved_in}"]
-        run_cmd(shuffle_cmd, debug)
-
-        cmd = bbduk_base + [f"in={interleaved_in}", "interleaved=true", f"out={interleaved_out}"]
-        run_cmd(cmd, debug)
-
-        reformat_cmd = [
-            "reformat.sh",
-            f"in={interleaved_out}",
-            f"out1={basename}_1P.fastq.gz",
-            f"out2={basename}_2P.fastq.gz",
-        ]
-        run_cmd(reformat_cmd, debug)
-        safe_remove(interleaved_in)
-        safe_remove(interleaved_out)
-    elif read1:
-        cmd = bbduk_base + [f"in={read1}", f"out={basename}_1U.fastq.gz"]
-        run_cmd(cmd, debug)
+    out2 = f"{basename}_2P.fastq.gz" if read2 else None
+    out1 = f"{basename}_1P.fastq.gz" if read2 else f"{basename}_1U.fastq.gz"
+    bbduk_reads(bbduk_base, read1, read2, out1, out2, basename, debug)
 
     _report_trimmed(basename, read2, cpus, pipe)
 
