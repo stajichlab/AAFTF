@@ -4323,7 +4323,7 @@ packages:
   - matplotlib>=3.10.9
   - packaging
   - psutil>=7.2.2
-  - pre-commit>=4 ; extra == 'dev'
+  - pre-commit>=4.6.2 ; extra == 'dev'
   - pytest-cov>=7.1.0 ; extra == 'dev'
   - pytest>=8.0.0 ; extra == 'dev'
   - furo ; extra == 'docs'
