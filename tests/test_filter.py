@@ -343,7 +343,7 @@ def _run_filter_bbduk(tmp_path, read1, read2=None, **extra):
 
 
 class TestFilterRunBbduk:
-    # PE bbduk runs as shuffle.sh -> bbduk.sh -> reformat.sh (see a136d93,
+    # PE bbduk runs as reformat.sh -> bbduk.sh -> reformat.sh (see a136d93,
     # the BBDuk PairStreamer paired-mode workaround), so a given argument may
     # land on any of the three commands rather than the first.
     def test_pe_command_includes_in(self, tmp_path):

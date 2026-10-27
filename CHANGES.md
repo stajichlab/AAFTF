@@ -231,8 +231,12 @@ check the **Breaking changes** before updating scripts.
  - `assess` crashed on missing or empty input and never closed its report file.
  - `depth`: `-1` and `--longread_preset` were listed as required in `-h`; samtools failures were ignored.
  - `vecscreen` left input files open.
- - Trim/filter work around a BBDuk PairStreamer bug in paired mode; `pipeline` type mismatches that
-   crashed `sourpurge` and `polish` were fixed.
+ - Trim/filter work around a BBDuk PairStreamer bug in paired mode (still in BBTools 39.91: paired
+   `in=`/`in2=` crashes with "List size mismatch" or silently truncates the output when the reads of a
+   pair differ in length): paired reads are interleaved with `reformat.sh`, run through BBDuk's
+   single-file reader and split back, via the shared `utility.bbduk_reads()`. `shuffle.sh` is no
+   longer needed, and the temporary interleaved files are removed even when a step fails.
+   `pipeline` type mismatches that crashed `sourpurge` and `polish` were fixed.
 
 ### Removed
 

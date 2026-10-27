@@ -12,9 +12,8 @@ __all__ = ["REQUIRED_TOOLS", "OPTIONAL_TOOLS", "REQUIRED_PYTHON_PACKAGES", "OPTI
 # external tools needed to run ``AAFTF pipeline_short``, ``pipeline_long`` and ``pipeline_hybrid`` with their default settings (tool -> where it is used)
 REQUIRED_TOOLS = {
     "bbduk.sh": "trim, filter",
-    "shuffle.sh": "trim, filter (paired reads)",
     "reformat.sh": "trim, filter (paired reads), mito (--subsample)",
-    "java": "BBTools (bbduk.sh, shuffle.sh, reformat.sh), trim (--method trimmomatic)",
+    "java": "BBTools (bbduk.sh, reformat.sh), trim (--method trimmomatic)",
     "spades.py": "assemble",
     "blastn": "vecscreen",
     "makeblastdb": "vecscreen",

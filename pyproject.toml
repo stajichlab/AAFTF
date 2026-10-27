@@ -106,7 +106,7 @@ PYTHONNOUSERSITE = "1"
 # ---------------------------------------------------------------------------
 [tool.pixi.dependencies]
 python = ">=3.10,<3.15"
-bbmap = ">=39.80,<40"     # bbduk.sh, shuffle.sh, reformat.sh (brings java)
+bbmap = ">=39.80,<40"     # bbduk.sh, reformat.sh (brings java)
 spades = "*"
 blast = "*"
 bwa = "*"
