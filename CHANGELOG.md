@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (Development)
+All notable changes to this project are documented in this file. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
+Add an entry under `[Unreleased]` with every pull request; the release workflow turns it into the release notes.
+
+## [Unreleased]
 
 Changes since `v0.7.0-beta.4`. This is a large refactor: many command-line options changed, so
 check the **Breaking changes** before updating scripts.
@@ -261,14 +265,24 @@ check the **Breaking changes** before updating scripts.
  - Google-style docstrings and type hints throughout; mypy-clean; PEP 8 names; ruff targets Python 3.10.
  - Test suite rewritten and extended (about 700 tests, 96% line coverage), with tests isolated in
    temporary directories.
+ - GitHub Actions use the org's shared workflows (`stajichlab/gh_workflows@v1`) for tests, the
+   `pixi.lock` refresh, the container build, changelog and citation checks, and releases. Releases now
+   go through a reviewed `Release v<version>` pull request, and `CHANGES.md` became `CHANGELOG.md` in
+   Keep a Changelog format.
 
-## 0.6.2
+## [0.7.0-beta.4] - 2026-08-16
+
+Pre-releases `v0.7.0-beta.0` to `v0.7.0-beta.4`; see their GitHub releases.
+
+## [0.6.2] - 2026-06-16
 
 ### Changed
 
  - Release with updated tools and checking for pipeline.
 
-## 0.6.1 (tagged v0.6.1-alpha2)
+## [0.6.1] - 2026-05-09
+
+Tagged `v0.6.1-alpha2`.
 
 ### Tests
 
@@ -314,16 +328,17 @@ check the **Breaking changes** before updating scripts.
  - Maintains backward compatibility with packaged installations and PEP 440 compliance
  - Improved development traceability and debugging support
 
-## 0.6.0
+## [0.6.0] - 2025-08-24
 
-## Added new features
+### Added new features
 
  - unicycler as assembler for short reads
  - default spades mode is with --isolate (to turn off use --no-isolate --careful)
  - add menu item 'fix' / 'fix_tbl' which supports updating NCBI tbl format after fcs screening (have to run the `fcs clean genome` command)
-## 0.5.0
 
-### Added new features
+## [0.5.0]
+
+#### Added new features
 
  - NCBI fcs screening added for vector screening
  - NCBI fcs_gx screening for contamination (requires fast SSD disk or large memory)
@@ -335,26 +350,26 @@ check the **Breaking changes** before updating scripts.
 
  - NCBI mitochondria genome download now points to the single FNA file instead of split between two
 
-## 0.4.1
+## [0.4.1] - 2022-12-14
 
 ### Fixed
 
  - Some bug fixes related to URLs.
 
-## 0.4.0
+## [0.4.0] - 2022-12-14
 
 ### Added
 
  - gzipped FastA files are supported by `AAFTF assess`
  - Telomere info reported in assess
 
-## 0.3.3
+## [0.3.3]
 
 ### Added
 
  - pypi packaging for install
 
-## 0.3.2
+## [0.3.2] - 2022-06-02
 
 ### Added
 
@@ -364,7 +379,7 @@ check the **Breaking changes** before updating scripts.
 
  - Add dependencies to requirements.txt and environment.yml
 
-## 0.3.1
+## [0.3.1] - 2022-05-30
 
 ### Added
   - support for fastp in trimming (`trim`) command which can now support merging (--merge) and de-duplication (--dedup) as well as 5' and 3' trimming options of fastp (--cutfront, --cuttail, --cutright).
@@ -376,7 +391,7 @@ check the **Breaking changes** before updating scripts.
   - spades in `assemble` command support merged long singleton reads along with paired end input
 
 
-## 0.3.0
+## [0.3.0] - 2022-02-13
 
 ### Added
 
@@ -385,7 +400,7 @@ check the **Breaking changes** before updating scripts.
 - updated sourmash LCA database link and will download if not found
 
 
-## 0.2.5
+## [0.2.5] - 2021-03-28
 
 ### Added
 
@@ -393,26 +408,26 @@ check the **Breaking changes** before updating scripts.
 - Added --mem option to pilon to up the heapsize for java runs
 - merged changes in namespace by @gamcil and a tmpdir
 
-## 0.2.4
+## [0.2.4]
 
 ### Added
 
  - conda/pypi packages.
 
-## 0.2.3
+## [0.2.3] - 2019-09-17
 
 ### Added
 
  - Support a minimum length contig cutoff.
 
-## 0.2.1
+## [0.2.1] - 2018-11-28
 
 ### Changed
 
  - Fix some README docs.
  - Sync zenodo with this release.
 
-## 0.2.0
+## [0.2.0] - 2018-11-27
 
 ### Changed
 
@@ -425,6 +440,6 @@ check the **Breaking changes** before updating scripts.
  - Specify memory use for pilon and SPAdes assembly steps.
  - Support to generate scripts to run all steps in a pipeline with the 'pipeline' command.
 
-## 0.1.0
+## [0.1.0] - 2018-09-13
 
  - Initial release, which includes automation for quality trimming and contaminant/adaptor removal, filtering, assembly, vector cleanup, refinement, duplication removal and sorting.

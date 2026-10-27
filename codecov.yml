@@ -1,5 +1,5 @@
 # Codecov settings (https://docs.codecov.com/docs/codecov-yaml). The CI uploads one report per unit-test
-# Python version (flag unit-py<version>) and one from the integration tests (flag integration); Codecov merges them.
+# Python version (flag pip-<version>) and one from the integration tests (flag pixi-dev); Codecov merges them.
 # wait for all 6 uploads (5 unit-test Pythons + integration) before reporting, so the status and PR
 # comment show the merged coverage rather than whichever upload arrived first
 codecov:

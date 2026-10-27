@@ -1,10 +1,9 @@
-# Builds and publishes the AAFTF container images.
+# Builds and publishes the AAFTF container images. The Docker build itself uses the org's shared container_build
+# workflow; signing, provenance and the Singularity image stay here.
 #
-# Images are built only for releases, not on every push:
-# - Every published release: builds the Docker image pinned to that tag and
-#                             publishes ghcr.io/stajichlab/aaftf:<tag> / :<version>
-#                             (and :latest for a full, non-pre-release), plus builds a Singularity/Apptainer .sif for that
-#                             tag (without baking in the sourmash DB) and
+# - Release (called by publish.yml with the new tag): publishes ghcr.io/stajichlab/aaftf:<version>, :<tag>,
+#                             :<major.minor> and :latest (the last two not for prereleases), plus builds a
+#                             Singularity/Apptainer .sif for that tag (without baking in the sourmash DB) and
 #                             attaches it to the GitHub Release as an asset.
 #
 # - Manual run (workflow_dispatch): builds the current branch as
@@ -16,8 +15,12 @@
 name: Build container images
 
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g. v0.7.0)"
+        required: true
+        type: string
   workflow_dispatch:
 
 env:
@@ -25,14 +28,12 @@ env:
   IMAGE_NAME: stajichlab/aaftf
 
 jobs:
-  docker-main:
-    if: github.event_name == 'workflow_dispatch'
+  version:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -41,56 +42,42 @@ jobs:
 
       - name: Compute version
         id: version
-        # Raw `git describe` output (e.g. v0.7.0-beta.4-63-g7c3c423); the Dockerfile converts it to
-        # PEP 440 (0.7.0-beta.4-63+g7c3c423) and fails the build if the installed version differs.
+        env:
+          TAG: ${{ inputs.tag }}
+        # A release builds its tag's version; a manual run uses the raw `git describe` output (e.g.
+        # v0.7.0-beta.4-63-g7c3c423), which the Dockerfile converts to PEP 440 (0.7.0-beta.4-63+g7c3c423). The build
+        # fails if the installed version differs.
         run: |
-          v=$(git describe --tags --long --match='v[0-9]*' 2>/dev/null || echo "0.0.0+g$(git rev-parse --short HEAD)")
+          if [ -n "$TAG" ]; then
+            v="${TAG#v}"
+          else
+            v=$(git describe --tags --long --match='v[0-9]*' 2>/dev/null || echo "0.0.0+g$(git rev-parse --short HEAD)")
+          fi
           echo "version=${v}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v7
-        id: build
-        with:
-          context: .
-          push: true
-          build-args: |
-            AAFTF_VERSION=${{ steps.version.outputs.version }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  docker-release:
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
+  docker:
+    needs: version
+    uses: stajichlab/gh_workflows/.github/workflows/container_build.yml@v1
     permissions:
       contents: read
       packages: write
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
+    with:
+      ref: ${{ inputs.tag }}
+      latest: ${{ inputs.tag != '' }}  # ignored for prereleases
+      extra_tags: ${{ inputs.tag || 'main' }}
+      build_args: |
+        AAFTF_VERSION=${{ needs.version.outputs.version }}
+      smoke_test_args: AAFTF --version
+
+  docker-sign:
+    needs: docker
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Compute image tags
-        id: meta
-        run: |
-          tag="${{ github.event.release.tag_name }}"
-          version="${tag#v}"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          # only a full release moves :latest; pre-releases get just their own tags
-          if [ "${{ github.event.release.prerelease }}" != "true" ]; then
-            echo "latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: docker/setup-buildx-action@v4
+      - uses: sigstore/cosign-installer@v4.1.2
 
       - uses: docker/login-action@v4
         with:
@@ -98,27 +85,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v7
-        id: build
-        with:
-          context: .
-          push: true
-          build-args: |
-            AAFTF_VERSION=${{ steps.meta.outputs.version }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
-            ${{ steps.meta.outputs.latest }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Sign the image
+        run: |
+          cosign sign --yes \
+            --recursive \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
 
   singularity-release:
-    if: github.event_name == 'release'
+    if: inputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Install Apptainer
         run: |
@@ -127,7 +108,7 @@ jobs:
 
       - name: Build .sif for the released tag
         run: |
-          tag="${{ github.event.release.tag_name }}"
+          tag="${{ inputs.tag }}"
           apptainer build \
             --build-arg git_ref="${tag}" \
             --build-arg skip_db_download=1 \
@@ -137,57 +118,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${{ github.event.release.tag_name }}"
+          tag="${{ inputs.tag }}"
           gh release upload "${tag}" "AAFTF-${tag}.sif" --clobber --repo "${{ github.repository }}"
 
-  docker-sign:
-    needs: [docker-main, docker-release]
-    runs-on: ubuntu-latest
-    if: always() && (contains(needs.docker-main.result, 'success') || contains(needs.docker-release.result, 'success'))
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: sigstore/cosign-installer@v4.1.2
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Sign the manually built :main image
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          cosign sign --yes \
-            --recursive \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-main.outputs.digest }}"
-
-      - name: Sign release images
-        if: github.event_name == 'release'
-        run: |
-          cosign sign --yes \
-            --recursive \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-release.outputs.digest }}"
-
   provenance:
-    needs: [docker-main, docker-release, docker-sign]
+    needs: [docker, docker-sign]
     runs-on: ubuntu-latest
-    if: always() && (contains(needs.docker-main.result, 'success') || contains(needs.docker-release.result, 'success'))
     permissions:
       id-token: write
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: docker/setup-buildx-action@v4
-
       - uses: sigstore/cosign-installer@v4.1.2
 
       - uses: docker/login-action@v4
@@ -223,18 +164,9 @@ jobs:
           JSON
           echo "path=${predicate_file}" >> "${GITHUB_OUTPUT}"
 
-      - name: Generate SLSA provenance for the :main image
-        if: github.event_name == 'workflow_dispatch'
+      - name: Generate SLSA provenance
         run: |
           cosign attest --yes \
             --predicate "${{ steps.slsa-predicate.outputs.path }}" \
             --type=slsaprovenance1 \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-main.outputs.digest }}"
-
-      - name: Generate SLSA provenance for release images
-        if: github.event_name == 'release'
-        run: |
-          cosign attest --yes \
-            --predicate "${{ steps.slsa-predicate.outputs.path }}" \
-            --type=slsaprovenance1 \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker-release.outputs.digest }}"
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
