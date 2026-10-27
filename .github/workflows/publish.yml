@@ -18,6 +18,8 @@ jobs:
     uses: stajichlab/gh_workflows/.github/workflows/release_publish.yml@v1
     permissions:
       contents: write
+    with:
+      environment: Release  # required reviewers (Settings → Environments) approve tagging and publishing
     secrets:
       token: ${{ secrets.RELEASE_TOKEN }}
 
