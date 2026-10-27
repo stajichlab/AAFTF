@@ -1,7 +1,7 @@
 # Tests the conda route: builds environment.yml (the tools the pipelines need with their default settings, from
 # bioconda/conda-forge), installs this checkout of AAFTF into it in place of the PyPI release the file names, and runs
 # the whole test suite there, so environment.yml can't drift from pyproject.toml and pixi.toml unnoticed. Integration
-# tests whose tools environment.yml leaves out skip themselves.
+# tests whose tools environment.yml leaves out skip themselves. Uses the org's shared python_test workflow.
 
 name: CI/conda
 
@@ -23,27 +23,13 @@ concurrency:
 jobs:
   test:
     name: Tests (conda environment.yml)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          filter: tree:0  # full history for the version, without old file contents
-
-      - name: Set up the conda environment
-        uses: mamba-org/setup-micromamba@v3
-        with:
-          environment-file: environment.yml
-          cache-downloads: true
-
-      - name: Install this checkout with its test extras (replacing the PyPI release from environment.yml)
-        run: python -m pip install -e ".[dev]"
-        shell: micromamba-shell {0}
-
-      - name: Check the environment has what the default pipeline needs
-        run: AAFTF dependency
-        shell: micromamba-shell {0}
-
-      - name: Run the whole test suite, including integration tests
-        run: pytest -vv tests
-        shell: micromamba-shell {0}
+    uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
+    with:
+      installer: conda
+      conda_environment_file: environment.yml
+      python_versions: '[""]'  # use the Python environment.yml pins
+      # replace the PyPI release from environment.yml with this checkout, then check the default pipeline's tools
+      setup_command: |
+        python -m pip install -e ".[dev]"
+        AAFTF dependency
+      test_command: pytest -vv tests

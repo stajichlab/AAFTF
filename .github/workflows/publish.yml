@@ -1,0 +1,62 @@
+# Finishes a release when its `release/v<version>` pull request (opened by release.yml) is merged into main: the
+# org's shared release_publish workflow tags the merge commit and creates the GitHub release with the CHANGELOG.md
+# notes, then the package is built from the tag and published to PyPI, anaconda.org and ghcr.io, and main is merged
+# back into dev (sync_dev). Other closed pull requests do nothing.
+#
+# The publishing steps are chained here rather than triggered by `release: published`, which does not fire for
+# releases created with GITHUB_TOKEN.
+
+name: Publish
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  publish:
+    uses: stajichlab/gh_workflows/.github/workflows/release_publish.yml@v1
+    permissions:
+      contents: write
+    secrets:
+      token: ${{ secrets.RELEASE_TOKEN }}
+
+  pypi:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    uses: ./.github/workflows/python-publish.yml
+    permissions:
+      contents: write
+      id-token: write
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+    secrets: inherit
+
+  conda:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    uses: ./.github/workflows/conda-build.yml
+    permissions:
+      contents: read
+    with:
+      version: ${{ needs.publish.outputs.tag }}
+    secrets: inherit
+
+  container:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    uses: ./.github/workflows/docker-build.yml
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+
+  sync-dev:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    uses: stajichlab/gh_workflows/.github/workflows/sync_dev.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write

@@ -1,7 +1,8 @@
 # Continuous integration for every push to main and every pull request:
 # lint (pre-commit), unit tests on every supported Python, integration tests with the real tools
-# (locked pixi dev environment), and a warnings-as-errors Sphinx build of docs/. Both test jobs upload
-# coverage to Codecov (flags unit-py<version> and integration; needs the CODECOV_TOKEN secret).
+# (locked pixi dev environment), and a warnings-as-errors Sphinx build of docs/. The test jobs use the org's shared
+# python_test workflow and upload coverage to Codecov (flags pip-<version> and pixi-dev; needs the CODECOV_TOKEN
+# secret).
 
 name: CI
 
@@ -31,66 +32,29 @@ jobs:
 
       - uses: pre-commit/action@v3.0.1
 
+  # Shared org workflow (stajichlab/gh_workflows): one job per Python version in its default 3.10-3.14 matrix,
+  # matching requires-python = ">=3.10,<3.15"
   test-unit:
-    name: Unit tests (py ${{ matrix.python }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]  # requires-python = ">=3.10,<3.15"
-    steps:
-      # hatch-vcs derives the version from git tags
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          filter: tree:0  # full history for the version, without old file contents
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ matrix.python }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Install AAFTF with its test extras
-        run: python -m pip install ".[dev]"
-
-      - name: Run unit tests (no external tools needed)
-        run: pytest -vv -m unit tests --cov --cov-report=xml
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7.1.1
-        with:
-          flags: unit-py${{ matrix.python }}
-          files: ./coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+    name: Unit tests
+    uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
+    with:
+      pip_install: ".[dev]"
+      test_command: pytest -vv -m unit tests --cov --cov-report=xml
+      codecov: true
+    secrets:
+      codecov_token: ${{ secrets.CODECOV_TOKEN }}
 
   test-integration:
     name: Integration tests (real tools, locked pixi dev environment)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          filter: tree:0  # full history for the version, without old file contents
-
-      - uses: prefix-dev/setup-pixi@v0.11.2
-        with:
-          environments: dev
-          locked: true
-          cache: true
-
-      - name: Check the environment has what the default pipeline needs
-        run: pixi run -e dev AAFTF dependency
-
-      - name: Run the whole test suite, including integration tests
-        run: pixi run -e dev pytest -vv tests --cov --cov-report=xml
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7.1.1
-        with:
-          flags: integration
-          files: ./coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+    uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
+    with:
+      installer: pixi
+      pixi_environments: '["dev"]'
+      setup_command: AAFTF dependency  # check the environment has what the default pipeline needs
+      test_command: pytest -vv tests --cov --cov-report=xml
+      codecov: true
+    secrets:
+      codecov_token: ${{ secrets.CODECOV_TOKEN }}
 
   docs:
     name: Docs build (Sphinx, warnings are errors)

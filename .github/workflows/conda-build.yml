@@ -1,6 +1,17 @@
 name: Conda package build + publish
 
+# Called by publish.yml with the new release tag, or run by hand.
 on:
+  workflow_call:
+    inputs:
+      upload:
+        description: "Upload to anaconda.org (stajichlab channel)"
+        type: boolean
+        default: true
+      version:
+        description: "Version or tag to build (e.g. v0.7.0)"
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       upload:
@@ -11,8 +22,6 @@ on:
         description: "Override version (e.g. 0.7.0). Defaults to the latest git tag"
         type: string
         required: false
-  release:
-    types: [published]
 
 permissions:
   contents: read
@@ -40,10 +49,8 @@ jobs:
         id: version
         run: |
           python -m pip install packaging >/dev/null
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            RAW="${{ github.event.inputs.version }}"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            RAW="${{ github.event.release.tag_name }}"
+          if [ -n "${{ inputs.version }}" ]; then
+            RAW="${{ inputs.version }}"
           else
             RAW="$(git describe --tags --abbrev=0)"
           fi
@@ -70,7 +77,7 @@ jobs:
         if: |
           always() &&
           !cancelled() &&
-          (github.event_name == 'release' || github.event.inputs.upload == 'true')
+          inputs.upload
         env:
           ANACONDA_API_KEY: ${{ secrets.ANACONDA_TOKEN }}
         run: |

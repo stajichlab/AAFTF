@@ -1,0 +1,44 @@
+# Starts a release: the org's shared release_prepare workflow computes the next version from the latest v* tag
+# (npm-style: e.g. v0.7.0-beta.4 + prerelease -> v0.7.0-beta.5, + patch -> v0.7.0), turns the [Unreleased] section
+# of CHANGELOG.md into that version's entry, updates CITATION.cff and opens a `Release v<version>` pull request into
+# main. Merging it runs publish.yml. hatch-vcs takes the version from the tag, so no file carries it.
+#
+# RELEASE_TOKEN (optional; a PAT or GitHub App token with contents and pull requests: write): without it the
+# release PR is opened with GITHUB_TOKEN and CI does not run on it.
+
+name: Release
+run-name: |
+  Release - ${{ inputs.bump_type }}
+  ${{ startsWith(inputs.bump_type, 'pre') && inputs.preid || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump types"
+        required: true
+        type: choice
+        default: "patch"
+        options:
+          - major
+          - premajor
+          - minor
+          - preminor
+          - patch
+          - prepatch
+          - prerelease
+      preid:
+        description: "Prerelease identifier (e.g. beta)"
+        type: string
+
+jobs:
+  prepare:
+    uses: stajichlab/gh_workflows/.github/workflows/release_prepare.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      bump_type: ${{ inputs.bump_type }}
+      preid: ${{ inputs.preid }}
+    secrets:
+      token: ${{ secrets.RELEASE_TOKEN }}

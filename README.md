@@ -70,7 +70,7 @@ and for running the steps one by one.
 
 # Notes
 This is partially a Python rewrite of [JAAWS](https://github.com/nextgenusfs/jaaws), a Unix shell based
-cleanup and assembly tool written by Jon. Changes between versions are listed in [CHANGES.md](CHANGES.md).
+cleanup and assembly tool written by Jon. Changes between versions are listed in [CHANGELOG.md](CHANGELOG.md).
 
 # Authors
 * Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org, [@hyphaltip.bsky](https://bsky.app/profile/hyphaltip.bsky.social)

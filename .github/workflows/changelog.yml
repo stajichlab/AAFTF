@@ -1,0 +1,16 @@
+# Requires every pull request to add an entry under [Unreleased] in CHANGELOG.md (the org's shared changelog_check),
+# so release.yml never finds it empty. Label a PR `skip-changelog` if it needs none; Dependabot and release PRs are
+# skipped.
+
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    uses: stajichlab/gh_workflows/.github/workflows/changelog_check.yml@v1

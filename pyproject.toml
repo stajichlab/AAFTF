@@ -76,7 +76,7 @@ packages = ["aaftf"]
 # The sdist carries only what is needed to build and test the package; pyproject.toml,
 # README.md and LICENSE are always added by hatchling. Docs, CI, container and dev files stay out.
 [tool.hatch.build.targets.sdist]
-include = ["/aaftf", "/tests", "/CHANGES.md", "/patches/polca/aaftf_polca.sh", "/patches/polca/fix_consensus_from_vcf.pl", "/patches/polca/polca.patch"]
+include = ["/aaftf", "/tests", "/CHANGELOG.md", "/patches/polca/aaftf_polca.sh", "/patches/polca/fix_consensus_from_vcf.pl", "/patches/polca/polca.patch"]
 
 [tool.coverage.run]
 source = ["aaftf"]
