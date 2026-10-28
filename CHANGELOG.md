@@ -62,13 +62,16 @@ check the **Breaking changes** before updating scripts.
    `{prefix}.mitochondria.fasta` is no longer written, and so are `-pid/--percent_id` and
    `-s/--stringency`.
  - **`filter` and `vecscreen` share one contamination database, `contamdb`**: `contamdb.fa` (plus
-   its BLAST database) holds UniVec_Core without its fungal/yeast-derived entries (names containing
-   yeast, cerevisiae, pombe, pichia, kluyveromyces, aspergillus, neurospora, candida, 2-micron or
-   shuttle), the PhiX genome and BBTools' `lambda.fa.gz` and `adapters.fa`, with duplicate and
-   contained sequences removed. Build it with `AAFTF database contamdb` (part of `required`) before
-   running either step. The `euks`, `proks` and `mitodb` databases are gone, `univec` is now
-   UniVec_Core (was the full UniVec), and `filter` no longer screens BBTools'
-   `sequencing_artifacts.fa.gz`.
+   its BLAST database) holds NCBI's adaptor set for screening eukaryote assemblies
+   (`adaptors_for_screening_euks.fa`, the `euk_adaptors` database), the PhiX genome and BBTools'
+   `lambda.fa.gz` and `adapters.fa`, with duplicate and contained sequences removed. Build it with
+   `AAFTF database contamdb` (part of `required`) before running either step. It holds no cloning
+   vectors: UniVec's vectors carry yeast and other fungal DNA (ADH1/GAL4 parts, LEU2, TRP1, HIS3,
+   2-micron, CEN/ARS) under names that don't say so, which split genuine fungal contigs (the
+   S. cerevisiae S288C genome came out of `vecscreen` as 150 pieces instead of 17 chromosomes, and
+   long-read assemblies grew from about 20 contigs to over 140) and removed genuine fungal reads in
+   `filter`. The `univec`, `euks`, `proks` and `mitodb` databases are gone, and `filter` no longer
+   screens BBTools' `sequencing_artifacts.fa.gz`.
  - **Pipeline output names**: `sort` now writes `{base}.sorted.fasta`; `{base}.final.fasta` is
    written by `depth`, with likely mitochondrial contigs tagged (see Added).
  - **Exit codes**: errors now exit with 1, a missing input file, tool or database with 2, and Ctrl-C
@@ -130,7 +133,7 @@ check the **Breaking changes** before updating scripts.
  - **`AAFTF database contamdb`** builds the shared `filter`/`vecscreen` database (see Breaking
    changes). An existing `contamdb.fa` is kept, so you can add your own sequences to it, and
    `vecscreen` rebuilds its BLAST database whenever `contamdb.fa` is newer; `--force` rebuilds the
-   FASTA from its sources. Once built, the downloaded UniVec_Core and PhiX are deleted (only from
+   FASTA from its sources. Once built, the downloaded NCBI adaptors and PhiX are deleted (only from
    the folder AAFTF downloads into, never from another `$AAFTF_DB` folder) and listed as
    "fulfilled by contamdb".
  - Duplicate and contained sequences are removed with BBTools `dedupe.sh` (exact matches, both
@@ -211,7 +214,7 @@ check the **Breaking changes** before updating scripts.
 ### Fixed
 
  - `AAFTF database` no longer downloads a file that is only needed to build a database already
-   built: PhiX/UniVec_Core once `contamdb` exists, and a sourmash sketch file once its index exists
+   built: the NCBI adaptors/PhiX once `contamdb` exists, and a sourmash sketch file once its index exists
    (also with `--no-build`, which used to download it again); `--force` still downloads them.
  - `taxpurge --sourdb_type gtdb` / `gtdbrep` failed: they downloaded GTDB `.zip` collections,
    which `sourmash lca classify` cannot read. `taxpurge` now reads such collections directly.

@@ -11,8 +11,10 @@ Database
 ========
 
 ``vecscreen`` searches the ``contamdb`` BLAST database, shared with :doc:`filter` and built by
-``AAFTF database contamdb`` (see :doc:`database`) from UniVec_Core without its fungal/yeast-derived
-entries, PhiX and the BBTools ``lambda.fa.gz`` and ``adapters.fa``. The run stops with exit code 2
+``AAFTF database contamdb`` (see :doc:`database`) from NCBI's adaptors for eukaryote assemblies,
+PhiX and the BBTools ``lambda.fa.gz`` and ``adapters.fa``. It holds no cloning vectors, whose
+fungal-derived parts split genuine fungal contigs, so ``vecscreen`` removes sequencing adaptors and
+spike-ins, not vector inserts; add a vector's sequence to ``contamdb.fa`` to screen for it. The run stops with exit code 2
 if ``contamdb.fa`` is missing; its BLAST database is rebuilt first if it is missing or older than
 ``contamdb.fa`` (e.g. after you added sequences to it).
 

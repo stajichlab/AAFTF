@@ -857,7 +857,7 @@ def require_databases(names: Iterable[str], hint: str | None = None) -> list[str
     that fetches them.
 
     Args:
-        names: Database abbreviations, e.g. ``["phix", "univec"]``.
+        names: Database abbreviations, e.g. ``["phix", "euk_adaptors"]``.
         hint: Extra alternative to suggest, e.g. "or pass --sourdb PATH".
 
     Returns:

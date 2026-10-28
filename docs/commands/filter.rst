@@ -2,7 +2,7 @@
 filter
 ======
 
-Removes reads that match known contaminant sequences (PhiX spike-in, UniVec, and any additional
+Removes reads that match known contaminant sequences (PhiX and lambda spike-ins, sequencing adaptors, and any additional
 sequences you specify) from trimmed FASTQ reads, before assembly.
 
 Algorithm
@@ -10,8 +10,8 @@ Algorithm
 
 1. Builds (or reuses a cached) combined contamination FASTA (``contamdb.fa``) from:
 
-   * ``contamdb.fa``, the contamination database shared with :doc:`vecscreen`: UniVec_Core (without
-     its fungal/yeast-derived entries), PhiX, and the BBTools lambda phage and adapter sequences,
+   * ``contamdb.fa``, the contamination database shared with :doc:`vecscreen`: NCBI's adaptors for
+     eukaryote assemblies, PhiX, and the BBTools lambda phage and adapter sequences,
      plus anything you added to it (always included; never built by ``filter`` -- build it first
      with ``AAFTF database contamdb``, see :doc:`database`; a missing database raises an error,
      exit code 2);

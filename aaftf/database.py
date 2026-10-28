@@ -18,7 +18,7 @@ from typing import Any
 
 from Bio import SeqIO
 
-from aaftf.resources import CONTAMDB, CONTAMDB_BBTOOLS, DATABASES, TAXPURGE_DEFAULT_DATABASES, VECSCREEN_EXCLUDE_TERMS
+from aaftf.resources import CONTAMDB, CONTAMDB_BBTOOLS, DATABASES, TAXPURGE_DEFAULT_DATABASES
 from aaftf.utility import bbtools_resources, db_dirs, db_file, db_write_dir, dedupe_fasta, download_file, find_db_file, find_db_index, open_maybe_gz, open_url, require_tools, run_cmd, safe_remove, warn_if_home_cache, write_fasta
 
 __all__ = ["build_contamdb", "find_contamdb", "require_contamdb", "run"]
@@ -46,7 +46,7 @@ def run(databases: list[str] | None = None, force: bool = False, no_build: bool 
             only, without building (and replacing it with) the RocksDB index.
 
     A file that was only needed to build a database that is already built (a sourmash sketch
-    file once its index exists, or PhiX/UniVec_Core once ``contamdb.fa`` exists) is skipped
+    file once its index exists, or the NCBI adaptors/PhiX once ``contamdb.fa`` exists) is skipped
     unless ``force`` is given.
         **kwargs: Other parsed CLI attributes (``command``, ``func``, ``debug``, ...); ignored.
 
@@ -94,19 +94,19 @@ def run(databases: list[str] | None = None, force: bool = False, no_build: bool 
 def build_contamdb(force: bool = False) -> str:
     """Build ``contamdb.fa`` and its BLAST database, the contamination database of ``filter`` and ``vecscreen``.
 
-    The FASTA is UniVec_Core without the entries whose names contain any of
-    ``VECSCREEN_EXCLUDE_TERMS`` (fungal genomic sequence that would match, and split, real fungal
-    contigs), followed by the PhiX genome and the BBTools ``lambda.fa.gz`` and ``adapters.fa``,
-    without duplicate or contained sequences (``dedupe_fasta``). UniVec_Core and PhiX are
-    downloaded first if needed. The FASTA is assembled in temporary files (always removed) and
+    The FASTA is NCBI's adaptor set for screening eukaryote assemblies, the PhiX genome and the
+    BBTools ``lambda.fa.gz`` and ``adapters.fa``, without duplicate or contained sequences
+    (``dedupe_fasta``). It holds no cloning vectors: UniVec's vectors carry yeast and other fungal
+    DNA (ADH1, LEU2, 2-micron, CEN/ARS, ...) that matched, and split, genuine fungal contigs and
+    removed genuine fungal reads. The NCBI adaptors and PhiX are downloaded first if needed. The FASTA is assembled in temporary files (always removed) and
     renamed to ``contamdb.fa`` when complete, then indexed by ``require_contamdb(blast=True)``. An existing
     ``contamdb.fa`` (which users may have added their own sequences to) is kept; only its BLAST
-    database is brought up to date. Once the database is built, UniVec_Core and PhiX are deleted,
+    database is brought up to date. Once the database is built, the NCBI adaptors and PhiX are deleted,
     but only from the folder AAFTF downloads into (a copy in another ``$AAFTF_DB`` folder may be
     shared).
 
     Args:
-        force: Rebuild the FASTA (and re-download UniVec_Core and PhiX) even if it is present.
+        force: Rebuild the FASTA (and re-download the NCBI adaptors and PhiX) even if it is present.
 
     Returns:
         Path prefix of the database (``<prefix>.fa`` is the FASTA; ``blastn -db <prefix>``).
@@ -119,22 +119,14 @@ def build_contamdb(force: bool = False) -> str:
     if existing and not force:
         logger.info(f"Already present: {existing}.fa")
         return require_contamdb(blast=True)
-    univec, phix = (download_file(DATABASES[abbr]["url"], db_file(DATABASES[abbr]["filename"], force=force), force=force) for abbr in DATABASES["contamdb"]["built_from"])
+    adaptors, phix = (download_file(DATABASES[abbr]["url"], db_file(DATABASES[abbr]["filename"], force=force), force=force) for abbr in DATABASES["contamdb"]["built_from"])
     bbtools = bbtools_resources(CONTAMDB_BBTOOLS)
 
     fasta = db_write_dir() / CONTAMDB["fasta"]
     # intermediates keep a FASTA extension, which dedupe.sh reads the format from
     raw, dedup = fasta.with_name("contamdb.raw.tmp.fa"), fasta.with_name("contamdb.dedup.tmp.fa")
-    kept = dropped = 0
     with open(raw, "w") as out:
-        with open_maybe_gz(univec) as fh:
-            for record in SeqIO.parse(fh, "fasta"):
-                if any(term in record.description.lower() for term in VECSCREEN_EXCLUDE_TERMS):
-                    dropped += 1
-                    continue
-                write_fasta(out, record.description, str(record.seq))
-                kept += 1
-        for source in (phix, *bbtools):
+        for source in (adaptors, phix, *bbtools):
             with open_maybe_gz(source) as fh:
                 for record in SeqIO.parse(fh, "fasta"):
                     write_fasta(out, record.description, str(record.seq))
@@ -144,9 +136,9 @@ def build_contamdb(force: bool = False) -> str:
     finally:
         safe_remove(raw)
         safe_remove(dedup)
-    logger.info(f"Kept {kept:,} UniVec_Core sequences ({dropped:,} fungal/yeast-derived left out), added PhiX, {', '.join(CONTAMDB_BBTOOLS)}; {n_dedup:,} sequences after removing duplicates and contained ones: {fasta}")
+    logger.info(f"Combined the NCBI adaptors, PhiX, {', '.join(CONTAMDB_BBTOOLS)}; {n_dedup:,} sequences after removing duplicates and contained ones: {fasta}")
     prefix = require_contamdb(blast=True)
-    for source in (univec, phix):
+    for source in (adaptors, phix):
         if Path(source).parent == db_write_dir():
             safe_remove(source)
             logger.info(f"Removed {source}; {CONTAMDB['fasta']} replaces it")

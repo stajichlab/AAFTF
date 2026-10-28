@@ -100,7 +100,7 @@ def _mock_download(url, dest, force=False):
 @pytest.fixture(autouse=True)
 def _stub_databases():
     """Put a stub contamdb.fa in the (test-isolated) database folder, as `AAFTF database contamdb` would."""
-    Path(db_write_dir(), "contamdb.fa").write_text(">univec_core\nACGT\n>phix\nGGCC\n>lambda\nTTGG\n")
+    Path(db_write_dir(), "contamdb.fa").write_text(">adaptor\nACGT\n>phix\nGGCC\n>lambda\nTTGG\n")
 
 
 @pytest.fixture(autouse=True)
@@ -283,7 +283,7 @@ class TestFilterContamdbCreation:
         assert contamdb.stat().st_size > 0
 
     def test_contamdb_starts_from_the_database_fasta(self, tmp_path):
-        """Every --aligner screens the shared contamdb database (UniVec_Core, PhiX, lambda, adapters)."""
+        """Every --aligner screens the shared contamdb database (NCBI adaptors, PhiX, lambda, adapters)."""
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         args = _make_filter_args(tmp_path, read1=read1, aligner="bwa")
         Path(args.workdir).mkdir(parents=True, exist_ok=True)
@@ -295,7 +295,7 @@ class TestFilterContamdbCreation:
                 run(**vars(args))
 
         content = (Path(args.workdir) / "contamdb.fa").read_text()
-        assert content.startswith(">univec_core\nACGT\n>phix\nGGCC\n>lambda\n")
+        assert content.startswith(">adaptor\nACGT\n>phix\nGGCC\n>lambda\n")
 
 
 class TestBbtoolsResources:
@@ -390,7 +390,7 @@ class TestFilterRunBbduk:
         read1 = str(tmp_path / "sample_R1.fastq.gz")
         read2 = str(tmp_path / "sample_R2.fastq.gz")
         cmds, args = _run_filter_bbduk(tmp_path, read1, read2)
-        # contamdb.fa (which already holds UniVec_Core, PhiX, lambda and adapters) is the only ref= of bbduk.sh
+        # contamdb.fa (which already holds NCBI adaptors, PhiX, lambda and adapters) is the only ref= of bbduk.sh
         refs = [arg for c in cmds if c[0] == "bbduk.sh" for arg in c if arg.startswith("ref=")]
         assert refs == [f"ref={Path(args.workdir, 'contamdb.fa')}"]
 
