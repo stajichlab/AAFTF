@@ -8,7 +8,8 @@
 
 name: Upload Python Package
 
-# Called by publish.yml with the new release tag; run it by hand to re-publish a tag.
+# Called by publish.yml with the new release tag and the sdist it already tested, which is published as is with a
+# wheel built from it; run it by hand to re-publish a tag, building both from the tag.
 on:
   workflow_call:
     inputs:
@@ -16,6 +17,10 @@ on:
         description: "Release tag to build and publish (e.g. v0.7.0)"
         required: true
         type: string
+      sdist_artifact:
+        description: "Artifact of this workflow run holding the sdist to publish; empty builds it from the tag"
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       tag:
@@ -34,20 +39,38 @@ jobs:
       # hatch-vcs derives the version from the git tag, so the history and tags are required;
       # a shallow checkout would build the package as 0.0.0+unknown.
       - uses: actions/checkout@v7
+        if: inputs.sdist_artifact == ''
         with:
           fetch-depth: 0
           filter: tree:0  # full history for the version, without old file contents
           fetch-tags: true
           ref: ${{ inputs.tag }}
 
+      - name: Download the tested sdist
+        if: inputs.sdist_artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.sdist_artifact }}
+          path: dist
+
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
       - name: Build release distributions
+        if: inputs.sdist_artifact == ''
         run: |
           python -m pip install build
           python -m build
+
+      - name: Build the wheel from the tested sdist
+        if: inputs.sdist_artifact != ''
+        # the unpacked sdist has no git history; hatch-vcs reads its version from PKG-INFO
+        run: |
+          python -m pip install build
+          mkdir "$RUNNER_TEMP/sdist"
+          tar xzf dist/*.tar.gz -C "$RUNNER_TEMP/sdist" --strip-components=1
+          python -m build --wheel --outdir dist "$RUNNER_TEMP/sdist"
 
       - name: Check the built version matches the release tag
         run: |
