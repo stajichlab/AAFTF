@@ -1,8 +1,8 @@
 """Trim and split adaptor/vector sequence out of an assembly, the way NCBI FCS-adaptor does.
 
 Contigs are searched with blastn using the VecScreen preset (``VECSCREEN_TASK_ARGS``) against the ``contamdb`` BLAST database, built by
-``AAFTF database contamdb`` (and shared with ``filter``) from UniVec_Core (without its
-fungal/yeast-derived entries), PhiX and the BBTools lambda and adapter sequences. Each hit is then acted on with FCS-adaptor's rules:
+``AAFTF database contamdb`` (and shared with ``filter``) from NCBI's adaptor set for eukaryote
+assemblies, PhiX and the BBTools lambda and adapter sequences. Each hit is then acted on with FCS-adaptor's rules:
 
 * Terminal hits (within ``TERMINAL_WINDOW`` bp of a contig end) with a raw score >=
   ``TERMINAL_MIN_SCORE`` (or >= ``TIP_MIN_SCORE`` when the hit reaches the very end) are trimmed

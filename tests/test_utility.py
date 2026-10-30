@@ -768,14 +768,14 @@ def test_make_workdir_without_setup_logging_writes_no_log(tmp_path):
 class TestRequireDatabases:
     def test_returns_paths_of_stored_databases(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
-        (tmp_path / "UniVec_Core").write_text(">v\nACGT\n")
-        assert require_databases(["univec"]) == [str(tmp_path.resolve() / "UniVec_Core")]
+        (tmp_path / "adaptors_for_screening_euks.fa").write_text(">v\nACGT\n")
+        assert require_databases(["euk_adaptors"]) == [str(tmp_path.resolve() / "adaptors_for_screening_euks.fa")]
 
     def test_missing_raises_with_download_command(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
-        (tmp_path / "UniVec_Core").write_text(">v\nACGT\n")
+        (tmp_path / "adaptors_for_screening_euks.fa").write_text(">v\nACGT\n")
         with pytest.raises(FileNotFoundError) as exc:
-            require_databases(["univec", "phix", "fcs_script"], hint="or pass --x")
+            require_databases(["euk_adaptors", "phix", "fcs_script"], hint="or pass --x")
         assert "missing database(s): phix, fcs_script" in str(exc.value)
         assert "AAFTF database phix fcs_script (or pass --x)" in str(exc.value)
 
@@ -783,7 +783,7 @@ class TestRequireDatabases:
         monkeypatch.setenv("AAFTF_DB", str(tmp_path))
         with patch("aaftf.utility.download_file") as download:
             with pytest.raises(FileNotFoundError):
-                require_databases(["univec"])
+                require_databases(["euk_adaptors"])
         download.assert_not_called()
 
 

@@ -7,7 +7,7 @@ databases, NCBI FCS-adaptor release details, and the
 
 from typing import Any
 
-__all__ = ["NCBI", "CONTAMINANT_ACCESSIONS", "DB_LINKS", "VECSCREEN_EXCLUDE_TERMS", "CONTAMDB", "CONTAMDB_BBTOOLS", "EUTILS", "SEQ_DBS", "FCSADAPTOR", "SOURMASH_DATABASES", "SOURMASH_LINEAGES", "TAXPURGE_DEFAULT_DATABASES", "DATABASES"]
+__all__ = ["NCBI", "CONTAMINANT_ACCESSIONS", "DB_LINKS", "CONTAMDB", "CONTAMDB_BBTOOLS", "EUTILS", "SEQ_DBS", "FCSADAPTOR", "SOURMASH_DATABASES", "SOURMASH_LINEAGES", "TAXPURGE_DEFAULT_DATABASES", "DATABASES"]
 
 
 # base URL of the NCBI FTP site
@@ -16,16 +16,12 @@ NCBI = "https://ftp.ncbi.nlm.nih.gov"
 # genomes screened out of reads by ``filter`` (phiX spike-in)
 CONTAMINANT_ACCESSIONS = {"phiX": [f"{NCBI}/genomes/all/GCF/000/819/615/" + "GCF_000819615.1_ViralProj14015/" + "GCF_000819615.1_ViralProj14015_genomic.fna.gz"]}
 
-# vector FASTA URLs (UniVec_Core: the curated core of UniVec, safer to screen assemblies with)
-DB_LINKS: dict[str, list[Any]] = {"UniVec_Core": [f"{NCBI}/pub/UniVec/UniVec_Core"]}
-
-# UniVec_Core entries whose names contain any of these (case-insensitive) are left out of the
-# contamdb database: they hold fungal genomic sequence (yeast/fungal selection markers, origins,
-# 2-micron/shuttle plasmid parts) that would match, and split, genuine fungal contigs
-VECSCREEN_EXCLUDE_TERMS = ("yeast", "cerevisiae", "pombe", "pichia", "kluyveromyces", "aspergillus", "neurospora", "candida", "2-micron", "shuttle")
+# NCBI's adaptor set for screening eukaryote assemblies (sequencing adaptors, primers and barcodes,
+# 20-70 bp; no cloning vectors, so nothing in it can match fungal genomic DNA)
+DB_LINKS: dict[str, list[Any]] = {"EUK_ADAPTORS": [f"{NCBI}/pub/kitts/adaptors_for_screening_euks.fa"]}
 
 # contamination database shared by `filter` (reads) and `vecscreen` (contigs), built by
-# `AAFTF database contamdb`: filtered UniVec_Core + PhiX + BBTools lambda.fa.gz and adapters.fa.
+# `AAFTF database contamdb`: NCBI euk adaptors + PhiX + BBTools lambda.fa.gz and adapters.fa.
 # `blastdb` is the path prefix of its BLAST database (contamdb.nhr, ...), next to the FASTA
 CONTAMDB = {"fasta": "contamdb.fa", "blastdb": "contamdb"}
 # BBTools resources/ files added to contamdb
@@ -132,8 +128,8 @@ FCSADAPTOR = {
 # databases (no `url`).
 DATABASES = {
     "phix": {"filename": CONTAMINANT_ACCESSIONS["phiX"][0].rsplit("/", 1)[-1], "url": CONTAMINANT_ACCESSIONS["phiX"][0], "used_by": "contamdb (source)", "required": True},
-    "univec": {"filename": DB_LINKS["UniVec_Core"][0].rsplit("/", 1)[-1], "url": DB_LINKS["UniVec_Core"][0], "used_by": "contamdb (source)", "required": True},
-    "contamdb": {"filename": CONTAMDB["fasta"], "built_from": ["univec", "phix"], "used_by": "filter, vecscreen", "required": True},
+    "euk_adaptors": {"filename": DB_LINKS["EUK_ADAPTORS"][0].rsplit("/", 1)[-1], "url": DB_LINKS["EUK_ADAPTORS"][0], "used_by": "contamdb (source)", "required": True},
+    "contamdb": {"filename": CONTAMDB["fasta"], "built_from": ["euk_adaptors", "phix"], "used_by": "filter, vecscreen", "required": True},
     **_sourmash_database_entries(),
     "fcs_script": {"filename": "run_fcsadaptor.sh", "url": FCSADAPTOR["EXEURL"] % FCSADAPTOR["VERSION"], "used_by": "fcs_screen", "required": False, "executable": True},
     "fcs_image": {

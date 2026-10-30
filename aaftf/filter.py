@@ -1,7 +1,7 @@
 """Remove reads that match a contamination database before assembly.
 
-The database combines PhiX and UniVec (from ``AAFTF database``), the Illumina sequencing-artifact
-and lambda phage FASTAs bundled with BBTools, and any sequences the user adds. Reads are screened
+The database is ``contamdb`` (``AAFTF database contamdb``: NCBI's adaptors for eukaryote assemblies,
+PhiX, and the lambda phage and adapter FASTAs bundled with BBTools), plus any sequences the user adds. Reads are screened
 with BBDuk k-mer matching, or aligned with bowtie2, bwa or minimap2.
 """
 

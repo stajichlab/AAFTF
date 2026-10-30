@@ -131,7 +131,7 @@ def database_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
         "databases",
         nargs="*",
         metavar="DATABASE",
-        help="Databases to download, by abbreviation (e.g. univec, gtdb-reps-lite) or file name (e.g. UniVec), or a group (required, optional, taxpurge, all). Omit to list the databases and where they are stored.",
+        help="Databases to download, by abbreviation (e.g. contamdb, gtdb-reps-lite) or file name (e.g. contamdb.fa), or a group (required, optional, taxpurge, all). Omit to list the databases and where they are stored.",
     )
     optional = parser_database.add_argument_group("optional arguments")
     optional.add_argument(
@@ -435,7 +435,7 @@ def vecscreen_menu(subparsers: ap._SubParsersAction) -> ap.ArgumentParser:
     """
     parser_vecscreen = subparsers.add_parser(
         "vecscreen",
-        description="Trim/split adaptor and vector sequence out of contigs (BLASTN with NCBI's VecScreen settings against UniVec_Core without fungal-derived entries + adapters + PhiX, acted on with NCBI FCS-adaptor's rules)",
+        description="Trim/split adaptor sequence out of contigs (BLASTN with NCBI's VecScreen settings against the contamdb database: NCBI's adaptors for eukaryote assemblies + BBTools adapters + PhiX + lambda, acted on with NCBI FCS-adaptor's rules)",
         help="BLASTN adaptor/vector screening of contigs",
         formatter_class=CustomHelpFormatter,
     )
