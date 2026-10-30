@@ -339,7 +339,7 @@ Tagged `v0.6.1-alpha2`.
  - default spades mode is with --isolate (to turn off use --no-isolate --careful)
  - add menu item 'fix' / 'fix_tbl' which supports updating NCBI tbl format after fcs screening (have to run the `fcs clean genome` command)
 
-## [0.5.0]
+## [0.5.0] - 2023-07-25
 
 #### Added new features
 
@@ -366,7 +366,7 @@ Tagged `v0.6.1-alpha2`.
  - gzipped FastA files are supported by `AAFTF assess`
  - Telomere info reported in assess
 
-## [0.3.3]
+## [0.3.3] - 2022-06-03
 
 ### Added
 
@@ -411,7 +411,7 @@ Tagged `v0.6.1-alpha2`.
 - Added --mem option to pilon to up the heapsize for java runs
 - merged changes in namespace by @gamcil and a tmpdir
 
-## [0.2.4]
+## [0.2.4] - 2020-04-05
 
 ### Added
 
@@ -446,3 +446,22 @@ Tagged `v0.6.1-alpha2`.
 ## [0.1.0] - 2018-09-13
 
  - Initial release, which includes automation for quality trimming and contaminant/adaptor removal, filtering, assembly, vector cleanup, refinement, duplication removal and sorting.
+
+[Unreleased]: https://github.com/stajichlab/AAFTF/compare/v0.7.0-beta.4...HEAD
+[0.7.0-beta.4]: https://github.com/stajichlab/AAFTF/compare/v0.6.2...v0.7.0-beta.4
+[0.6.2]: https://github.com/stajichlab/AAFTF/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/stajichlab/AAFTF/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/stajichlab/AAFTF/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/stajichlab/AAFTF/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/stajichlab/AAFTF/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/stajichlab/AAFTF/compare/v0.3.3...v0.4.0
+[0.3.3]: https://github.com/stajichlab/AAFTF/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/stajichlab/AAFTF/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/stajichlab/AAFTF/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/stajichlab/AAFTF/compare/v0.2.5...v0.3.0
+[0.2.5]: https://github.com/stajichlab/AAFTF/compare/v0.2.4...v0.2.5
+[0.2.4]: https://github.com/stajichlab/AAFTF/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/stajichlab/AAFTF/compare/v0.2.1...v0.2.3
+[0.2.1]: https://github.com/stajichlab/AAFTF/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/stajichlab/AAFTF/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/stajichlab/AAFTF/releases/tag/v0.1.0
