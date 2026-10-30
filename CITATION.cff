@@ -31,8 +31,8 @@ abstract: >-
   filtering, assembly, vector and contaminant screening of contigs, duplicate removal, contig sorting and renaming, and summary
   statistics including telomere detection. Each step is a subcommand that can be run on its own, or all together with AAFTF
   pipeline_short (Illumina), pipeline_long (ONT/PacBio) or pipeline_hybrid.
-version: 0.7.0
+version: 0.8.0-beta.0
 identifiers:
   - type: doi
     value: 10.5281/zenodo.1620526
-date-released: 2025-08-01
+date-released: '2026-10-30'
