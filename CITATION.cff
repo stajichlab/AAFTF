@@ -8,19 +8,29 @@ message: >-
   metadata from this file.
 type: software
 authors:
+  - given-names: Cheng-Hung
+    family-names: Tsai
+    affiliation: University of California-Riverside
+    orcid: "https://orcid.org/0000-0003-3419-2146"
+    email: chenghung.tsai@email.ucr.edu
+  - given-names: Jonathan M.
+    family-names: Palmer
+    affiliation: USDA Forest Service
+    orcid: "https://orcid.org/0000-0003-0929-3658"
+    email: nextgenusfs@gmail.com
   - given-names: Jason E.
     family-names: Stajich
     affiliation: University of California-Riverside
     email: jason.stajich@ucr.edu
-    orcid: 'https://orcid.org/0000-0002-7591-0020'
-  - given-names: Jonathan M.
-    family-names: Palmer
-    affiliation: USDA Forest Service
-    orcid: 'https://orcid.org/0000-0003-0929-3658'
-    email: nextgenusfs@gmail.com
+    orcid: "https://orcid.org/0000-0002-7591-0020"
+
 license: MIT
 repository-code: https://github.com/stajichlab/AAFTF
-abstract: This is a tool for running automated genome assembly from short-reads to polished, cleaned, sorted assembly files.
+abstract: >-
+  AAFTF automates draft genome assembly from Illumina short reads (optionally with long reads), with read trimming and contaminant
+  filtering, assembly, vector and contaminant screening of contigs, duplicate removal, contig sorting and renaming, and summary
+  statistics including telomere detection. Each step is a subcommand that can be run on its own, or all together with AAFTF
+  pipeline_short (Illumina), pipeline_long (ONT/PacBio) or pipeline_hybrid.
 version: 0.7.0
 identifiers:
   - type: doi
