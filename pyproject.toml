@@ -38,7 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pre-commit>=4.6.2",
-    "pytest>=8.0.0",
+    "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
 ]
 docs = [
