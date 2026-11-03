@@ -1,11 +1,12 @@
-[![CI](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml)
+[![CI](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml/badge.svg?branch=main)][ci]
 [![CI/conda](https://github.com/stajichlab/AAFTF/actions/workflows/ci-conda.yml/badge.svg?branch=main)](https://github.com/stajichlab/AAFTF/actions/workflows/ci-conda.yml)
-[![Python](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12_%7C_3.13_%7C_3.14-blue?logo=python)](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12_%7C_3.13_%7C_3.14-blue?logo=python)][ci]
 [![codecov](https://codecov.io/gh/stajichlab/AAFTF/graph/badge.svg)](https://codecov.io/gh/stajichlab/AAFTF)
 [![License](https://img.shields.io/github/license/stajichlab/AAFTF?label=license)](https://github.com/stajichlab/AAFTF/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/AAFTF?label=PyPI)](https://pypi.org/project/AAFTF/)
 [![Container](https://ghcr-badge.egpl.dev/stajichlab/aaftf/latest_tag?trim=major&label=Image)](https://github.com/stajichlab/AAFTF/pkgs/container/aaftf)
-[![Documentation Status](https://app.readthedocs.org/projects/aaftf/badge/?version=latest)](https://aaftf.readthedocs.io/en/latest/)
+[![Documentation Status](https://app.readthedocs.org/projects/aaftf/badge/?version=latest)][docs]
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1620526.svg)][zenodo]
 
 # AAFTF - Automatic Assembly For The Fungi
 *Authors: Jason Stajich, Jon Palmer and Cheng-Hung Tsai*
@@ -17,7 +18,7 @@ read trimming and contaminant filtering, assembly, vector and contaminant screen
 duplicate removal, contig sorting and renaming, and summary statistics including telomere detection.
 Each step is a subcommand that can be run on its own, or all together with `AAFTF pipeline_short` (Illumina), `pipeline_long` (ONT/PacBio) or `pipeline_hybrid`.
 
-**Documentation:** <https://aaftf.readthedocs.io/en/latest/>
+**Documentation:** [aaftf.readthedocs.io][docs]
 
 # Install
 With conda (bioconda) or [pixi](https://pixi.sh), from a checkout of this repository:
@@ -75,7 +76,11 @@ cleanup and assembly tool written by Jon. Changes between versions are listed in
 # Authors
 * Jason Stajich [@hyphaltip](https://github.com/hyphaltip) - http://lab.stajich.org, [@hyphaltip.bsky](https://bsky.app/profile/hyphaltip.bsky.social)
 * Jon Palmer [@nextgenusfs](https://github.com/nextgenusfs) - [@jonpalmer.bsky](https://bsky.app/profile/jonpalmer.bsky.social)
-* Cheng-Hung Tsai
+* Cheng-Hung Tsai [@chtsai0105](https://github.com/chtsai0105) - https://chtsai0105.github.io
 
 # Citation
-Palmer JM and Stajich JE. (2023). Automatic assembly for the fungi (AAFTF): genome assembly pipeline (v0.5.0). Zenodo. doi: 10.5281/zenodo.1620526
+Tsai C-H, Palmer JM and Stajich JE. (2026). Automatic Assembly For The Fungi (AAFTF) (v0.8.0-beta.0). Zenodo. doi: [10.5281/zenodo.1620526][zenodo]
+
+[ci]: https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml
+[docs]: https://aaftf.readthedocs.io/en/latest/
+[zenodo]: https://doi.org/10.5281/zenodo.1620526
