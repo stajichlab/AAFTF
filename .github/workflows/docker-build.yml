@@ -7,7 +7,9 @@
 #                             attaches it to the GitHub Release as an asset.
 #
 # - Manual run (workflow_dispatch): builds the current branch as
-#                             ghcr.io/stajichlab/aaftf:main, to test an image before releasing.
+#                             ghcr.io/stajichlab/aaftf:main, to test an image before releasing; with the
+#                             `tag` input, rebuilds that release exactly as above (e.g. after a failed release
+#                             build). Rebuilding an older release also moves :latest to it.
 #
 # All images are signed with Cosign (Sigstore) and include SLSA provenance
 # attestations for supply-chain security.
@@ -22,6 +24,12 @@ on:
         required: true
         type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to rebuild (e.g. v0.8.0-beta.0); empty builds the current branch as :main"
+        required: false
+        default: ""
+        type: string
 
 env:
   REGISTRY: ghcr.io
