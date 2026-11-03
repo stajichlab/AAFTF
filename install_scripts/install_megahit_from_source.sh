@@ -52,7 +52,8 @@ log "downloading ${TARBALL}"
 curl -fsSL -o "${TARBALL}" "https://github.com/voutcn/megahit/archive/v${MEGAHIT_VERSION}.tar.gz"
 echo "${MEGAHIT_SHA256}  ${TARBALL}" | sha256sum -c - >/dev/null \
     || die "sha256 mismatch for ${TARBALL}"
-tar xzf "${TARBALL}"
+# --no-same-owner: an unprivileged (fakeroot) Apptainer build cannot chown to the tarball's uids
+tar --no-same-owner -xzf "${TARBALL}"
 SRC="${BUILD_DIR}/megahit-${MEGAHIT_VERSION}"
 
 for p in "${PATCH_DIR}"/*.patch; do

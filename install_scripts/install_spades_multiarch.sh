@@ -82,7 +82,8 @@ curl -fsSL -o "${TARBALL}" \
     "https://github.com/ablab/spades/releases/download/v${SPADES_VERSION}/${TARBALL}"
 echo "${SPADES_SHA256}  ${TARBALL}" | sha256sum -c - >/dev/null \
     || die "sha256 mismatch for ${TARBALL}"
-tar xzf "${TARBALL}"
+# --no-same-owner: an unprivileged (fakeroot) Apptainer build cannot chown to the tarball's uids
+tar --no-same-owner -xzf "${TARBALL}"
 SRC="${BUILD_DIR}/SPAdes-${SPADES_VERSION}"
 [[ -d "${SRC}/src" ]] || die "unexpected tarball layout: ${SRC}/src missing"
 
