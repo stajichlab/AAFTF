@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/stajichlab/AAFTF/graph/badge.svg)](https://codecov.io/gh/stajichlab/AAFTF)
 [![License](https://img.shields.io/github/license/stajichlab/AAFTF?label=license)](https://github.com/stajichlab/AAFTF/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/AAFTF?label=PyPI)](https://pypi.org/project/AAFTF/)
-[![Container](https://ghcr-badge.egpl.dev/stajichlab/aaftf/latest_tag?trim=major&label=Image)](https://github.com/stajichlab/AAFTF/pkgs/container/aaftf)
+[![Container](https://ghcr-badge.egpl.dev/stajichlab/aaftf/latest_tag?ignore=latest,main,sha256-*&trim=major&label=Image)](https://github.com/stajichlab/AAFTF/pkgs/container/aaftf)
 [![Documentation Status](https://app.readthedocs.org/projects/aaftf/badge/?version=latest)][docs]
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1620526.svg)][zenodo]
 
