@@ -20,6 +20,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides whether the test jobs run: they are skipped (reported as passing, so required checks are satisfied)
+  # when only docs/README/other non-code files changed. Manual runs (workflow_dispatch) always test.
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read  # paths-filter lists PR files through the API
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - "aaftf/**"
+              - "tests/**"
+              - "patches/**"
+              - "example/**"
+              - "pyproject.toml"
+              - "pixi.lock"
+              - "ruff.toml"
+              - "codecov.yml"
+              - ".github/workflows/ci.yml"
+
   lint:
     name: Lint (pre-commit)
     runs-on: ubuntu-latest
@@ -36,6 +64,8 @@ jobs:
   # matching requires-python = ">=3.10,<3.15"
   test-unit:
     name: Unit tests
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true'
     uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
     with:
       pip_install: ".[dev]"
@@ -46,6 +76,8 @@ jobs:
 
   test-integration:
     name: Integration tests (real tools, locked pixi dev environment)
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true'
     uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
     with:
       installer: pixi
