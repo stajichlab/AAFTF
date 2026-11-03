@@ -16,6 +16,9 @@
 context:
   name: aaftf
   version: 0.7.0
+  # lowest supported Python (requires-python in pyproject.toml); a noarch package is built with it, as on conda-forge,
+  # since an unpinned host Python resolves to the newest one, which may be outside requires-python
+  python_min: "3.10"
 
 package:
   name: ${{ name }}
@@ -41,14 +44,14 @@ build:
 
 requirements:
   host:
-    - python
+    - python ${{ python_min }}.*
     - pip
     - hatchling
     - hatch-vcs
   run:
     # Same set as the pixi "complete" environment in pyproject.toml (and environment.dev.yml):
     # what the default pipeline needs, then the tools for optional steps and options.
-    - python >=3.10,<3.15
+    - python >=${{ python_min }},<3.15
     - bbmap >=39.80,<40
     - spades
     - blast
@@ -81,6 +84,7 @@ tests:
       imports:
         - aaftf
       pip_check: true
+      python_version: ${{ python_min }}.*
   - script:
       - AAFTF --version
       - AAFTF --help
