@@ -119,7 +119,9 @@ jobs:
       - name: Build .sif for the released tag
         run: |
           tag="${{ inputs.tag }}"
-          apptainer build \
+          # sudo: an unprivileged (fakeroot) build cannot chown files to the uids in source tarballs, which fails
+          # `tar` in %post; the .def clones the release tag, so this must be fixed here for already-released tags
+          sudo apptainer build \
             --build-arg git_ref="${tag}" \
             --build-arg skip_db_download=1 \
             "AAFTF-${tag}.sif" AAFTF.def
