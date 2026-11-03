@@ -124,15 +124,15 @@ jobs:
       sdist_artifact: sdist  # publish the sdist test-sdist tested, with a wheel built from it
     secrets: inherit
 
-  conda:
-    needs: publish
-    if: needs.publish.outputs.published == 'true'
-    uses: ./.github/workflows/conda-build.yml
-    permissions:
-      contents: read
-    with:
-      version: ${{ needs.publish.outputs.tag }}
-    secrets: inherit
+  # conda:
+  #   needs: publish
+  #   if: needs.publish.outputs.published == 'true'
+  #   uses: ./.github/workflows/conda-build.yml
+  #   permissions:
+  #     contents: read
+  #   with:
+  #     version: ${{ needs.publish.outputs.tag }}
+  #   secrets: inherit
 
   container:
     needs: publish
