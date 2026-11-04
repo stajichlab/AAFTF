@@ -174,6 +174,23 @@ RUN source /opt/aaftf_activate.sh && AAFTF --version && \
 RUN rm -rf /root/.cache
 
 # ---------------------------------------------------------------------------
+# 9b. Keep AAFTF on PATH in LOGIN shells of a converted .sif
+#     (`apptainer pull docker://...`). SLURM/Nextflow run task scripts via
+#     /bin/bash -l, and Debian's /etc/profile resets PATH, dropping the ENV
+#     PATH below; /etc/profile sources /etc/profile.d/*.sh, so restore it there.
+# ---------------------------------------------------------------------------
+RUN printf '%s\n' \
+        'export LANG=C.UTF-8' \
+        'export LC_ALL=C.UTF-8' \
+        'if [ -r /opt/aaftf_activate.sh ]; then' \
+        '    . /opt/aaftf_activate.sh' \
+        'fi' \
+        'export AAFTF_DB="${AAFTF_DB:-/opt/aaftf_db}"' \
+        > /etc/profile.d/aaftf.sh && \
+    chmod +x /etc/profile.d/aaftf.sh && \
+    bash -lc 'AAFTF --version'
+
+# ---------------------------------------------------------------------------
 # 10. Entrypoint: source the activation script then exec the user command
 # ---------------------------------------------------------------------------
 RUN printf '#!/bin/bash\nset -e\nsource /opt/aaftf_activate.sh\nexec "$@"\n' \

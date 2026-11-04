@@ -1,10 +1,10 @@
 # Builds and publishes the AAFTF container images. The Docker build itself uses the org's shared container_build
-# workflow; signing, provenance and the Singularity image stay here.
+# workflow; signing, provenance and the Apptainer smoke test stay here.
 #
 # - Release (called by publish.yml with the new tag): publishes ghcr.io/stajichlab/aaftf:<version>, :<tag>,
-#                             :<major.minor> and :latest (the last two not for prereleases), plus builds a
-#                             Singularity/Apptainer .sif for that tag (without baking in the sourmash DB) and
-#                             attaches it to the GitHub Release as an asset.
+#                             :<major.minor> and :latest (the last two not for prereleases). No .sif
+#                             is published: users convert the image with `apptainer pull docker://...`, which
+#                             the apptainer-test job checks.
 #
 # - Manual run (workflow_dispatch): builds the current branch as
 #                             ghcr.io/stajichlab/aaftf:main, to test an image before releasing; with the
@@ -99,16 +99,15 @@ jobs:
             --recursive \
             "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
 
-  singularity-release:
-    if: inputs.tag != ''
+  apptainer-test:
+    # Users run the published Docker image on HPC via `apptainer pull docker://...`; check that the converted
+    # image works, including in login shells (SLURM/Nextflow run task scripts with `bash -l`).
+    needs: docker
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      packages: read
     steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag }}
-
       - name: Install Apptainer
         # Not in Ubuntu's default archive: install from the Apptainer project's PPA
         run: |
@@ -116,22 +115,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends apptainer
 
-      - name: Build .sif for the released tag
-        run: |
-          tag="${{ inputs.tag }}"
-          # sudo: an unprivileged (fakeroot) build cannot chown files to the uids in source tarballs, which fails
-          # `tar` in %post; the .def clones the release tag, so this must be fixed here for already-released tags
-          sudo apptainer build \
-            --build-arg git_ref="${tag}" \
-            --build-arg skip_db_download=1 \
-            "AAFTF-${tag}.sif" AAFTF.def
-
-      - name: Attach .sif to the GitHub Release
+      - name: Pull and smoke-test the image
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPTAINER_DOCKER_USERNAME: ${{ github.actor }}
+          APPTAINER_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${{ inputs.tag }}"
-          gh release upload "${tag}" "AAFTF-${tag}.sif" --clobber --repo "${{ github.repository }}"
+          apptainer pull aaftf.sif "docker://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
+          apptainer exec aaftf.sif AAFTF --version
+          apptainer exec aaftf.sif bash -lc 'AAFTF --version'
 
   provenance:
     needs: [docker, docker-sign]

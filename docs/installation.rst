@@ -108,14 +108,14 @@ itself ships as a container image invoked from inside AAFTF -- see :doc:`command
         -v /path/to/aaftf_db:/opt/aaftf_db \
         aaftf:latest AAFTF trim --read1 /data/R1.fq.gz --read2 /data/R2.fq.gz
 
-A second, simpler conda-based image is available via ``Dockerfile.conda`` for environments where
-the pixi-based build is undesirable; build/run commands are the same.
-
 **Singularity / Apptainer**
 
 .. code-block:: bash
 
-    # Build (defaults: git_ref=main, skip_db_download=1 -- no databases in the image; bind-mount
+    # Convert the published Docker image (recommended; same signed image as Docker)
+    apptainer pull aaftf.sif docker://ghcr.io/stajichlab/aaftf:latest   # or :v0.x.y
+
+    # Or build from the definition file (defaults: git_ref=main, skip_db_download=1 -- no databases in the image; bind-mount
     # or download AAFTF_DB separately at run time, or add --build-arg skip_db_download=0 to bake them in)
     singularity build AAFTF.sif AAFTF.def
 
@@ -129,6 +129,9 @@ the pixi-based build is undesirable; build/run commands are the same.
 
     # Or use the built-in runscript
     singularity run --bind /path/to/data:/data AAFTF.sif trim --read1 /data/R1.fq.gz --read2 /data/R2.fq.gz
+
+Building from ``AAFTF.def`` without root: Apptainer (e.g. 1.4.5) can do an unprivileged ``apptainer build``
+using user namespaces, whereas SingularityCE refuses one unless given ``--remote``, ``--fakeroot`` or proot.
 
 The database directory defaults to ``/opt/aaftf_db`` inside the container (override with
 ``AAFTF_DB``). Both the Docker entrypoint and the Singularity ``%environment``/``/etc/profile.d``
