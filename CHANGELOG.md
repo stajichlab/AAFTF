@@ -6,6 +6,16 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
 
 ## [Unreleased]
 
+### Changed
+
+- Releases no longer attach a Singularity `.sif`; convert the Docker image instead with
+  `apptainer pull aaftf.sif docker://ghcr.io/stajichlab/aaftf:<tag>`. The Docker image now sets up
+  `/etc/profile.d/aaftf.sh`, so AAFTF stays on `PATH` in login shells (`bash -l`, used by
+  SLURM/Nextflow) of a converted image, and CI checks the converted image.
+- Removed `build_sif.sh`, `docker-compose.yml`, `Dockerfile.conda`, the conda recipe
+  (`ci/recipe/`) and its anaconda.org publishing workflow (`conda-build.yml`), which were untested and out of
+  date; use the published image (`docker pull` / `apptainer pull`) or build from `Dockerfile` / `AAFTF.def`.
+
 ## [0.8.0-beta.0] - 2026-10-30
 
 Changes since `v0.7.0-beta.4`. This is a large refactor: many command-line options changed, so

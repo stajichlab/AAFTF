@@ -25,7 +25,6 @@ dependencies:
   - biopython>=1.88
   - psutil>=5
   - matplotlib-base>=3
-  - packaging
   # optional steps and non-default options
   - pigz
   - sourmash>=4.8           # taxpurge

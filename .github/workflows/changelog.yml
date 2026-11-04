@@ -15,11 +15,10 @@ on:
       - "patches/**"          # bundled scripts installed with the package (aaftf_polca.sh)
       - "pyproject.toml"      # project metadata and dependencies
       - "environment*.yml"
-      - "ci/recipe/**"        # conda package dependencies
 
 permissions:
   contents: read
 
 jobs:
   changelog:
-    uses: stajichlab/gh_workflows/.github/workflows/changelog_check.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/changelog_check.yml@v2

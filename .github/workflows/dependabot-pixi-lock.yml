@@ -14,7 +14,7 @@ concurrency:
 jobs:
   update-pixi-lock:
     name: Update pixi.lock
-    uses: stajichlab/gh_workflows/.github/workflows/pixi_lock_refresh.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/pixi_lock_refresh.yml@v2
     # Dependabot runs get a read-only token by default; writing is needed to push the updated lock file.
     permissions:
       contents: write

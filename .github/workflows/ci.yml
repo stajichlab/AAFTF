@@ -1,7 +1,7 @@
 # Continuous integration for every push to main and every pull request:
 # lint (pre-commit), unit tests on every supported Python, integration tests with the real tools
 # (locked pixi dev environment), and a warnings-as-errors Sphinx build of docs/. The test jobs use the org's shared
-# python_test workflow and upload coverage to Codecov (flags pip-<version> and pixi-dev; needs the CODECOV_TOKEN
+# python_test_pip / python_test_pixi workflows and upload coverage to Codecov (flags pip-<version> and pixi-dev; needs the CODECOV_TOKEN
 # secret).
 
 name: CI
@@ -66,11 +66,10 @@ jobs:
     name: Unit tests
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true'
-    uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/python_test_pip.yml@v2
     with:
       pip_install: ".[dev]"
       test_command: pytest -vv -m unit tests --cov --cov-report=xml
-      codecov: true
     secrets:
       codecov_token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -78,13 +77,13 @@ jobs:
     name: Integration tests (real tools, locked pixi dev environment)
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true'
-    uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/python_test_pixi.yml@v2
     with:
-      installer: pixi
-      pixi_environments: '["dev"]'
-      setup_command: AAFTF dependency  # check the environment has what the default pipeline needs
-      test_command: pytest -vv tests --cov --cov-report=xml
-      codecov: true
+      environments: '["dev"]'
+      # first check the environment has what the default pipeline needs
+      test_command: |
+        AAFTF dependency
+        pytest -vv tests --cov --cov-report=xml
     secrets:
       codecov_token: ${{ secrets.CODECOV_TOKEN }}
 
