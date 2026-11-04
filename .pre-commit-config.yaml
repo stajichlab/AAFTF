@@ -11,6 +11,7 @@ repos:
       - id: end-of-file-fixer
         exclude: ^patches/.*\.patch$
       - id: check-yaml
+        exclude: ^bioconda/meta\.yaml$  # Jinja-templated conda recipe, valid YAML only after rendering
       - id: check-toml
       - id: check-ast
       - id: check-added-large-files
