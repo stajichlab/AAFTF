@@ -62,7 +62,6 @@ requirements:
     - biopython >=1.88
     - psutil >=5
     - matplotlib-base >=3
-    - packaging
     - pigz
     - bowtie2
     - fastp

@@ -31,7 +31,6 @@ license-files = ["LICEN[CS]E*"]
 dependencies = [
     "biopython>=1.88",
     "matplotlib>=3.10.9",
-    "packaging",
     "psutil>=7.2.2",
 ]
 
