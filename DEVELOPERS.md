@@ -35,8 +35,8 @@ Most jobs call the org's shared reusable workflows from
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| `ci.yml` | every push to `main` and every pull request | pre-commit lint; unit tests on Python 3.10-3.14 (pip install, no external tools) and the full test suite, including integration tests, in the locked pixi `dev` environment (shared `python_test`); Sphinx docs build with warnings as errors |
-| `ci-conda.yml` | pushes/PRs touching Python code or `environment.yml` | the full test suite in the `environment.yml` conda environment (shared `python_test`) |
+| `ci.yml` | every push to `main` and every pull request | pre-commit lint; unit tests on Python 3.10-3.14 (pip install, no external tools) and the full test suite, including integration tests, in the locked pixi `dev` environment (shared `python_test_pip` and `python_test_pixi`); Sphinx docs build with warnings as errors |
+| `ci-conda.yml` | pushes/PRs touching Python code or `environment.yml` | the full test suite in the `environment.yml` conda environment (shared `python_test_conda`) |
 | `changelog.yml` | every pull request | requires an entry under `[Unreleased]` in `CHANGELOG.md` (shared `changelog_check`; label `skip-changelog` to skip) |
 | `citation.yml` | changes to `CITATION.cff` | validates it (shared `citation_check`) |
 | `dependabot-pixi-lock.yml` | Dependabot PRs touching `pyproject.toml` | regenerates `pixi.lock` (shared `pixi_lock_refresh`) |

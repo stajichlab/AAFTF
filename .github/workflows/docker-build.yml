@@ -65,7 +65,7 @@ jobs:
 
   docker:
     needs: version
-    uses: stajichlab/gh_workflows/.github/workflows/container_build.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/container_build.yml@v2
     permissions:
       contents: read
       packages: write

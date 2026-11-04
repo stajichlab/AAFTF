@@ -103,7 +103,7 @@ jobs:
 
   publish:
     needs: test-sdist
-    uses: stajichlab/gh_workflows/.github/workflows/release_publish.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/release_publish.yml@v2
     permissions:
       contents: write
     with:
@@ -138,7 +138,7 @@ jobs:
   sync-dev:
     needs: publish
     if: needs.publish.outputs.published == 'true'
-    uses: stajichlab/gh_workflows/.github/workflows/sync_dev.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/sync_dev.yml@v2
     permissions:
       contents: write
       pull-requests: write

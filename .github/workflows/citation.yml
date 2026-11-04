@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   citation:
-    uses: stajichlab/gh_workflows/.github/workflows/citation_check.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/citation_check.yml@v2

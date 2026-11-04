@@ -22,7 +22,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       !(startsWith(github.event.head_commit.message, 'Release v') || contains(github.event.head_commit.message, '/release/v'))
-    uses: stajichlab/gh_workflows/.github/workflows/sync_dev.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/sync_dev.yml@v2
     permissions:
       contents: write
       pull-requests: write

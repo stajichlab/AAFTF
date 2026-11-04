@@ -1,7 +1,7 @@
 # Tests the conda route: builds environment.yml (the tools the pipelines need with their default settings, from
 # bioconda/conda-forge), installs this checkout of AAFTF into it in place of the PyPI release the file names, and runs
 # the whole test suite there, so environment.yml can't drift from pyproject.toml and pixi.toml unnoticed. Integration
-# tests whose tools environment.yml leaves out skip themselves. Uses the org's shared python_test workflow.
+# tests whose tools environment.yml leaves out skip themselves. Uses the org's shared python_test_conda workflow.
 
 name: CI/conda
 
@@ -23,13 +23,12 @@ concurrency:
 jobs:
   test:
     name: Tests (conda environment.yml)
-    uses: stajichlab/gh_workflows/.github/workflows/python_test.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/python_test_conda.yml@v2
     with:
-      installer: conda
-      conda_environment_file: environment.yml
+      environment_file: environment.yml
       python_versions: '[""]'  # use the Python environment.yml pins
-      # replace the PyPI release from environment.yml with this checkout, then check the default pipeline's tools
-      setup_command: |
+      # replace the PyPI release from environment.yml with this checkout, check the default pipeline's tools, then test
+      test_command: |
         python -m pip install -e ".[dev]"
         AAFTF dependency
-      test_command: pytest -vv tests
+        pytest -vv tests

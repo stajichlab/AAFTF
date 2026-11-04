@@ -21,4 +21,4 @@ permissions:
 
 jobs:
   changelog:
-    uses: stajichlab/gh_workflows/.github/workflows/changelog_check.yml@v1
+    uses: stajichlab/gh_workflows/.github/workflows/changelog_check.yml@v2
