@@ -1,5 +1,11 @@
 name: Container Retention Policy
 
+# Weekly cleanup of ghcr.io/stajichlab/aaftf:
+# 1. keep only the most recent alpha/beta release tag;
+# 2. delete untagged versions not updated for 14 days with the org's shared container_cleanup, which keeps every
+#    platform manifest and attestation a kept image references (they are untagged versions too) and deletes the
+#    Cosign signature tags (sha256-<digest>) of images that are gone, such as the betas removed in step 1.
+
 on:
   schedule:
     - cron: "0 3 * * 1"  # Every Monday at 03:00 UTC
@@ -9,18 +15,9 @@ permissions:
   packages: write
 
 jobs:
-  cleanup:
+  prune-prereleases:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete untagged images older than 2 weeks
-        uses: snok/container-retention-policy@v3.1.0
-        with:
-          account: stajichlab
-          image-names: aaftf
-          tag-selection: untagged
-          cut-off: 2w
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Keep only latest beta/alpha release tag
         uses: snok/container-retention-policy@v3.1.0
         with:
@@ -31,3 +28,13 @@ jobs:
           keep-n-most-recent: 1
           cut-off: 0s
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup:
+    needs: prune-prereleases
+    if: ${{ !cancelled() }}
+    uses: stajichlab/gh_workflows/.github/workflows/container_cleanup.yml@v2
+    permissions:
+      packages: write
+    with:
+      packages: aaftf
+      min_age_days: 14

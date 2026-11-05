@@ -1,5 +1,5 @@
-# Builds and publishes the AAFTF container images. The Docker build itself uses the org's shared container_build
-# workflow; signing, provenance and the Apptainer smoke test stay here.
+# Builds and publishes the AAFTF container images with the org's shared container_build workflow, which also signs
+# them (sign: true); the Apptainer smoke test stays here.
 #
 # - Release (called by publish.yml with the new tag): publishes ghcr.io/stajichlab/aaftf:<version>, :<tag>,
 #                             :<major.minor> and :latest (the last two not for prereleases). No .sif
@@ -11,8 +11,14 @@
 #                             `tag` input, rebuilds that release exactly as above (e.g. after a failed release
 #                             build). Rebuilding an older release also moves :latest to it.
 #
-# All images are signed with Cosign (Sigstore) and include SLSA provenance
-# attestations for supply-chain security.
+# Each build is one multi-platform index (the linux/amd64 image plus the SLSA provenance attestation that buildx
+# attaches) signed once with Cosign (Sigstore) by its index digest, so the registry holds one signature tag,
+# sha256-<index digest>, per build. The signing runs inside the shared workflow, so the certificate identity is
+# gh_workflows' container_build.yml; the repository it built for is checked separately. Verify with:
+#   cosign verify ghcr.io/stajichlab/aaftf:<tag> \
+#     --certificate-identity-regexp '^https://github.com/stajichlab/gh_workflows/.github/workflows/container_build.yml@' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     --certificate-github-workflow-repository stajichlab/AAFTF
 
 name: Build container images
 
@@ -69,6 +75,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write  # keyless Cosign signing (sign: true)
     with:
       ref: ${{ inputs.tag }}
       latest: ${{ inputs.tag != '' }}  # ignored for prereleases
@@ -76,28 +83,8 @@ jobs:
       build_args: |
         AAFTF_VERSION=${{ needs.version.outputs.version }}
       smoke_test_args: AAFTF --version
-
-  docker-sign:
-    needs: docker
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-    steps:
-      - uses: sigstore/cosign-installer@v4.1.2
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Sign the image
-        run: |
-          cosign sign --yes \
-            --recursive \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
+      # sign the pushed index once (not its platform/attestation manifests); stored as tag sha256-<index digest>
+      sign: true
 
   apptainer-test:
     # Users run the published Docker image on HPC via `apptainer pull docker://...`; check that the converted
@@ -123,53 +110,3 @@ jobs:
           apptainer pull aaftf.sif "docker://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
           apptainer exec aaftf.sif AAFTF --version
           apptainer exec aaftf.sif bash -lc 'AAFTF --version'
-
-  provenance:
-    needs: [docker, docker-sign]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-    steps:
-      - uses: sigstore/cosign-installer@v4.1.2
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate SLSA provenance predicate
-        id: slsa-predicate
-        run: |
-          started_on="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          predicate_file="${RUNNER_TEMP}/slsa-provenance.json"
-          cat > "${predicate_file}" <<JSON
-          {
-            "buildDefinition": {
-              "buildType": "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/docker-build.yml",
-              "externalParameters": {},
-              "internalParameters": {},
-              "resolvedDependencies": []
-            },
-            "runDetails": {
-              "builder": {
-                "id": "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-              },
-              "metadata": {
-                "invocationId": "${GITHUB_RUN_ID}",
-                "startedOn": "${started_on}"
-              },
-              "byproducts": []
-            }
-          }
-          JSON
-          echo "path=${predicate_file}" >> "${GITHUB_OUTPUT}"
-
-      - name: Generate SLSA provenance
-        run: |
-          cosign attest --yes \
-            --predicate "${{ steps.slsa-predicate.outputs.path }}" \
-            --type=slsaprovenance1 \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.docker.outputs.digest }}"
