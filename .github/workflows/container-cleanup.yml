@@ -34,6 +34,7 @@ jobs:
     if: ${{ !cancelled() }}
     uses: stajichlab/gh_workflows/.github/workflows/container_cleanup.yml@v2
     permissions:
+      contents: read  # the shared workflow's job requests it
       packages: write
     with:
       packages: aaftf
