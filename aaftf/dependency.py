@@ -2,7 +2,11 @@
 
 import importlib
 import logging
+import re
 import shutil
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +64,23 @@ OPTIONAL_PYTHON_PACKAGES = {
     "sourmash_plugin_branchwater": "sourmash_plugin_branchwater",  # taxpurge (sourmash scripts fastmultigather)
 }
 
+# arguments that make a tool print its version; tools not listed use ``--version``, None = no version query
+VERSION_ARGS: dict[str, list[str] | None] = {
+    "java": ["-version"],
+    "blastn": ["-version"],
+    "makeblastdb": ["-version"],
+    "bwa": [],  # prints usage with "Version:" and exits 1
+    "trimmomatic": ["-version"],
+    "yak": ["version"],
+    "aaftf_polca.sh": None,
+    "NOVOPlasty.pl": None,
+    "run_fcsadaptor.sh": None,
+    "run_gx.py": None,
+}
+
+VERSION_TIMEOUT = 20  # seconds per tool
+_VERSION_RE = re.compile(r'(?:^|[\s:v"(])v?(\d+\.\d+(?:\.\d+)?(?:[-_]\w[\w.]*|\+)?)', re.MULTILINE)
+
 logger = logging.getLogger(__name__)
 
 
@@ -69,7 +90,7 @@ def run(quiet: bool = False, **kwargs: Any) -> None:
     Tools and packages are checked in two groups: those needed to run the ``pipeline_*`` subcommands with their
     default settings, and those only needed by optional steps (e.g. ``polish``, ``depth``,
     ``mito``) or non-default options (e.g. ``--aligner bowtie2``). An OK/MISSING line is printed
-    for each, with its location (or where a missing one is used). Only missing required items
+    for each, with its version and location (or where a missing one is used). Only missing required items
     are an error.
 
     Args:
@@ -107,6 +128,27 @@ def _suggest_bowtie2_avx2() -> None:
         logger.info("NOTE: bowtie2 is the conda build, which cannot use AVX2. For AVX2 speed, rebuild it from source: pixi run install-bowtie2 (pixi), or bash install_scripts/pixi_install_bowtie2.sh (conda)")
 
 
+def _tool_version(tool: str, path: str) -> str:
+    """Return the version ``tool`` reports, or ``"?"`` when it cannot be determined.
+
+    Args:
+        tool: Executable name (key of ``REQUIRED_TOOLS`` / ``OPTIONAL_TOOLS``).
+        path: Full path of the executable.
+
+    Returns:
+        The first version-like string in the tool's combined stdout/stderr, else ``"?"``.
+    """
+    args = VERSION_ARGS.get(tool, ["--version"])
+    if args is None:
+        return "?"
+    try:
+        proc = subprocess.run([path, *args], capture_output=True, text=True, timeout=VERSION_TIMEOUT, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return "?"
+    match = _VERSION_RE.search(proc.stdout + "\n" + proc.stderr)
+    return match.group(1) if match else "?"
+
+
 def _print_tool_table(title: str, results: list[tuple[str, str | None, str]], quiet: bool = False) -> list[str]:
     """Log ``title`` and print an OK/MISSING line for each checked tool.
 
@@ -119,10 +161,15 @@ def _print_tool_table(title: str, results: list[tuple[str, str | None, str]], qu
         Names of the tools that were not found.
     """
     logger.info(title)
+    versions: dict[str, str] = {}
+    if not quiet:
+        found = [(tool, path) for tool, path, _ in results if path]
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            versions = dict(zip([t for t, _ in found], pool.map(lambda tp: _tool_version(*tp), found)))
     missing = []
     for tool, path, used_by in results:
         if path:
-            print(f"  [OK]      {tool}" if quiet else f"  [OK]      {tool:<20} {path}")
+            print(f"  [OK]      {tool}" if quiet else f"  [OK]      {tool:<20} {versions[tool]:<16} {path}")
         else:
             print(f"  [MISSING] {tool}" if quiet else f"  [MISSING] {tool:<20} used by: {used_by}")
             missing.append(tool)
@@ -142,7 +189,14 @@ def _print_package_table(title: str, packages: dict[str, str]) -> list[str]:
     logger.info(title)
     missing = []
     for dist_name, found in _check_python_packages(packages):
-        print(f"  [OK]      {dist_name}" if found else f"  [MISSING] {dist_name}")
+        if found:
+            try:
+                pkg_version = version(dist_name)
+            except PackageNotFoundError:
+                pkg_version = "?"
+            print(f"  [OK]      {dist_name:<20} {pkg_version}")
+        else:
+            print(f"  [MISSING] {dist_name}")
         if not found:
             missing.append(dist_name)
     return missing
