@@ -5,13 +5,14 @@ PhiX, and the lambda phage and adapter FASTAs bundled with BBTools), plus any se
 with BBDuk k-mer matching, or aligned with bowtie2, bwa or minimap2.
 """
 
+import itertools
 import logging
 from pathlib import Path
 from typing import Any
 
 from aaftf.database import require_contamdb
 from aaftf.resources import SEQ_DBS
-from aaftf.utility import align_to_sorted_bam, basename_from_reads, bbduk_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, dedupe_fasta, download_file, make_workdir, run_cmd, safe_remove
+from aaftf.utility import align_to_sorted_bam, basename_from_reads, bbduk_reads, cleanup_workdir, close_step_log, concat_files, count_fastq, db_file, dedupe_fasta, download_file, make_workdir, open_maybe_gz, run_cmd, safe_remove
 
 __all__ = ["run"]
 
@@ -19,6 +20,14 @@ __all__ = ["run"]
 logger = logging.getLogger(__name__)
 
 ALIGNERS = ("bbduk", "bowtie2", "bwa", "minimap2")
+
+# diagnostics after filtering (warnings only, except when no reads are left)
+WARN_KEPT_FRACTION = 0.5  # warn when less than this fraction of the reads is kept
+MIN_KEPT_READS = 100_000  # warn when fewer reads are kept
+MIN_KEPT_BASES = 300_000_000  # warn below ~10x of a 30 Mb fungal genome
+EXAMPLE_GENOME_SIZE = 40_000_000  # genome size used to express the kept bases as coverage
+LENGTH_SAMPLE_READS = 10_000  # reads sampled to estimate the mean read length
+TOP_CONTAMINANTS = 5  # contamdb sequences listed in the breakdown
 
 
 # Illumina sequencing artifacts and the lambda phage genome (a common spike-in), bundled with
@@ -87,9 +96,12 @@ def run(
         pairs = 2 if reverse_reads else 1
         total = count_fastq(forward_reads) * pairs
         logger.info(f"Loading {total:,} total reads")
+        if total == 0:
+            raise RuntimeError(f"No reads in {forward_reads}: check the input FASTQ (or the trim step, if it was trimmed by AAFTF)")
 
+        stats_file = str(Path(workdir, basename + "_contam_stats.txt"))
         if aligner == "bbduk":
-            _filter_bbduk(contamdb, forward_reads, reverse_reads, clean_1, clean_2, workdir, cpus, memory, debug)
+            _filter_bbduk(contamdb, forward_reads, reverse_reads, clean_1, clean_2, workdir, cpus, memory, debug, stats_file)
         else:
             align_bam = str(Path(workdir, basename + "_contam_db.bam"))
             _align(aligner, contamdb, forward_reads, reverse_reads, align_bam, workdir, cpus, debug)
@@ -99,10 +111,12 @@ def run(
             else:
                 samtools_cmd = ["samtools", "fastq", "-f", "4", "-0", clean_1, align_bam]
             run_cmd(samtools_cmd, debug)
-        cleanup_workdir(workdir, debug, custom_workdir)
+            _idxstats(align_bam, stats_file, debug)
 
         clean = count_fastq(clean_1) * pairs
         logger.info(f"{total - clean:,} reads matched the contamination database; {clean:,} reads kept")
+        _report_filtering(total, clean, clean_1, stats_file, aligner, basename)
+        cleanup_workdir(workdir, debug, custom_workdir)
         if reverse_reads:
             logger.info(f"Filtering complete:\nFor: {clean_1}\nRev: {clean_2}")
         else:
@@ -158,9 +172,9 @@ def _build_contamdb(workdir: str, screen_accessions: list[str] | None, screen_ur
     return str(contamdb)
 
 
-def _filter_bbduk(contamdb: str, forward_reads: str, reverse_reads: str | None, clean_1: str, clean_2: str | None, workdir: str, cpus: int, memory: int, debug: bool) -> None:
-    """K-mer filter the reads against ``contamdb`` with BBDuk into ``clean_1`` (and ``clean_2``)."""
-    bbduk = ["bbduk.sh", f"-Xmx{memory}g", f"t={cpus}", "hdist=1", "k=27", "overwrite=true", f"ref={contamdb}"]
+def _filter_bbduk(contamdb: str, forward_reads: str, reverse_reads: str | None, clean_1: str, clean_2: str | None, workdir: str, cpus: int, memory: int, debug: bool, stats_file: str) -> None:
+    """K-mer filter the reads against ``contamdb`` with BBDuk into ``clean_1`` (and ``clean_2``); per-sequence matches go to ``stats_file``."""
+    bbduk = ["bbduk.sh", f"-Xmx{memory}g", f"t={cpus}", "hdist=1", "k=27", "overwrite=true", f"ref={contamdb}", f"stats={stats_file}"]
     logger.info("Kmer filtering reads using BBDuk")
     bbduk_reads(bbduk, forward_reads, reverse_reads, clean_1, clean_2, Path(workdir, "reads"), debug)
 
@@ -199,3 +213,81 @@ def _build_index(marker_file: str, contamdb: str, build_cmd: list[str], debug: b
 def _is_current(target: str, source: str) -> bool:
     """Return whether ``target`` exists and was modified no earlier than ``source``."""
     return Path(target).is_file() and Path(target).stat().st_mtime >= Path(source).stat().st_mtime
+
+
+def _idxstats(align_bam: str, stats_file: str, debug: bool) -> None:
+    """Write ``samtools idxstats`` of ``align_bam`` (reads mapped per contamdb sequence) to ``stats_file``; skipped on failure."""
+    try:
+        with open(stats_file, "w") as out:
+            run_cmd(["samtools", "idxstats", align_bam], debug, stdout=out)
+    except Exception as err:  # diagnostics only: never fail the step
+        logger.debug(f"samtools idxstats failed: {err}")
+        safe_remove(stats_file)
+
+
+def _contaminant_counts(stats_file: str, aligner: str) -> list[tuple[str, int]]:
+    """Return ``(contamdb sequence, reads matched)`` pairs from ``stats_file``, most reads first.
+
+    Reads BBDuk's ``stats=`` file (``#Name  Reads  ReadsPct`` rows after ``#`` header lines) or
+    ``samtools idxstats`` output (name, length, mapped, unmapped). A missing or unreadable file gives ``[]``.
+    """
+    counts: list[tuple[str, int]] = []
+    try:
+        with open(stats_file) as fh:
+            for line in fh:
+                cols = line.rstrip("\n").split("\t")
+                if line.startswith("#") or len(cols) < 3 or cols[0] == "*":
+                    continue
+                reads = cols[2] if aligner != "bbduk" else cols[1]
+                if reads.isdigit() and int(reads) > 0:
+                    counts.append((cols[0], int(reads)))
+    except OSError:
+        return []
+    return sorted(counts, key=lambda c: -c[1])
+
+
+def _mean_read_length(fastq: str) -> float | None:
+    """Estimate the mean read length of ``fastq`` from its first ``LENGTH_SAMPLE_READS`` reads; None if it cannot be read."""
+    try:
+        with open_maybe_gz(fastq, "rt") as fh:
+            lengths = [len(line.strip()) for line in itertools.islice(fh, 1, 4 * LENGTH_SAMPLE_READS, 4)]
+    except (OSError, EOFError, UnicodeDecodeError):
+        return None
+    return sum(lengths) / len(lengths) if lengths else None
+
+
+def _report_filtering(total: int, clean: int, clean_1: str, stats_file: str, aligner: str, basename: str) -> None:
+    """Log what the reads matched and warn when too little data is left for an assembly.
+
+    Raises:
+        RuntimeError: If no reads are left after filtering.
+    """
+    contaminants = _contaminant_counts(stats_file, aligner)
+    if contaminants:
+        unit = "reads" if aligner == "bbduk" else "reads mapped"
+        top = "\n".join(f"  {name:<40} {n:>14,} {unit} ({100 * n / total:.1f}%)" for name, n in contaminants[:TOP_CONTAMINANTS])
+        logger.info(f"Contamination database sequences matched most often:\n{top}")
+        phix = sum(n for name, n in contaminants if "phix" in name.lower().replace("-", ""))
+        if phix > 0.5 * total:
+            logger.warning(f"{100 * phix / total:.0f}% of the reads matched PhiX: this looks like a PhiX control library or a mislabeled sample, not the genome to assemble")
+
+    if clean == 0:
+        hint = f" (top match: {contaminants[0][0]})" if contaminants else ""
+        raise RuntimeError(
+            f"All {total:,} reads matched the contamination database{hint}; nothing is left to assemble. "
+            "Check that the FASTQ files are the intended sample (not a PhiX/control run), that the trim step kept reads, "
+            "and any extra sequences added with -a/-u/-s. Rerun with -v to keep the work directory and the per-sequence match counts."
+        )
+
+    kept = clean / total
+    if kept < WARN_KEPT_FRACTION:
+        logger.warning(f"Only {100 * kept:.1f}% of the reads were kept after filtering; the library may be dominated by contamination")
+    if clean < MIN_KEPT_READS:
+        logger.warning(f"Only {clean:,} reads are left (fewer than {MIN_KEPT_READS:,}); the assembly is likely to fail or be very fragmented")
+    mean_len = _mean_read_length(clean_1)
+    if mean_len:
+        bases = int(clean * mean_len)
+        coverage = bases / EXAMPLE_GENOME_SIZE
+        logger.info(f"About {bases / 1e6:,.1f} Mb kept (mean read length {mean_len:.0f} bp), ~{coverage:.1f}x of a {EXAMPLE_GENOME_SIZE / 1e6:.0f} Mb genome")
+        if bases < MIN_KEPT_BASES:
+            logger.warning(f"About {bases / 1e6:,.1f} Mb of reads are left (less than {MIN_KEPT_BASES / 1e6:.0f} Mb, ~10x of a 30 Mb genome); an assembly of {basename} can run but is likely to be incomplete and fragmented")

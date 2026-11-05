@@ -570,3 +570,67 @@ def test_unknown_aligner_raises_before_any_work(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="Unknown aligner"):
         run(read1=str(tmp_path / "R1.fq"), aligner="novoalign")
     assert not list(tmp_path.glob("aaftf-filter_*"))
+
+
+# ---------------------------------------------------------------------------
+# post-filter diagnostics
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFilterDiagnostics:
+    def _bbduk_stats(self, path, rows):
+        lines = ["#File\treads.fq.gz", "#Total\t1000", "#Matched\t900\t90.0%", "#Name\tReads\tReadsPct"]
+        path.write_text("\n".join(lines + [f"{n}\t{c}\t{c / 10:.1f}%" for n, c in rows]) + "\n")
+        return str(path)
+
+    def _fastq(self, path, n, length=150):
+        with gzip.open(path, "wt") as fh:
+            for i in range(n):
+                fh.write(f"@r{i}\n{'A' * length}\n+\n{'I' * length}\n")
+        return str(path)
+
+    def test_bbduk_stats_parsed_sorted(self, tmp_path):
+        from aaftf.filter import _contaminant_counts
+
+        stats = self._bbduk_stats(tmp_path / "s.txt", [("adapter", 10), ("phiX174", 890), ("none", 0)])
+        assert _contaminant_counts(stats, "bbduk") == [("phiX174", 890), ("adapter", 10)]
+
+    def test_idxstats_parsed(self, tmp_path):
+        from aaftf.filter import _contaminant_counts
+
+        stats = tmp_path / "idx.txt"
+        stats.write_text("phiX174\t5386\t70\t0\nlambda\t48502\t5\t0\n*\t0\t0\t25\n")
+        assert _contaminant_counts(str(stats), "bwa") == [("phiX174", 70), ("lambda", 5)]
+
+    def test_missing_stats_file_is_empty(self, tmp_path):
+        from aaftf.filter import _contaminant_counts
+
+        assert _contaminant_counts(str(tmp_path / "nope.txt"), "bbduk") == []
+
+    def test_all_reads_removed_raises(self, tmp_path):
+        from aaftf.filter import _report_filtering
+
+        stats = self._bbduk_stats(tmp_path / "s.txt", [("phiX174", 1000)])
+        with pytest.raises(RuntimeError, match="phiX174"):
+            _report_filtering(1000, 0, str(tmp_path / "clean.fq.gz"), stats, "bbduk", "sample")
+
+    def test_low_data_warns(self, tmp_path, caplog):
+        from aaftf.filter import _report_filtering
+
+        clean = self._fastq(tmp_path / "clean.fq.gz", 100)
+        stats = self._bbduk_stats(tmp_path / "s.txt", [("phiX174", 900)])
+        with caplog.at_level("WARNING", logger="aaftf.filter"):
+            _report_filtering(1000, 100, clean, stats, "bbduk", "sample")
+        text = caplog.text
+        assert "PhiX" in text and "10.0% of the reads were kept" in text and "Only 100 reads" in text and "Mb of reads are left" in text
+
+    def test_plenty_of_data_no_warning(self, tmp_path, caplog, monkeypatch):
+        from aaftf import filter as aaftf_filter
+
+        monkeypatch.setattr(aaftf_filter, "MIN_KEPT_READS", 10)
+        monkeypatch.setattr(aaftf_filter, "MIN_KEPT_BASES", 1000)
+        clean = self._fastq(tmp_path / "clean.fq.gz", 100)
+        with caplog.at_level("WARNING", logger="aaftf.filter"):
+            aaftf_filter._report_filtering(105, 100, clean, str(tmp_path / "none.txt"), "bbduk", "sample")
+        assert not caplog.records
