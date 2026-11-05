@@ -24,10 +24,13 @@ groups, and printed in the order listed below:
   ``docker``, ``run_gx.py``; Python packages ``matplotlib`` (``depth`` plots) and
   ``sourmash_plugin_branchwater`` (``taxpurge``).
 
-For each tool an ``[OK]`` line shows where it was found, and a ``[MISSING]`` line shows which
-subcommands/options use it (e.g. ``used by: filter (--aligner bowtie2)``). Python packages are
-printed as ``[OK]``/``[MISSING]`` with their name only. With ``-q`` the tool lines also show only
-the status and name, and the section headings and notes (logged at INFO) are hidden.
+For each tool an ``[OK]`` line shows its version and where it was found, and a ``[MISSING]`` line
+shows which subcommands/options use it (e.g. ``used by: filter (--aligner bowtie2)``). The version
+is the first version-like string the tool prints for ``--version`` (or the flag listed in
+``VERSION_ARGS``; tools run in parallel, 20 s limit each), shown as ``?`` when it cannot be read or
+the tool has no version query (``aaftf_polca.sh``, ``NOVOPlasty.pl``, ``run_fcsadaptor.sh``,
+``run_gx.py``). Python packages are printed as ``[OK]`` with their installed version, or
+``[MISSING]``. With ``-q`` the tool lines show only the status and name (no versions are queried), and the section headings and notes (logged at INFO) are hidden.
 
 Missing optional items are summarised in a note and do not fail the check. The command exits with
 an error (status 2) only when a tool or package from the default-pipeline group is missing.
@@ -49,7 +52,7 @@ Example
 
 .. code-block:: bash
 
-    # full report, with tool locations / where missing tools are used
+    # full report, with tool versions and locations / where missing tools are used
     AAFTF dependency
 
     # only the OK/MISSING lines; the exit status tells whether the default pipeline can run

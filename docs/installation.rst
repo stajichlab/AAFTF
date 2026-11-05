@@ -198,7 +198,7 @@ the ``pipeline_*`` subcommands need with their default settings (BBTools and Jav
 bwa, samtools, minimap2, Flye, Racon, Polypolish, pypolca, freebayes, mosdepth; biopython, psutil), and those only needed by optional steps
 (``taxpurge``, ``polish``, ``mito``, ``fcs_screen``, ``fcs_gx_purge``) or non-default options
 (e.g. ``filter --aligner bowtie2``, ``assemble --method megahit``). It exits with an error only
-when something from the first group is missing; ``-q`` prints just the OK/MISSING status.
+when something from the first group is missing; each found tool is listed with its version; ``-q`` prints just the OK/MISSING status.
 
 .. code-block:: bash
 

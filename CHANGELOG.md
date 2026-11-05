@@ -6,7 +6,20 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
 
 ## [Unreleased]
 
+### Added
+
+- `dependency` prints the version of each tool found (from its `--version` or equivalent; `?`
+  when it cannot be read) and of each Python package. With `-q`, tools are listed without versions.
+- `filter` reports which contamination database sequences the reads matched (BBDuk `stats=`, or
+  `samtools idxstats` with `--aligner bowtie2/bwa/minimap2`) and warns when the data left may be
+  too little to assemble: most reads matched PhiX (a PhiX control or mislabeled sample), less than
+  50% of the reads kept, fewer than 100,000 reads left, or less than 300 Mb of sequence left
+  (~10x of a 30 Mb genome). It also logs the Mb kept and the coverage of a 40 Mb genome.
+
 ### Changed
+
+- `filter` now stops with an error when the input has no reads or every read matches the
+  contamination database, so a pipeline stops before assembling empty read files.
 
 - Releases no longer attach a Singularity `.sif`; convert the Docker image instead with
   `apptainer pull aaftf.sif docker://ghcr.io/stajichlab/aaftf:<tag>`. The Docker image now sets up
