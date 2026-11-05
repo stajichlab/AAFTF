@@ -6,6 +6,8 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-05
+
 ### Added
 
 - `dependency` prints the version of each tool found (from its `--version` or equivalent; `?`
@@ -25,6 +27,7 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
   `apptainer pull aaftf.sif docker://ghcr.io/stajichlab/aaftf:<tag>`. The Docker image now sets up
   `/etc/profile.d/aaftf.sh`, so AAFTF stays on `PATH` in login shells (`bash -l`, used by
   SLURM/Nextflow) of a converted image, and CI checks the converted image.
+
 - Removed `build_sif.sh`, `docker-compose.yml`, `Dockerfile.conda`, the conda recipe
   (`ci/recipe/`) and its anaconda.org publishing workflow (`conda-build.yml`), which were untested and out of
   date; use the published image (`docker pull` / `apptainer pull`) or build from `Dockerfile` / `AAFTF.def`.
@@ -501,7 +504,9 @@ Tagged `v0.6.1-alpha2`.
 
 - Initial release, which includes automation for quality trimming and contaminant/adaptor removal, filtering, assembly, vector cleanup, refinement, duplication removal and sorting.
 
-[Unreleased]: https://github.com/stajichlab/AAFTF/compare/v0.8.0-beta.0...HEAD
+[Unreleased]: https://github.com/stajichlab/AAFTF/compare/v0.8.0...HEAD
+
+[0.8.0]: https://github.com/stajichlab/AAFTF/compare/v0.8.0-beta.0...v0.8.0
 
 [0.8.0-beta.0]: https://github.com/stajichlab/AAFTF/compare/v0.7.0-beta.4...v0.8.0-beta.0
 
