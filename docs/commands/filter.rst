@@ -37,6 +37,19 @@ Algorithm
    For bowtie2/bwa/minimap2, reads are kept if flagged unmapped in the resulting sorted BAM
    (``samtools fastq -f 12`` for pairs -- both mates unmapped; ``-f 4`` for single-end).
 
+3. Reports what was removed and whether enough data is left to assemble:
+
+   * the contamination database sequences matched by the most reads (top 5; BBDuk ``stats=``, or
+     ``samtools idxstats`` of the alignment), written to ``<workdir>/{basename}_contam_stats.txt``;
+   * the Mb of reads kept (read count x mean length of the first 10,000 kept reads) and the
+     coverage that gives on a 40 Mb genome.
+
+   Warnings (the step still succeeds) when more than half of the reads match PhiX (a PhiX control
+   or mislabeled sample), less than 50% of the reads are kept, fewer than 100,000 reads are left,
+   or less than 300 Mb is left (~10x of a 30 Mb genome). The step **fails** when the input has no
+   reads or every read matched the database, so a pipeline stops before assembly; rerun with
+   ``-v`` to keep the work directory and its match counts.
+
 Cutoffs / defaults
 ===================
 
