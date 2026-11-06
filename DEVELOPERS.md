@@ -31,7 +31,7 @@ pixi run -e dev pre-commit run --all-files   # ruff, ruff-format, codespell, pyd
 GitHub Actions workflows in `.github/workflows/`:
 
 Most jobs call the org's shared reusable workflows from
-[stajichlab/gh_workflows](https://github.com/stajichlab/gh_workflows) (pinned to `@v1`).
+[stajichlab/gh_workflows](https://github.com/stajichlab/gh_workflows) (pinned to `@v2`).
 
 | Workflow | Runs on | What it does |
 |---|---|---|
@@ -42,9 +42,10 @@ Most jobs call the org's shared reusable workflows from
 | `dependabot-pixi-lock.yml` | Dependabot PRs touching `pyproject.toml` | regenerates `pixi.lock` (shared `pixi_lock_refresh`) |
 | `release.yml` | manual (`workflow_dispatch`) | computes the next version from the latest `v*` tag (npm-style: `major`/`minor`/`patch`, `pre*`, `prerelease`; e.g. `v0.7.0-beta.4` + `prerelease` -> `v0.7.0-beta.5`, + `patch` -> `v0.7.0`), moves the `[Unreleased]` notes in `CHANGELOG.md` to that version, updates `CITATION.cff` and opens a `Release v<version>` PR into `main` (shared `release_prepare`) |
 | `publish.yml` | a merged `release/v*` PR | tests the sdist and solves the recipe (`recipe-solve.yml`), then tags the release and creates the GitHub release (shared `release_publish`), then runs `python-publish.yml` and `docker-build.yml` for the tag and merges `main` back into `dev` (shared `sync_dev`) |
+| `sync-dev.yml` | every push to `main` (except release merges, which `publish.yml` syncs) | merges `main` into `dev` and pushes, or opens a `Sync dev with main` PR into `dev` if that fails (shared `sync_dev`) |
 | `python-publish.yml` | called by `publish.yml` (or manual, with a tag) | builds the sdist/wheel from the tag, checks the built version matches it, uploads to PyPI and attaches them to the GitHub release |
 | `docker-build.yml` | called by `publish.yml`, or manual (`:main` test image) | builds and smoke-tests the Docker image (pixi `complete` environment) for ghcr.io (shared `container_build`), signs its index once with Cosign (buildx attaches the provenance), and checks it converts and runs with `apptainer pull` |
-| `container-cleanup.yml` | weekly | prunes untagged and old prerelease images from ghcr.io |
+| `container-cleanup.yml` | weekly, or manual (optional `dry_run`) | prunes untagged and old prerelease images from ghcr.io (shared `container_cleanup`) |
 
 Add release notes under `## [Unreleased]` in `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com) format) with every pull request. To release, run **Actions → Release**, review and merge the PR it opens. Set the optional `RELEASE_TOKEN` secret (a PAT or GitHub App token with contents and pull requests: write) so CI runs on the release PR; the repo must allow GitHub Actions to create pull requests (**Settings → Actions → General**). Run the CI checks locally with `pixi run -e dev pre-commit run --all-files` and `pixi run -e dev pytest tests/`.
 
