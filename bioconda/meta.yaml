@@ -1,5 +1,5 @@
 {% set name = "aaftf" %}
-{% set version = "0.8.0" %}
+{% set version = "0.8.1" %}
 {% set python_min = "3.11" %}  # requires-python in pyproject.toml (no sourmash_plugin_branchwater build for 3.10); overrides the global (conda-forge) value
 {% set python_max = "3.14" %}  # exclusive upper bound, from requires-python (<3.14: no flye build for 3.14)
 
