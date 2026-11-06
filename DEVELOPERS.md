@@ -36,12 +36,12 @@ Most jobs call the org's shared reusable workflows from
 | Workflow | Runs on | What it does |
 |---|---|---|
 | `ci.yml` | every push to `main` and every pull request | pre-commit lint; unit tests on Python 3.11-3.13 (pip install, no external tools) and the full test suite, including integration tests, in the locked pixi `dev` environment (shared `python_test_pip` and `python_test_pixi`); Sphinx docs build with warnings as errors |
-| `ci-conda.yml` | pushes/PRs touching Python code or `environment.yml` | the full test suite in the `environment.yml` conda environment (shared `python_test_conda`) |
+| `recipe-solve.yml` | pushes/PRs touching `bioconda/meta.yaml` or `pyproject.toml`; called by `publish.yml` | shared `bioconda_recipe_solve`: dry-run solve of `bioconda/meta.yaml`'s run requirements on every Python from `python_min` to `python_max` with glibc 2.17 (bioconda's CentOS 7 image) |
 | `changelog.yml` | every pull request | requires an entry under `[Unreleased]` in `CHANGELOG.md` (shared `changelog_check`; label `skip-changelog` to skip) |
 | `citation.yml` | changes to `CITATION.cff` | validates it (shared `citation_check`) |
 | `dependabot-pixi-lock.yml` | Dependabot PRs touching `pyproject.toml` | regenerates `pixi.lock` (shared `pixi_lock_refresh`) |
 | `release.yml` | manual (`workflow_dispatch`) | computes the next version from the latest `v*` tag (npm-style: `major`/`minor`/`patch`, `pre*`, `prerelease`; e.g. `v0.7.0-beta.4` + `prerelease` -> `v0.7.0-beta.5`, + `patch` -> `v0.7.0`), moves the `[Unreleased]` notes in `CHANGELOG.md` to that version, updates `CITATION.cff` and opens a `Release v<version>` PR into `main` (shared `release_prepare`) |
-| `publish.yml` | a merged `release/v*` PR | tags the release and creates the GitHub release (shared `release_publish`), then runs `python-publish.yml` and `docker-build.yml` for the tag and merges `main` back into `dev` (shared `sync_dev`) |
+| `publish.yml` | a merged `release/v*` PR | tests the sdist and solves the recipe (`recipe-solve.yml`), then tags the release and creates the GitHub release (shared `release_publish`), then runs `python-publish.yml` and `docker-build.yml` for the tag and merges `main` back into `dev` (shared `sync_dev`) |
 | `python-publish.yml` | called by `publish.yml` (or manual, with a tag) | builds the sdist/wheel from the tag, checks the built version matches it, uploads to PyPI and attaches them to the GitHub release |
 | `docker-build.yml` | called by `publish.yml`, or manual (`:main` test image) | builds and smoke-tests the Docker image (pixi `complete` environment) for ghcr.io (shared `container_build`), signs its index once with Cosign (buildx attaches the provenance), and checks it converts and runs with `apptainer pull` |
 | `container-cleanup.yml` | weekly | prunes untagged and old prerelease images from ghcr.io |

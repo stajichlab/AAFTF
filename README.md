@@ -1,5 +1,4 @@
 [![CI](https://github.com/stajichlab/AAFTF/actions/workflows/ci.yml/badge.svg?branch=main)][ci]
-[![CI/conda](https://github.com/stajichlab/AAFTF/actions/workflows/ci-conda.yml/badge.svg?branch=main)](https://github.com/stajichlab/AAFTF/actions/workflows/ci-conda.yml)
 [![Python](https://img.shields.io/badge/python-3.11_%7C_3.12_%7C_3.13-blue?logo=python)][ci]
 [![codecov](https://codecov.io/gh/stajichlab/AAFTF/graph/badge.svg)](https://codecov.io/gh/stajichlab/AAFTF)
 [![License](https://img.shields.io/github/license/stajichlab/AAFTF?label=license)](https://github.com/stajichlab/AAFTF/blob/main/LICENSE)
