@@ -306,6 +306,13 @@ def calculate_n50(contig_lengths):
 - Releases: `release.yml` (manual; npm-style `bump_type`, e.g. `minor` turns `0.8.0-beta.0` into `0.8.0`, `preminor` starts `0.9.0-beta.0`) opens a `release/v<version>` PR from the `[Unreleased]` CHANGELOG section; merging it runs `publish.yml` (sdist build + tests, bioconda recipe solve, tag and GitHub release, PyPI, container, bioconda sha256 PR, sync into `dev`). Add a CHANGELOG `[Unreleased]` entry with every user-facing change
 - There is no conda channel of our own: conda users install from bioconda (`recipe-solve.yml`, calling the shared `bioconda_recipe_solve`, on recipe/`pyproject.toml` changes and before each release, checks the recipe can be installed: a dry-run solve of the recipe's run requirements on every supported Python with glibc 2.17); see "Dependencies and the bioconda recipe"
 
+### PR title and body
+When asked to "make PR title and body" (or similar), write them as text for the user to paste; do not open the PR unless asked:
+- Scope: the changes not yet in the target branch (`git fetch` first, then `git log` / `git diff --stat origin/main..HEAD`, or against the branch the user names), not just the working tree
+- Title: one imperative line, <= 70 characters, naming the main change
+- Body: one or two sentences on why (the problem it fixes), then a short bullet list of changes grouped by purpose (not file by file), then a "Notes" list only for anything someone must do by hand (e.g. update a required status check or another repo). No test-plan boilerplate, no restating the diff
+- End with the attribution line the session asks for
+
 ## Testing Guidelines
 
 Since AAFTF primarily integrates external bioinformatics tools, testing focuses on:
