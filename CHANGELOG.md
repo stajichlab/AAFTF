@@ -6,6 +6,8 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-06
+
 ### Changed
 
 - Supported Python versions are now 3.11-3.13 (`requires-python = ">=3.11,<3.14"`):
@@ -512,7 +514,9 @@ Tagged `v0.6.1-alpha2`.
 
 - Initial release, which includes automation for quality trimming and contaminant/adaptor removal, filtering, assembly, vector cleanup, refinement, duplication removal and sorting.
 
-[Unreleased]: https://github.com/stajichlab/AAFTF/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/stajichlab/AAFTF/compare/v0.8.1...HEAD
+
+[0.8.1]: https://github.com/stajichlab/AAFTF/compare/v0.8.0...v0.8.1
 
 [0.8.0]: https://github.com/stajichlab/AAFTF/compare/v0.8.0-beta.0...v0.8.0
 
