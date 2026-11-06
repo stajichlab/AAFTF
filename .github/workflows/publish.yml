@@ -1,5 +1,6 @@
 # Finishes a release when its `release/v<version>` pull request (opened by release.yml) is merged into main: the
-# sdist is built and its unit tests run on every supported Python, then the org's shared release_publish workflow
+# sdist is built and its unit tests run on every supported Python, the bioconda recipe is solved (recipe-solve.yml),
+# then the org's shared release_publish workflow
 # tags the merge commit and creates the GitHub release with the CHANGELOG.md notes and the tested sdist, the package
 # is built from the tag and published to PyPI and ghcr.io, and main is merged back into dev (sync_dev). For stable
 # releases, a pull request into dev then sets bioconda/meta.yaml's sha256 to the PyPI sdist's.
@@ -102,8 +103,13 @@ jobs:
       - name: Run unit tests (no external tools needed)
         run: pytest -m unit tests
 
+  # the bioconda recipe's run requirements must install on every supported Python (as bioconda's CentOS 7 image)
+  recipe-solve:
+    needs: build-sdist  # skipped with it for pull requests that are not releases
+    uses: ./.github/workflows/recipe-solve.yml
+
   publish:
-    needs: test-sdist
+    needs: [test-sdist, recipe-solve]
     uses: stajichlab/gh_workflows/.github/workflows/release_publish.yml@v2
     permissions:
       contents: write
