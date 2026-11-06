@@ -6,6 +6,14 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
 
 ## [Unreleased]
 
+### Changed
+
+- Supported Python versions are now 3.11-3.13 (`requires-python = ">=3.11,<3.14"`):
+  `sourmash_plugin_branchwater` (taxpurge) has no Python 3.10 build and Flye has no Python 3.14
+  build, so the full set of tools could not be installed on either.
+- `environment.yml` now installs `pigz`, `sourmash` and `sourmash_plugin_branchwater`, matching the
+  bioconda recipe, so `taxpurge` (`-p/--phylum`) works in the conda environment.
+
 ## [0.8.0] - 2026-11-05
 
 ### Added

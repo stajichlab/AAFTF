@@ -60,14 +60,14 @@ jobs:
 
       - uses: pre-commit/action@v3.0.1
 
-  # Shared org workflow (stajichlab/gh_workflows): one job per Python version in its default 3.10-3.14 matrix,
-  # matching requires-python = ">=3.10,<3.15"
+  # Shared org workflow (stajichlab/gh_workflows): one job per Python version, matching requires-python = ">=3.11,<3.14"
   test-unit:
     name: Unit tests
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true'
     uses: stajichlab/gh_workflows/.github/workflows/python_test_pip.yml@v2
     with:
+      python_versions: '["3.11", "3.12", "3.13"]'
       pip_install: ".[dev]"
       test_command: pytest -vv -m unit tests --cov --cov-report=xml
     secrets:

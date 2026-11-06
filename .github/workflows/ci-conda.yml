@@ -26,7 +26,9 @@ jobs:
     uses: stajichlab/gh_workflows/.github/workflows/python_test_conda.yml@v2
     with:
       environment_file: environment.yml
-      python_versions: '[""]'  # use the Python environment.yml pins
+      # every Python in requires-python (>=3.11,<3.14): the environment is solved with python=<version>, so a dependency
+      # with no build for a supported Python (as bioconda's test at python_min finds) fails here first
+      python_versions: '["3.11", "3.12", "3.13"]'
       # replace the PyPI release from environment.yml with this checkout, check the default pipeline's tools, then test
       test_command: |
         python -m pip install -e ".[dev]"
