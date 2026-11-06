@@ -20,13 +20,13 @@ pixi run -e complete install-bowtie2   # optional: build bowtie2 from source (AV
 # environment.dev.yml (all tools, AAFTF installed editable from this checkout)
 conda env create -f environment.dev.yml && conda activate aaftf-dev
 
-# the package is built with hatchling + hatch-vcs; Python >=3.10,<3.15
+# the package is built with hatchling + hatch-vcs; Python >=3.11,<3.14 (3.10: no sourmash_plugin_branchwater build; 3.14: no flye build)
 pip install -e .
 ```
 
 ### Code Quality and Linting
 ```bash
-# ruff settings are in ruff.toml (target py310)
+# ruff settings are in ruff.toml (target py311)
 # Run ruff for code style, linting, and import sorting (replaces flake8, isort, pyupgrade)
 ruff check aaftf/
 ruff format aaftf/
