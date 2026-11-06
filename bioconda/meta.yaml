@@ -1,5 +1,5 @@
 {% set name = "aaftf" %}
-{% set version = "0.8.0b0" %}
+{% set version = "0.8.0" %}
 {% set python_min = "3.10" %}  # requires-python in pyproject.toml; overrides the global (conda-forge) value
 {% set python_max = "3.15" %}  # exclusive upper bound, from requires-python (<3.15)
 
@@ -9,7 +9,7 @@ package:
 
 source:
   url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
-  sha256: 06728c90c049d741094c37796bc3bcd398786428ce9811d219e680d3c68ef469
+  sha256: b90cc50da6a27727f0651ab6d203fc0ae0f6c33a9fb294b0eeacbed5d0efd5cc
 
 build:
   number: 0

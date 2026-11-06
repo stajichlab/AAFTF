@@ -1,7 +1,8 @@
 # Finishes a release when its `release/v<version>` pull request (opened by release.yml) is merged into main: the
 # sdist is built and its unit tests run on every supported Python, then the org's shared release_publish workflow
 # tags the merge commit and creates the GitHub release with the CHANGELOG.md notes and the tested sdist, the package
-# is built from the tag and published to PyPI and ghcr.io, and main is merged back into dev (sync_dev).
+# is built from the tag and published to PyPI and ghcr.io, and main is merged back into dev (sync_dev). For stable
+# releases, a pull request into dev then sets bioconda/meta.yaml's sha256 to the PyPI sdist's.
 # Other closed pull requests do nothing.
 #
 # The publishing steps are chained here rather than triggered by `release: published`, which does not fire for
@@ -134,6 +135,67 @@ jobs:
       id-token: write
     with:
       tag: ${{ needs.publish.outputs.tag }}
+
+  # release.yml sets the bioconda recipe's version for stable releases, but its sha256 only exists once the sdist is
+  # on PyPI: read it from there and open a pull request into dev updating bioconda/meta.yaml. (bioconda's autobump
+  # bot updates the recipe in bioconda-recipes itself; this keeps the repo copy identical to it.)
+  bioconda-sha256:
+    needs: [publish, pypi]
+    if: needs.publish.outputs.published == 'true' && needs.publish.outputs.prerelease != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Get the sdist sha256 from PyPI
+        id: pypi
+        env:
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          # PyPI's JSON API can lag a few minutes behind the upload
+          for i in $(seq 1 20); do
+            sha=$(curl -fsSL "https://pypi.org/pypi/aaftf/${version}/json" \
+              | jq -r '.urls[] | select(.packagetype == "sdist") | .digests.sha256' || true)
+            [ -n "$sha" ] && break
+            echo "sdist of ${version} not on PyPI yet (attempt ${i}); waiting 30 s"
+            sleep 30
+          done
+          [ -n "$sha" ] || { echo "::error::No sdist for aaftf ${version} on PyPI"; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Update bioconda/meta.yaml and open a pull request into dev
+        env:
+          VERSION: ${{ steps.pypi.outputs.version }}
+          SHA256: ${{ steps.pypi.outputs.sha256 }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        run: |
+          recipe=bioconda/meta.yaml
+          # The release PR already set this version (and build number 0); dev gets it through sync-dev, which may
+          # not have finished yet, so set it here too
+          sed -i -E -e "s/^(\{% set version = \")[^\"]*(\" %\})/\1${VERSION}\2/" \
+            -e "s/^(  number: )[0-9]+/\10/" -e "s/^(  sha256: )[0-9a-f]+/\1${SHA256}/" "$recipe"
+          grep -q "set version = \"${VERSION}\"" "$recipe" && grep -q "sha256: ${SHA256}" "$recipe"
+          if git diff --quiet -- "$recipe"; then
+            echo "bioconda/meta.yaml on dev already has ${VERSION} and its sha256"
+            exit 0
+          fi
+          branch="bioconda/v${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -m "Update bioconda recipe to ${VERSION}" -- "$recipe"
+          git push --force origin "$branch"
+          gh pr create --base dev --head "$branch" \
+            --title "Update bioconda recipe to ${VERSION}" \
+            --body "Sets \`bioconda/meta.yaml\` to the released ${VERSION} with the sha256 of its PyPI sdist (\`${SHA256}\`). Copy the same change into \`recipes/aaftf/meta.yaml\` in bioconda-recipes if the autobump PR has not already done it."
 
   sync-dev:
     needs: publish
