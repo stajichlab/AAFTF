@@ -20,8 +20,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Decides whether the test jobs run: they are skipped (reported as passing, so required checks are satisfied)
-  # when only docs/README/other non-code files changed. Manual runs (workflow_dispatch) always test.
+  # Decides whether the test and docs jobs run. Skipped jobs are reported as passing, so required checks are satisfied:
+  # tests are skipped when only docs/README/other non-code files changed, the docs build when nothing under docs/,
+  # aaftf/ or pyproject.toml changed. Manual runs (workflow_dispatch) always run both.
   changes:
     name: Detect code changes
     runs-on: ubuntu-latest
@@ -30,6 +31,7 @@ jobs:
       pull-requests: read  # paths-filter lists PR files through the API
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
 
@@ -46,6 +48,11 @@ jobs:
               - "pixi.lock"
               - "ruff.toml"
               - "codecov.yml"
+              - ".github/workflows/ci.yml"
+            docs:  # autodoc/viewcode read aaftf/, and the docs extra is in pyproject.toml
+              - "docs/**"
+              - "aaftf/**"
+              - "pyproject.toml"
               - ".github/workflows/ci.yml"
 
   lint:
@@ -89,6 +96,8 @@ jobs:
 
   docs:
     name: Docs build (Sphinx, warnings are errors)
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
