@@ -6,6 +6,14 @@ Add an entry under `[Unreleased]` with every pull request; the release workflow 
 
 ## [Unreleased]
 
+### Fixed
+
+- `get_ram()` no longer undercounts free memory in a cgroup-limited job (SLURM, containers) after
+  large files were read. It subtracted only the inactive file cache from the cgroup usage, so the
+  active cache of a read database counted as used. `fcs_gx_purge` then failed with a false
+  "only 190 GB is available" error in a 500 GB job. Both active and inactive file cache now count as
+  free (#101).
+
 ## [0.8.1] - 2026-11-06
 
 ### Changed

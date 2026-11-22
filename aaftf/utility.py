@@ -321,17 +321,18 @@ def _read_int(path: str) -> int | None:
         return None
 
 
-def _inactive_file(stat_path: str, key: str) -> int:
-    """Return the reclaimable page-cache bytes (``key``) from a cgroup ``memory.stat`` file, or 0."""
+def _file_cache(stat_path: str, keys: tuple[str, ...]) -> int:
+    """Return the summed bytes of the ``keys`` (file page cache) from a cgroup ``memory.stat`` file, or 0."""
+    total = 0
     try:
         with open(stat_path) as fh:
             for line in fh:
                 name, _, value = line.partition(" ")
-                if name == key:
-                    return int(value)
+                if name in keys:
+                    total += int(value)
     except (OSError, ValueError):
         pass
-    return 0
+    return total
 
 
 def _cgroup_memory_available(proc_cgroup: str = "/proc/self/cgroup", sysfs: str = "/sys/fs/cgroup") -> int | None:
@@ -341,7 +342,9 @@ def _cgroup_memory_available(proc_cgroup: str = "/proc/self/cgroup", sysfs: str 
     containers limit memory with cgroups, which ``/proc/meminfo`` does not
     show. The limit is usually set on a parent cgroup (e.g. ``job_<id>``, not
     the ``task_0`` the process sits in), so every cgroup from the process's own
-    up to the root is checked. Free = limit - (usage - reclaimable page cache).
+    up to the root is checked. Free = limit - (usage - file page cache). Both active and inactive file
+    pages count as reclaimable: the kernel evicts them before the job hits its
+    limit, and a cached database is what FCS-GX wants resident.
 
     Args:
         proc_cgroup: The process's cgroup membership file.
@@ -363,10 +366,10 @@ def _cgroup_memory_available(proc_cgroup: str = "/proc/self/cgroup", sysfs: str 
         _, controllers, path = parts
         if controllers == "":  # cgroup v2
             root = sysfs
-            limit_f, usage_f, cache_key = "memory.max", "memory.current", "inactive_file"
+            limit_f, usage_f, cache_keys = "memory.max", "memory.current", ("active_file", "inactive_file")
         elif "memory" in controllers.split(","):  # cgroup v1
             root = os.path.join(sysfs, "memory")
-            limit_f, usage_f, cache_key = "memory.limit_in_bytes", "memory.usage_in_bytes", "total_inactive_file"
+            limit_f, usage_f, cache_keys = "memory.limit_in_bytes", "memory.usage_in_bytes", ("total_active_file", "total_inactive_file")
         else:
             continue
         d = os.path.normpath(root + "/" + path.lstrip("/"))
@@ -374,7 +377,7 @@ def _cgroup_memory_available(proc_cgroup: str = "/proc/self/cgroup", sysfs: str 
             limit = _read_int(os.path.join(d, limit_f))
             if limit is not None and limit < 1 << 60:  # v1 reports "unlimited" as a huge number
                 usage = _read_int(os.path.join(d, usage_f)) or 0
-                usage -= _inactive_file(os.path.join(d, "memory.stat"), cache_key)
+                usage -= _file_cache(os.path.join(d, "memory.stat"), cache_keys)
                 free = max(limit - max(usage, 0), 0)
                 best = free if best is None else min(best, free)
             if d == root or not d.startswith(root):
