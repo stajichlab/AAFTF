@@ -711,6 +711,17 @@ class TestCgroupMemoryAvailable:
         self._write(mem / "slurm/uid_1/job_2/step_0/memory.stat", f"total_inactive_file {1024**3}\n")
         assert _cgroup_memory_available(str(proc), str(tmp_path / "sys")) == 3 * 1024**3
 
+    def test_v1_active_file_cache_counts_as_free(self, tmp_path):
+        from aaftf.utility import _cgroup_memory_available
+
+        proc = tmp_path / "cgroup"
+        proc.write_text("4:memory:/slurm/job_2\n")
+        mem = tmp_path / "sys/memory/slurm/job_2"
+        self._write(mem / "memory.limit_in_bytes", f"{500 * 1024**3}\n")
+        self._write(mem / "memory.usage_in_bytes", f"{501 * 1024**3}\n")  # full of cached files
+        self._write(mem / "memory.stat", f"total_active_file {326 * 1024**3}\ntotal_inactive_file {172 * 1024**3}\n")
+        assert _cgroup_memory_available(str(proc), str(tmp_path / "sys")) == 497 * 1024**3
+
 
 class TestDbDirs:
     def test_empty_entries_fall_back_to_home_cache(self, monkeypatch):
